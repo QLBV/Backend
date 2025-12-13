@@ -1,6 +1,33 @@
+# Dependencies
 node_modules/
+
+# Environment
 .env
+.env.local
+.env.*.local
+
+# Build output (TypeScript compiled)
+dist/
+
+# Uploads & Logs
 uploads/
 logs/
 *.log
+npm-debug.log*
+
+# OS
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+coverage/
+
+# Misc
+*.tmp
+*.temp
