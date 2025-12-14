@@ -47,6 +47,8 @@ app.get("/", (req: Request, res: Response) => {
 // app.use('/api/auth', authRoutes);
 // app.use('/api/users', userRoutes);
 // app.use('/api/patients', patientRoutes);
+import authRoutes from "./routes/authRoutes";
+app.use("/api/auth", authRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {
