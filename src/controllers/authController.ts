@@ -42,7 +42,6 @@ export const login = async (req: Request, res: Response) => {
     // 4️⃣ Generate JWT
     const payload = {
       id: user.id,
-      email: user.email,
       role: user.Role?.name || "patient",
     };
 
@@ -73,9 +72,55 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
+// export const register = async (req: Request, res: Response) => {
+//   try {
+//     const { email, password, fullName, roleId } = req.body;
+
+//     if (!email || !password || !fullName) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Email, password and fullName are required",
+//       });
+//     }
+
+//     const existingUser = await User.findOne({ where: { email } });
+//     if (existingUser) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Email already exists",
+//       });
+//     }
+
+//     const saltRounds = 10;
+//     const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+//     const user = await User.create({
+//       email,
+//       password: hashedPassword,
+//       fullName,
+//       roleId: roleId || 4, // Default: Patient
+//     });
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Registration successful",
+//       user: {
+//         id: user.id,
+//         email: user.email,
+//         fullName: user.fullName,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Register error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Registration failed",
+//     });
+//   }
+// };
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, fullName, roleId } = req.body;
+    const { email, password, fullName } = req.body;
 
     if (!email || !password || !fullName) {
       return res.status(400).json({
@@ -92,14 +137,24 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const patientRole = await Role.findOne({
+      where: { name: "patient" },
+    });
+
+    if (!patientRole) {
+      return res.status(500).json({
+        success: false,
+        message: "Patient role not found",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
       email,
       password: hashedPassword,
       fullName,
-      roleId: roleId || 4, // Default: Patient
+      roleId: patientRole.id,
     });
 
     return res.status(201).json({
@@ -109,6 +164,7 @@ export const register = async (req: Request, res: Response) => {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
+        role: "patient",
       },
     });
   } catch (error) {
@@ -138,13 +194,11 @@ export const refreshToken = async (req: Request, res: Response) => {
 
     const decoded = jwt.verify(refreshToken, secret) as {
       id: number;
-      email: string;
       role: string;
     };
 
     const newAccessToken = generateAccessToken({
       id: decoded.id,
-      email: decoded.email,
       role: decoded.role,
     });
 
