@@ -3,8 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
 import Role from "../models/Role";
-
-import { generateToken } from "../utils/jwt";
+import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
 
 export const login = async (req: Request, res: Response) => {
   try {
@@ -41,15 +40,23 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // 4️⃣ Generate JWT
-    const token = generateToken({
+    const payload = {
       id: user.id,
-      role: (user as any).Role?.name,
-    });
+      email: user.email,
+      role: user.Role?.name || "patient",
+    };
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
 
     // 5️⃣ Response
     return res.json({
       success: true,
-      token,
+      message: "Login successful",
+      tokens: {
+        accessToken,
+        refreshToken,
+      },
       user: {
         id: user.id,
         email: user.email,
@@ -73,7 +80,7 @@ export const register = async (req: Request, res: Response) => {
     if (!email || !password || !fullName) {
       return res.status(400).json({
         success: false,
-        message: 'Email, password and fullName are required'
+        message: "Email, password and fullName are required",
       });
     }
 
@@ -81,7 +88,7 @@ export const register = async (req: Request, res: Response) => {
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'Email already exists'
+        message: "Email already exists",
       });
     }
 
@@ -92,24 +99,23 @@ export const register = async (req: Request, res: Response) => {
       email,
       password: hashedPassword,
       fullName,
-      roleId: roleId || 4  // Default: Patient
+      roleId: roleId || 4, // Default: Patient
     });
 
     return res.status(201).json({
       success: true,
-      message: 'Registration successful',
+      message: "Registration successful",
       user: {
         id: user.id,
         email: user.email,
-        fullName: user.fullName
-      }
+        fullName: user.fullName,
+      },
     });
-
   } catch (error) {
-    console.error('Register error:', error);
+    console.error("Register error:", error);
     return res.status(500).json({
       success: false,
-      message: 'Registration failed'
+      message: "Registration failed",
     });
   }
 };
