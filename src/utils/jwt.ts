@@ -1,7 +1,8 @@
 import * as jwt from "jsonwebtoken";
 
-interface JwtPayload {
+export interface JwtPayload {
   id: number;
+  email: string;
   role: string;
 }
 

@@ -119,3 +119,45 @@ export const register = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const refreshToken = async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Refresh token is required",
+      });
+    }
+
+    const secret = process.env.JWT_REFRESH_SECRET;
+    if (!secret) {
+      throw new Error("JWT_REFRESH_SECRET is not defined");
+    }
+
+    const decoded = jwt.verify(refreshToken, secret) as {
+      id: number;
+      email: string;
+      role: string;
+    };
+
+    const newAccessToken = generateAccessToken({
+      id: decoded.id,
+      email: decoded.email,
+      role: decoded.role,
+    });
+
+    return res.json({
+      success: true,
+      message: "Token refreshed successfully",
+      accessToken: newAccessToken,
+    });
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired refresh token",
+    });
+  }
+};
