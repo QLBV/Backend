@@ -3,6 +3,9 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import userRoutes from "./routes/userRoutes";
+import authRoutes from "./routes/authRoutes";
+import path from "path";
 
 const app: Application = express();
 
@@ -32,6 +35,7 @@ app.use(morgan("dev"));
 // Body Parser
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Health Check Route
 app.get("/", (req: Request, res: Response) => {
@@ -45,12 +49,11 @@ app.get("/", (req: Request, res: Response) => {
 
 // API Routes
 // app.use('/api/auth', authRoutes);
-// app.use('/api/users', userRoutes);
 // app.use('/api/patients', patientRoutes);
-import authRoutes from "./routes/authRoutes";
 import patientRoutes from "./routes/patientRoutes";
 app.use("/api/auth", authRoutes);
 app.use("/api/patients", patientRoutes); // Placeholder, replace with actual patientRoutes
+app.use("/api/users", userRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {
