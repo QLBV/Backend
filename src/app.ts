@@ -48,7 +48,9 @@ app.get("/", (req: Request, res: Response) => {
 // app.use('/api/users', userRoutes);
 // app.use('/api/patients', patientRoutes);
 import authRoutes from "./routes/authRoutes";
+import patientRoutes from "./routes/patientRoutes";
 app.use("/api/auth", authRoutes);
+app.use("/api/patients", patientRoutes); // Placeholder, replace with actual patientRoutes
 
 // 404 Handler
 app.use((req: Request, res: Response) => {

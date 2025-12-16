@@ -9,7 +9,7 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    // 1️⃣ Validate
+    // Validate
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -17,7 +17,7 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // 2️⃣ Find user
+    // Find user
     const user = await User.findOne({
       where: { email },
       include: [{ model: Role, attributes: ["name"] }],
@@ -30,7 +30,7 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // 3️⃣ Compare password
+    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({
@@ -39,7 +39,7 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // 4️⃣ Generate JWT
+    // Generate JWT
     const payload = {
       id: user.id,
       role: user.Role?.name || "patient",
@@ -48,7 +48,7 @@ export const login = async (req: Request, res: Response) => {
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
-    // 5️⃣ Response
+    //  Response
     return res.json({
       success: true,
       message: "Login successful",
@@ -72,7 +72,6 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
-// export const register = async (req: Request, res: Response) => {
 //   try {
 //     const { email, password, fullName, roleId } = req.body;
 
