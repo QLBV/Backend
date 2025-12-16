@@ -3,6 +3,8 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import userRoutes from "./routes/userRoutes";
+import authRoutes from "./routes/authRoutes";
 
 const app: Application = express();
 
@@ -45,10 +47,9 @@ app.get("/", (req: Request, res: Response) => {
 
 // API Routes
 // app.use('/api/auth', authRoutes);
-// app.use('/api/users', userRoutes);
 // app.use('/api/patients', patientRoutes);
-import authRoutes from "./routes/authRoutes";
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {
