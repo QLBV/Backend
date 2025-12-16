@@ -3,8 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
 import Role from "../models/Role";
-
-import { generateToken } from "../utils/jwt";
+import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
 
 export const login = async (req: Request, res: Response) => {
   try {
@@ -41,15 +40,22 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // 4️⃣ Generate JWT
-    const token = generateToken({
+    const payload = {
       id: user.id,
-      role: (user as any).Role?.name,
-    });
+      role: user.Role?.name || "patient",
+    };
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
 
     // 5️⃣ Response
     return res.json({
       success: true,
-      token,
+      message: "Login successful",
+      tokens: {
+        accessToken,
+        refreshToken,
+      },
       user: {
         id: user.id,
         email: user.email,
@@ -62,6 +68,150 @@ export const login = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Login failed",
+    });
+  }
+};
+
+// export const register = async (req: Request, res: Response) => {
+//   try {
+//     const { email, password, fullName, roleId } = req.body;
+
+//     if (!email || !password || !fullName) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Email, password and fullName are required",
+//       });
+//     }
+
+//     const existingUser = await User.findOne({ where: { email } });
+//     if (existingUser) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Email already exists",
+//       });
+//     }
+
+//     const saltRounds = 10;
+//     const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+//     const user = await User.create({
+//       email,
+//       password: hashedPassword,
+//       fullName,
+//       roleId: roleId || 4, // Default: Patient
+//     });
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Registration successful",
+//       user: {
+//         id: user.id,
+//         email: user.email,
+//         fullName: user.fullName,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Register error:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Registration failed",
+//     });
+//   }
+// };
+export const register = async (req: Request, res: Response) => {
+  try {
+    const { email, password, fullName } = req.body;
+
+    if (!email || !password || !fullName) {
+      return res.status(400).json({
+        success: false,
+        message: "Email, password and fullName are required",
+      });
+    }
+
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "Email already exists",
+      });
+    }
+
+    const patientRole = await Role.findOne({
+      where: { name: "patient" },
+    });
+
+    if (!patientRole) {
+      return res.status(500).json({
+        success: false,
+        message: "Patient role not found",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      email,
+      password: hashedPassword,
+      fullName,
+      roleId: patientRole.id,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Registration successful",
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: "patient",
+      },
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Registration failed",
+    });
+  }
+};
+
+export const refreshToken = async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Refresh token is required",
+      });
+    }
+
+    const secret = process.env.JWT_REFRESH_SECRET;
+    if (!secret) {
+      throw new Error("JWT_REFRESH_SECRET is not defined");
+    }
+
+    const decoded = jwt.verify(refreshToken, secret) as {
+      id: number;
+      role: string;
+    };
+
+    const newAccessToken = generateAccessToken({
+      id: decoded.id,
+      role: decoded.role,
+    });
+
+    return res.json({
+      success: true,
+      message: "Token refreshed successfully",
+      accessToken: newAccessToken,
+    });
+  } catch (error) {
+    console.error("Refresh token error:", error);
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired refresh token",
     });
   }
 };
