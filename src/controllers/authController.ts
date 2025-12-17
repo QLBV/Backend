@@ -137,7 +137,7 @@ export const register = async (req: Request, res: Response) => {
     }
 
     const patientRole = await Role.findOne({
-      where: { name: "patient" },
+      where: { name: "PATIENT" },
     });
 
     if (!patientRole) {
