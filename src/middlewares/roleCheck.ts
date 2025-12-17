@@ -5,9 +5,10 @@ import Permission from "../models/Permission";
 
 export const requireRole = (...allowedRoles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
-    const userRole = req.user?.role;
+    const userRole = req.user?.role?.toUpperCase();
+    const normalizedRoles = allowedRoles.map((r) => r.toUpperCase());
 
-    if (!userRole || !allowedRoles.includes(userRole)) {
+    if (!userRole || !normalizedRoles.includes(userRole)) {
       return res.status(403).json({
         success: false,
         message: "Access denied. Insufficient role.",
