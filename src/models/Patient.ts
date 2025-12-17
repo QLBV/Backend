@@ -1,6 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
-import PatientContact from "./PatientContact";
+import PatientProfile from "./PatientProfile";
 
 interface PatientAttributes {
   id: number;
@@ -79,12 +79,12 @@ Patient.init(
 );
 
 // associations
-Patient.hasMany(PatientContact, {
+Patient.hasMany(PatientProfile, {
   foreignKey: "patientId",
-  as: "contacts",
+  as: "profiles",
 });
 
-PatientContact.belongsTo(Patient, {
+PatientProfile.belongsTo(Patient, {
   foreignKey: "patientId",
 });
 

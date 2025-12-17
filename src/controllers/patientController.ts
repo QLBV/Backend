@@ -5,7 +5,32 @@ import {
   getPatientByIdService,
   updatePatientService,
   deletePatientService,
-} from "../services/patient";
+} from "../services/patientService";
+
+const formatProfile = (p: any) => {
+  if (p.type === "address") {
+    return {
+      type: p.type,
+      value: p.value,
+      city: p.city,
+      ward: p.ward,
+    };
+  }
+
+  return {
+    type: p.type,
+    value: p.value,
+  };
+};
+const formatPatient = (patient: any) => ({
+  id: patient.id,
+  patientCode: patient.patientCode,
+  fullName: patient.fullName,
+  dateOfBirth: patient.dateOfBirth,
+  gender: patient.gender,
+  avatar: patient.avatar,
+  profiles: patient.profiles.map(formatProfile),
+});
 
 export const createPatient = async (req: Request, res: Response) => {
   try {
@@ -31,7 +56,7 @@ export const getPatients = async (req: Request, res: Response) => {
 
     return res.json({
       success: true,
-      patients,
+      patients: patients.map(formatPatient),
     });
   } catch (error) {
     console.error(error);
@@ -49,7 +74,7 @@ export const getPatientById = async (req: Request, res: Response) => {
 
     return res.json({
       success: true,
-      patient,
+      patient: formatPatient(patient),
     });
   } catch (error: any) {
     if (error.message === "PATIENT_NOT_FOUND") {
@@ -73,7 +98,7 @@ export const updatePatient = async (req: Request, res: Response) => {
 
     return res.json({
       success: true,
-      patient,
+      patient: formatPatient(patient),
     });
   } catch (error: any) {
     if (error.message === "PATIENT_NOT_FOUND") {

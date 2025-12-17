@@ -6,7 +6,7 @@ import rateLimit from "express-rate-limit";
 import userRoutes from "./routes/userRoutes";
 import authRoutes from "./routes/authRoutes";
 import path from "path";
-
+import patientRoutes from "./routes/patientRoutes";
 const app: Application = express();
 
 // Security Middlewares
@@ -48,9 +48,6 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 // API Routes
-// app.use('/api/auth', authRoutes);
-// app.use('/api/patients', patientRoutes);
-import patientRoutes from "./routes/patientRoutes";
 app.use("/api/auth", authRoutes);
 app.use("/api/patients", patientRoutes); // Placeholder, replace with actual patientRoutes
 app.use("/api/users", userRoutes);

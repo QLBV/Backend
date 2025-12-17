@@ -5,7 +5,7 @@ import {
   getPatientById,
   updatePatient,
   deletePatient,
-} from "../controllers/patient";
+} from "../controllers/patientController";
 
 import { verifyToken } from "../middlewares/auth";
 import { requireRole } from "../middlewares/roleCheck";
