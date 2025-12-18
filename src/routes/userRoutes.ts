@@ -9,7 +9,7 @@ import {
 } from "../controllers/userController";
 import { verifyToken } from "../middlewares/auth";
 import { requireRole } from "../middlewares/roleCheck";
-import { uploadAvatar as uploadAvatarMiddleware } from "../middlewares/upload";
+import { uploadUserAvatar as uploadAvatarMiddleware } from "../middlewares/uploadUserAvatar";
 import { uploadAvatar } from "../controllers/userController";
 
 const router = Router();

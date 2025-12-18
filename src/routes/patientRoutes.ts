@@ -5,10 +5,12 @@ import {
   getPatientById,
   updatePatient,
   deletePatient,
+  uploadPatientAvatar,
 } from "../controllers/patientController";
 
 import { verifyToken } from "../middlewares/auth";
 import { requireRole } from "../middlewares/roleCheck";
+import { uploadPatientAvatar as uploadPatientAvatarMiddleware } from "../middlewares/uploadPatientAvatar";
 
 const router = Router();
 
@@ -36,6 +38,13 @@ router.delete(
   "/:id",
   requireRole("ADMIN", "DOCTOR", "RECEPTIONIST"),
   deletePatient
+);
+
+// UPLOAD AVATAR
+router.post(
+  "/:id/avatar",
+  uploadPatientAvatarMiddleware.single("avatar"),
+  uploadPatientAvatar
 );
 
 export default router;

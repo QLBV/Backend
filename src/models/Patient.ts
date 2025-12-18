@@ -8,6 +8,7 @@ interface PatientAttributes {
   fullName: string;
   gender: "male" | "female" | "other";
   dateOfBirth: Date;
+  avatar?: string;
   userId?: number;
   isActive: boolean;
 }
@@ -24,6 +25,7 @@ class Patient
   public fullName!: string;
   public gender!: "male" | "female" | "other";
   public dateOfBirth!: Date;
+  public avatar?: string;
   public userId?: number;
   public isActive!: boolean;
 }
@@ -58,7 +60,10 @@ Patient.init(
       allowNull: false,
       field: "dob",
     },
-
+    avatar: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
     userId: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: true,

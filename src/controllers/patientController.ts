@@ -6,6 +6,7 @@ import {
   updatePatientService,
   deletePatientService,
 } from "../services/patientService";
+import { Patient } from "../models";
 
 const formatProfile = (p: any) => {
   if (p.type === "address") {
@@ -112,6 +113,43 @@ export const updatePatient = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Update patient failed",
+    });
+  }
+};
+
+export const uploadPatientAvatar = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const patient = await Patient.findByPk(id);
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded",
+      });
+    }
+
+    const avatarPath = `/uploads/patients/${req.file.filename}`;
+
+    await patient.update({ avatar: avatarPath });
+
+    return res.json({
+      success: true,
+      message: "Patient avatar uploaded successfully",
+      avatar: avatarPath,
+    });
+  } catch (error) {
+    console.error("Upload patient avatar error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Upload avatar failed",
     });
   }
 };
