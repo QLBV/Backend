@@ -108,6 +108,7 @@ export const updatePatient = async (req: Request, res: Response) => {
       });
     }
 
+    console.error("Update patient error:", error);
     return res.status(500).json({
       success: false,
       message: "Update patient failed",

@@ -81,15 +81,16 @@ export const getPatientByIdService = async (id: number) => {
 export const updatePatientService = async (id: number, data: any) => {
   return sequelize.transaction(async (t) => {
     const patient = await Patient.findByPk(id, { transaction: t });
+
     if (!patient || !patient.isActive) {
       throw new Error("PATIENT_NOT_FOUND");
     }
 
-    // Update patient core
+    /* ================= UPDATE CORE ================= */
     await patient.update(
       {
-        fullName: data.fullName,
-        gender: data.gender,
+        fullName: data.fullName ?? patient.fullName,
+        gender: data.gender ?? patient.gender,
         dateOfBirth: data.dateOfBirth
           ? new Date(data.dateOfBirth)
           : patient.dateOfBirth,
@@ -97,22 +98,34 @@ export const updatePatientService = async (id: number, data: any) => {
       { transaction: t }
     );
 
-    // Replace profiles
-    if (data.profiles) {
+    /* ================= UPDATE PROFILES ================= */
+    if (Array.isArray(data.profiles)) {
+      // Xoá cũ
       await PatientProfile.destroy({
         where: { patientId: id },
         transaction: t,
       });
 
+      // Chuẩn hoá dữ liệu
       const profiles = data.profiles.map((p: any) => ({
-        ...p,
         patientId: id,
+        type: p.type,
+        value: p.value,
+        city: p.city || null,
+        ward: p.ward || null,
+        isPrimary: p.isPrimary ?? false,
       }));
 
-      await PatientProfile.bulkCreate(profiles, { transaction: t });
+      if (profiles.length > 0) {
+        await PatientProfile.bulkCreate(profiles, { transaction: t });
+      }
     }
 
-    return patient;
+    /* ================= RETURN FULL DATA ================= */
+    return Patient.findByPk(id, {
+      include: [{ model: PatientProfile, as: "profiles" }],
+      transaction: t,
+    });
   });
 };
 /* ================= DELETE (SOFT) ================= */
