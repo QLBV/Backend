@@ -1,5 +1,5 @@
 import { Response, NextFunction } from "express";
-import { AuthRequest } from "./auth";
+import { AuthRequest } from "./auth.middlewares";
 import Role from "../models/Role";
 import Permission from "../models/Permission";
 

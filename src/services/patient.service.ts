@@ -2,59 +2,124 @@ import sequelize from "../config/database";
 import Patient from "../models/Patient";
 import PatientProfile from "../models/PatientProfile";
 
-/* ================= CREATE ================= */
-
-interface CreatePatientInput {
+/* ================= BƯỚC 2: CREATE - Patient Identity ================= */
+interface CreatePatientIdentityInput {
   fullName: string;
-  dateOfBirth: string;
   gender: "male" | "female" | "other";
-  profiles?: {
-    type: "phone" | "email" | "address";
-    value: string;
-    city?: string;
-    ward?: string;
-    isPrimary?: boolean;
-  }[];
+  dateOfBirth: string;
+  cccd: string;
 }
-
-export const createPatientService = async (data: CreatePatientInput) => {
+export const createPatientIdentityService = async (
+  userId: number,
+  data: CreatePatientIdentityInput
+) => {
   const transaction = await sequelize.transaction();
-
   try {
-    // Create patient
+    // Kiểm tra patient đã tồn tại
+    const existingPatient = await Patient.findOne({
+      where: { userId },
+      transaction,
+    });
+    if (existingPatient) {
+      throw new Error("PATIENT_ALREADY_EXISTS");
+    }
+
+    // Kiểm tra CCCD đã được đăng ký
+    const existingCCCD = await Patient.findOne({
+      where: { cccd: data.cccd },
+      transaction,
+    });
+
+    if (existingCCCD) {
+      throw new Error("CCCD_ALREADY_EXISTS");
+    }
+
+    // Tạo patient
     const patient = await Patient.create(
       {
-        fullName: data.fullName,
-        dateOfBirth: new Date(data.dateOfBirth),
+        userId,
+        fullName: data.fullName.trim(),
         gender: data.gender,
+        dateOfBirth: new Date(data.dateOfBirth),
+        cccd: data.cccd.trim(),
+        avatar: null,
+        isActive: true,
       },
       { transaction }
     );
 
-    // Generate patientCode
+    // Tạo patientCode
     const patientCode = "BN" + String(patient.id).padStart(6, "0");
     await patient.update({ patientCode }, { transaction });
 
-    // Create profiles
-    if (data.profiles?.length) {
-      const profiles = data.profiles.map((p) => ({
-        ...p,
-        patientId: patient.id,
-      }));
-
-      await PatientProfile.bulkCreate(profiles, { transaction });
-    }
-
     await transaction.commit();
-    return patient;
+
+    return {
+      id: patient.id,
+      patientCode: patient.patientCode,
+      fullName: patient.fullName,
+      gender: patient.gender,
+      dateOfBirth: patient.dateOfBirth,
+      cccd: patient.cccd,
+      userId: patient.userId,
+    };
   } catch (error) {
     await transaction.rollback();
     throw error;
   }
 };
+/* ================= BƯỚC 3: CREATE - Patient Profiles ================= */
+interface ProfileInput {
+  type: "phone" | "email" | "address";
+  value: string;
+  city?: string;
+  ward?: string;
+  isPrimary?: boolean;
+}
+export const updatePatientProfileService = async (
+  patientId: number,
+  profilesData: ProfileInput[]
+) => {
+  const transaction = await sequelize.transaction();
+  try {
+    // Kiểm tra patient có tồn tại không
+    const patient = await Patient.findByPk(patientId, { transaction });
+    if (!patient || !patient.isActive) {
+      throw new Error("PATIENT_NOT_FOUND");
+    }
 
+    // Xóa profiles cũ
+    await PatientProfile.destroy({
+      where: { patientId },
+      transaction,
+    });
+
+    // Chuẩn hoá dữ liệu profiles
+    const profiles = profilesData.map((p) => ({
+      patientId,
+      type: p.type,
+      value: p.value,
+      city: p.city || null,
+      ward: p.ward || null,
+      isPrimary: p.isPrimary ?? false,
+    }));
+
+    // Tạo profiles mới
+    const result = await PatientProfile.bulkCreate(profiles as any, {
+      transaction,
+    });
+    await transaction.commit();
+
+    return {
+      patientId,
+      profiles: result,
+    };
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
 /* ================= READ ================= */
-
 export const getPatientsService = async () => {
   return Patient.findAll({
     where: { isActive: true },
@@ -62,26 +127,20 @@ export const getPatientsService = async () => {
     order: [["createdAt", "DESC"]],
   });
 };
-
 export const getPatientByIdService = async (id: number) => {
   const patient = await Patient.findOne({
     where: { id, isActive: true },
     include: [{ model: PatientProfile, as: "profiles" }],
   });
-
   if (!patient) {
     throw new Error("PATIENT_NOT_FOUND");
   }
-
   return patient;
 };
-
 /* ================= UPDATE ================= */
-
 export const updatePatientService = async (id: number, data: any) => {
   return sequelize.transaction(async (t) => {
     const patient = await Patient.findByPk(id, { transaction: t });
-
     if (!patient || !patient.isActive) {
       throw new Error("PATIENT_NOT_FOUND");
     }
@@ -89,7 +148,7 @@ export const updatePatientService = async (id: number, data: any) => {
     /* ================= UPDATE CORE ================= */
     await patient.update(
       {
-        fullName: data.fullName ?? patient.fullName,
+        fullName: data.fullName ? data.fullName.trim() : patient.fullName,
         gender: data.gender ?? patient.gender,
         dateOfBirth: data.dateOfBirth
           ? new Date(data.dateOfBirth)
@@ -129,13 +188,10 @@ export const updatePatientService = async (id: number, data: any) => {
   });
 };
 /* ================= DELETE (SOFT) ================= */
-
 export const deletePatientService = async (id: number) => {
   const transaction = await sequelize.transaction();
-
   try {
     const patient = await Patient.findByPk(id, { transaction });
-
     if (!patient || !patient.isActive) {
       throw new Error("PATIENT_NOT_FOUND");
     }

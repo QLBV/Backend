@@ -8,7 +8,8 @@ interface PatientAttributes {
   fullName: string;
   gender: "male" | "female" | "other";
   dateOfBirth: Date;
-  avatar?: string;
+  avatar?: string | null;
+  cccd?: string;
   userId?: number;
   isActive: boolean;
 }
@@ -25,7 +26,8 @@ class Patient
   public fullName!: string;
   public gender!: "male" | "female" | "other";
   public dateOfBirth!: Date;
-  public avatar?: string;
+  public avatar?: string | null;
+  cccd?: string | undefined;
   public userId?: number;
   public isActive!: boolean;
 }
@@ -37,24 +39,22 @@ Patient.init(
       autoIncrement: true,
       primaryKey: true,
     },
-
     patientCode: {
       type: DataTypes.STRING(20),
       allowNull: true,
       unique: true,
       field: "patient_code",
     },
-
     fullName: {
       type: DataTypes.STRING(100),
       allowNull: false,
+      field: "fullName", // ← Giữ nguyên
     },
-
     gender: {
       type: DataTypes.ENUM("male", "female", "other"),
       allowNull: false,
+      field: "gender",
     },
-
     dateOfBirth: {
       type: DataTypes.DATEONLY,
       allowNull: false,
@@ -63,13 +63,19 @@ Patient.init(
     avatar: {
       type: DataTypes.STRING(255),
       allowNull: true,
+      field: "avatar",
+    },
+    cccd: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      unique: true,
+      field: "cccd",
     },
     userId: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: true,
       field: "user_id",
     },
-
     isActive: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
@@ -83,7 +89,6 @@ Patient.init(
   }
 );
 
-// associations
 Patient.hasMany(PatientProfile, {
   foreignKey: "patientId",
   as: "profiles",

@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
 import {
-  createPatientService,
+  createPatientIdentityService,
+  updatePatientProfileService,
   getPatientsService,
   getPatientByIdService,
   updatePatientService,
   deletePatientService,
-} from "../services/patientService";
+} from "../services/patient.service";
 import { Patient } from "../models";
 
 const formatProfile = (p: any) => {
@@ -23,33 +24,129 @@ const formatProfile = (p: any) => {
     value: p.value,
   };
 };
+
 const formatPatient = (patient: any) => ({
   id: patient.id,
   patientCode: patient.patientCode,
   fullName: patient.fullName,
   dateOfBirth: patient.dateOfBirth,
   gender: patient.gender,
+  cccd: patient.cccd,
   avatar: patient.avatar,
   profiles: patient.profiles.map(formatProfile),
 });
 
-export const createPatient = async (req: Request, res: Response) => {
-  try {
-    const patient = await createPatientService(req.body);
+/* ================= BƯỚC 2: CREATE - Patient Identity ================= */
 
-    return res.status(201).json({
+export const createPatientIdentity = async (req: any, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { fullName, gender, dateOfBirth, cccd } = req.body;
+
+    if (!fullName || !gender || !dateOfBirth || !cccd) {
+      return res.status(400).json({
+        success: false,
+        message: "fullName, gender, dateOfBirth, and CCCD are required",
+      });
+    }
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "User ID not found in token",
+      });
+    }
+
+    const patient = await createPatientIdentityService(userId, {
+      fullName,
+      gender,
+      dateOfBirth,
+      cccd,
+    });
+
+    res.status(201).json({
       success: true,
-      patient,
+      data: patient,
+      message: "Patient identity created successfully",
     });
   } catch (error: any) {
-    console.error("Create patient error:", error);
+    console.error("❌ Error creating patient identity:", error.message);
 
-    return res.status(500).json({
+    if (error.message === "PATIENT_ALREADY_EXISTS") {
+      return res.status(400).json({
+        success: false,
+        message: "Patient already exists for this user",
+      });
+    }
+
+    if (error.message === "CCCD_ALREADY_EXISTS") {
+      return res.status(400).json({
+        success: false,
+        message: "This CCCD is already registered",
+      });
+    }
+
+    res.status(500).json({
       success: false,
-      message: error.message || "Create patient failed",
+      message: error.message || "Failed to create patient identity",
     });
   }
 };
+
+/* ================= BƯỚC 3: UPDATE - Patient Profiles ================= */
+
+export const updatePatientProfile = async (req: any, res: Response) => {
+  try {
+    const patientId = Number(req.params.id);
+    const { profiles } = req.body;
+
+    if (!profiles || !Array.isArray(profiles) || profiles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Profiles must be a non-empty array",
+      });
+    }
+
+    for (const profile of profiles) {
+      if (!profile.type || !profile.value) {
+        return res.status(400).json({
+          success: false,
+          message: "Each profile must have 'type' and 'value'",
+        });
+      }
+
+      if (!["phone", "email", "address"].includes(profile.type)) {
+        return res.status(400).json({
+          success: false,
+          message: "Profile type must be 'phone', 'email', or 'address'",
+        });
+      }
+    }
+
+    const result = await updatePatientProfileService(patientId, profiles);
+    res.status(200).json({
+      success: true,
+      data: formatProfile(result),
+      message: "Patient profiles updated successfully",
+    });
+  } catch (error: any) {
+    console.error("❌ Error updating profiles:", error.message);
+
+    if (error.message === "PATIENT_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update profiles",
+    });
+  }
+};
+
+/* ================= READ ================= */
 
 export const getPatients = async (req: Request, res: Response) => {
   try {
@@ -91,6 +188,8 @@ export const getPatientById = async (req: Request, res: Response) => {
     });
   }
 };
+
+/* ================= UPDATE ================= */
 
 export const updatePatient = async (req: Request, res: Response) => {
   try {
@@ -153,6 +252,8 @@ export const uploadPatientAvatar = async (req: Request, res: Response) => {
     });
   }
 };
+
+/* ================= DELETE (SOFT) ================= */
 
 export const deletePatient = async (req: Request, res: Response) => {
   try {

@@ -3,10 +3,10 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
-import userRoutes from "./routes/userRoutes";
-import authRoutes from "./routes/authRoutes";
+import userRoutes from "./routes/user.routes";
+import authRoutes from "./routes/auth.routes";
 import path from "path";
-import patientRoutes from "./routes/patientRoutes";
+import patientRoutes from "./routes/patient.routes";
 const app: Application = express();
 
 // Security Middlewares
@@ -72,5 +72,4 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
-
 export default app;

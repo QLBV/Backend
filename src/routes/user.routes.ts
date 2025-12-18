@@ -6,11 +6,11 @@ import {
   updateUser,
   deleteUser,
   changePassword,
-} from "../controllers/userController";
-import { verifyToken } from "../middlewares/auth";
-import { requireRole } from "../middlewares/roleCheck";
-import { uploadUserAvatar as uploadAvatarMiddleware } from "../middlewares/uploadUserAvatar";
-import { uploadAvatar } from "../controllers/userController";
+} from "../controllers/user.controller";
+import { verifyToken } from "../middlewares/auth.middlewares";
+import { requireRole } from "../middlewares/roleCheck.middlewares";
+import { uploadUserAvatar as uploadAvatarMiddleware } from "../middlewares/uploadUserAvatar.middlewares";
+import { uploadAvatar } from "../controllers/user.controller";
 
 const router = Router();
 
