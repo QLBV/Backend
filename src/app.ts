@@ -71,4 +71,6 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
+
 export default app;
