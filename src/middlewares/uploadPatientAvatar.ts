@@ -1,25 +1,23 @@
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 import { Request } from "express";
+
+const uploadDir = path.join("uploads", "patients");
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 const storage = multer.diskStorage({
   destination: (req: Request, file, cb) => {
-    cb(null, "uploads/patients");
+    cb(null, uploadDir);
   },
   filename: (req: Request, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname);
-    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, `patient_${unique}${ext}`);
+    cb(null, `patient_${uniqueSuffix}${ext}`);
   },
 });
 
-const fileFilter: multer.Options["fileFilter"] = (req, file, cb) => {
-  const allowed = ["image/jpeg", "image/png", "image/jpg"];
-  cb(null, allowed.includes(file.mimetype));
-};
-
-export const uploadPatientAvatar = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 },
-});
+export const uploadPatientAvatar = multer({ storage });
