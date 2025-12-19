@@ -74,7 +74,7 @@ export const login = async (req: Request, res: Response) => {
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, fullName } = req.body;
+    const { email, password, fullName, roleId } = req.body;
 
     if (!email || !password || !fullName) {
       return res.status(400).json({
@@ -91,15 +91,27 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    const patientRole = await Role.findOne({
-      where: { name: "PATIENT" },
-    });
-
-    if (!patientRole) {
-      return res.status(500).json({
-        success: false,
-        message: "Patient role not found",
-      });
+    let finalRoleId = roleId;
+    let roleName = "";
+    if (roleId) {
+      const role = await Role.findByPk(roleId);
+      if (!role) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid roleId",
+        });
+      }
+      roleName = role.name;
+    } else {
+      const patientRole = await Role.findOne({ where: { name: "PATIENT" } });
+      if (!patientRole) {
+        return res.status(500).json({
+          success: false,
+          message: "Patient role not found",
+        });
+      }
+      finalRoleId = patientRole.id;
+      roleName = patientRole.name;
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -108,7 +120,7 @@ export const register = async (req: Request, res: Response) => {
       email,
       password: hashedPassword,
       fullName,
-      roleId: patientRole.id,
+      roleId: finalRoleId,
     });
 
     return res.status(201).json({
@@ -118,7 +130,7 @@ export const register = async (req: Request, res: Response) => {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
-        role: "PATIENT",
+        role: roleName,
       },
     });
   } catch (error) {
