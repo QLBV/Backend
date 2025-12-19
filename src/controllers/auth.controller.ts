@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
 import Role from "../models/Role";
+import Patient from "../models/Patient";
 import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
 
 export const login = async (req: Request, res: Response) => {
@@ -131,6 +132,16 @@ export const register = async (req: Request, res: Response) => {
       fullName,
       roleId: finalRoleId,
     });
+
+    if (roleName.toUpperCase() === "PATIENT") {
+      await Patient.create({
+        fullName: user.fullName,
+        gender: "other", 
+        dateOfBirth: new Date(), 
+        userId: user.id,
+        isActive: true,
+      });
+    }
 
     return res.status(201).json({
       success: true,
