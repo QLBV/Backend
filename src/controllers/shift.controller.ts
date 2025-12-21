@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import Shift from "../models/Shifts";
+import Shift from "../models/Shift";
 
 export const getAllShifts = async (req: Request, res: Response) => {
   try {

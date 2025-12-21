@@ -1,7 +1,7 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 import Doctor from "./Doctor";
-import Shift from "./Shifts";
+import Shift from "./Shift";
 
 interface DoctorShiftAttributes {
   id: number;
