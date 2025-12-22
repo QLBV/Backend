@@ -5,77 +5,118 @@ import {
   updatePatient,
   deletePatient,
   uploadPatientAvatar,
-  createPatientIdentity,
-  updatePatientProfile,
+  setupPatientProfile,
 } from "../controllers/patient.controller";
+import {
+  createVisit,
+  getVisitsByPatient,
+  getVisitById,
+  updateVisit,
+  deleteVisit,
+} from "../controllers/appointment.controller";
 
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
 import { validatePatient } from "../middlewares/patient.middlewares";
 import { uploadPatientAvatar as uploadPatientAvatarMiddleware } from "../middlewares/uploadPatientAvatar.middlewares";
-import { createVisit } from "../controllers/appointment.controller";
 
 const router = Router();
 
-// Bắt buộc login
+// ============ AUTHENTICATION REQUIRED ============
 router.use(verifyToken);
 
-// ============ MULTI-STEP REGISTRATION ============
+// ============ PATIENT SETUP (NEW FLOW) - PATIENT ONLY ============
 
-// Bước 2: Tạo Patient Identity (NEW)
-router.post(
-  "/identity",
-  requireRole("ADMIN", "RECEPTIONIST", "PATIENT"),
-  createPatientIdentity
-);
+// Step 1: Setup Patient Profile (after login)
+// POST /api/patients/setup
+// Headers: { Authorization: "Bearer <accessToken>" }
+// Body: {
+//   "fullName": "Nguyễn Văn A",
+//   "gender": "male",
+//   "dateOfBirth": "1990-05-15",
+//   "cccd": "123456789012",
+//   "profiles": [
+//     { "type": "email", "value": "patient@example.com" },
+//     { "type": "phone", "value": "0912345678" },
+//     { "type": "address", "value": "123 Đường A", "city": "TP.HCM", "ward": "Quận 1" }
+//   ]
+// }
+router.post("/setup", requireRole("PATIENT"), setupPatientProfile);
 
-// Bước 3: Thêm Patient Profiles (NEW)
-router.post(
-  "/:id/profiles",
-  requireRole("ADMIN", "RECEPTIONIST", "PATIENT"),
-  validatePatient,
-  updatePatientProfile
-);
+// ============ VISIT MANAGEMENT ============
 
-// Bước 4: Tạo Visit (Triệu chứng)
-router.post(
-  "/:id/visits",
-  requireRole("ADMIN", "RECEPTIONIST", "PATIENT"),
-  validatePatient,
-  createVisit
-);
+// Step 2: Create Visit (after patient setup)
+// POST /api/patients/visits
+// Headers: { Authorization: "Bearer <accessToken>" }
+// Body: {
+//   "visitDate": "2025-01-15",
+//   "symptomInitial": "Đau đầu, sốt cao"
+// }
+router.post("/visits", requireRole("PATIENT"), createVisit);
+
+// Get all visits of current patient
+// GET /api/patients/visits
+// Headers: { Authorization: "Bearer <accessToken>" }
+router.get("/visits", requireRole("PATIENT"), getVisitsByPatient);
+
+// Get specific visit by ID
+// GET /api/patients/visits/:id
+// Headers: { Authorization: "Bearer <accessToken>" }
+router.get("/visits/:id", getVisitById);
+
+// Update visit
+// PUT /api/patients/visits/:id
+// Headers: { Authorization: "Bearer <accessToken>" }
+// Body: { "symptomInitial": "...", "status": "examining" }
+router.put("/visits/:id", updateVisit);
+
+// Delete visit (only waiting status)
+// DELETE /api/patients/visits/:id
+// Headers: { Authorization: "Bearer <accessToken>" }
+router.delete("/visits/:id", deleteVisit);
 
 // ============ PATIENT CRUD (ADMIN/DOCTOR/RECEPTIONIST) ============
-// Patient phải tạo qua /patients/identity (Multi-Step)
 
-// GET: Lấy danh sách bệnh nhân
+// GET all patients
+// GET /api/patients?page=1&limit=10
 router.get("/", requireRole("ADMIN", "DOCTOR", "RECEPTIONIST"), getPatients);
 
-// GET: Lấy chi tiết bệnh nhân
+// GET patient by ID
+// GET /api/patients/:id
 router.get(
   "/:id",
   requireRole("ADMIN", "DOCTOR", "RECEPTIONIST"),
+  validatePatient,
   getPatientById
 );
 
-// PUT: Cập nhật thông tin bệnh nhân
+// UPDATE patient
+// PUT /api/patients/:id
 router.put(
   "/:id",
   requireRole("ADMIN", "DOCTOR", "RECEPTIONIST"),
+  validatePatient,
   updatePatient
 );
 
-// DELETE: Xóa bệnh nhân (soft delete)
+// DELETE patient (soft delete)
+// DELETE /api/patients/:id
 router.delete(
   "/:id",
   requireRole("ADMIN", "DOCTOR", "RECEPTIONIST"),
+  validatePatient,
   deletePatient
 );
 
-// POST: Upload avatar
+// ============ AVATAR UPLOAD ============
+
+// POST patient avatar
+// POST /api/patients/:id/avatar
+// Form-Data: { "avatar": <file> }
 router.post(
   "/:id/avatar",
   requireRole("PATIENT"),
+  validatePatient,
   uploadPatientAvatarMiddleware.single("avatar"),
   uploadPatientAvatar
 );

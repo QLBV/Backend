@@ -24,7 +24,7 @@ export const login = async (req: Request, res: Response) => {
       include: [{ model: Role, attributes: ["name"] }],
     });
 
-    if (!user) {
+    if (!user || !user.isActive) {
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
@@ -133,15 +133,7 @@ export const register = async (req: Request, res: Response) => {
       roleId: finalRoleId,
     });
 
-    if (roleName.toUpperCase() === "PATIENT") {
-      await Patient.create({
-        fullName: user.fullName,
-        gender: "other", 
-        dateOfBirth: new Date(), 
-        userId: user.id,
-        isActive: true,
-      });
-    }
+    //Patient sẽ tạo sau khi login và update profile
 
     return res.status(201).json({
       success: true,
@@ -161,7 +153,6 @@ export const register = async (req: Request, res: Response) => {
     });
   }
 };
-
 export const refreshToken = async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;

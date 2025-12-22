@@ -27,7 +27,7 @@ class Patient
   public gender!: "male" | "female" | "other";
   public dateOfBirth!: Date;
   public avatar?: string | null;
-  cccd?: string | undefined;
+  public cccd?: string | undefined;
   public userId?: number;
   public isActive!: boolean;
 }
@@ -48,7 +48,7 @@ Patient.init(
     fullName: {
       type: DataTypes.STRING(100),
       allowNull: false,
-      field: "fullName", // ← Giữ nguyên
+      field: "fullName", 
     },
     gender: {
       type: DataTypes.ENUM("male", "female", "other"),

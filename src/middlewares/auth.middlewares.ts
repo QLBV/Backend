@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import Patient from "../models/Patient";
-import { Sequelize } from "sequelize";
 
 export interface JwtUserPayload {
   id: number;
@@ -35,27 +34,28 @@ export const verifyToken = async (
       process.env.JWT_SECRET as string
     ) as JwtUserPayload;
 
-    console.log("🔐 Decoded token:", decoded); // ← Debug
+    console.log("🔐 Decoded token:", decoded);
 
     // Tìm Patient theo userId nếu là PATIENT
     if (decoded.role === "PATIENT") {
-      console.log("🔍 Finding patient with userId:", decoded.id); // ← Debug
+      console.log("🔍 Finding patient with userId:", decoded.id);
 
       const patient = await Patient.findOne({
         where: { userId: decoded.id },
       });
 
-      console.log("👤 Patient found:", patient); // ← Debug
+      console.log("👤 Patient found:", patient);
 
       if (patient) {
         decoded.patientId = patient.id;
-        console.log("✅ Added patientId:", patient.id); // ← Debug
+        console.log("✅ Added patientId:", patient.id);
       } else {
-        console.log("❌ No patient found for userId:", decoded.id); // ← Debug
+        console.log("⚠️ No patient found for userId:", decoded.id);
+        // ✅ Cho phép tiếp tục - patient sẽ setup profile sau
       }
     }
 
-    console.log("📦 Final req.user:", decoded); // ← Debug
+    console.log("📦 Final req.user:", decoded);
     req.user = decoded;
     next();
   } catch (error: any) {

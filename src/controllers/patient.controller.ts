@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import {
-  createPatientIdentityService,
-  updatePatientProfileService,
+  setupPatientProfileService,
   getPatientsService,
   getPatientByIdService,
   updatePatientService,
@@ -33,16 +32,21 @@ const formatPatient = (patient: any) => ({
   gender: patient.gender,
   cccd: patient.cccd,
   avatar: patient.avatar,
-  profiles: patient.profiles.map(formatProfile),
+  userId: patient.userId,
+  isActive: patient.isActive,
+  createdAt: patient.createdAt,
+  updatedAt: patient.updatedAt,
+  profiles: patient.profiles ? patient.profiles.map(formatProfile) : [],
 });
 
-/* ================= BƯỚC 2: CREATE - Patient Identity ================= */
+/* ================= SETUP Patient Profile (NEW) ================= */
 
-export const createPatientIdentity = async (req: any, res: Response) => {
+export const setupPatientProfile = async (req: any, res: Response) => {
   try {
     const userId = req.user?.id;
-    const { fullName, gender, dateOfBirth, cccd } = req.body;
+    const { fullName, gender, dateOfBirth, cccd, profiles } = req.body;
 
+    // Validate required fields
     if (!fullName || !gender || !dateOfBirth || !cccd) {
       return res.status(400).json({
         success: false,
@@ -50,55 +54,13 @@ export const createPatientIdentity = async (req: any, res: Response) => {
       });
     }
 
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "User ID not found in token",
-      });
-    }
-
-    const patient = await createPatientIdentityService(userId, {
-      fullName,
-      gender,
-      dateOfBirth,
-      cccd,
-    });
-
-    res.status(201).json({
-      success: true,
-      data: patient,
-      message: "Patient identity created successfully",
-    });
-  } catch (error: any) {
-    console.error("❌ Error creating patient identity:", error.message);
-
-    if (error.message === "PATIENT_ALREADY_EXISTS") {
+    // Validate gender
+    if (!["male", "female", "other"].includes(gender)) {
       return res.status(400).json({
         success: false,
-        message: "Patient already exists for this user",
+        message: "Gender must be 'male', 'female', or 'other'",
       });
     }
-
-    if (error.message === "CCCD_ALREADY_EXISTS") {
-      return res.status(400).json({
-        success: false,
-        message: "This CCCD is already registered",
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: error.message || "Failed to create patient identity",
-    });
-  }
-};
-
-/* ================= BƯỚC 3: UPDATE - Patient Profiles ================= */
-
-export const updatePatientProfile = async (req: any, res: Response) => {
-  try {
-    const patientId = Number(req.params.id);
-    const { profiles } = req.body;
 
     if (!profiles || !Array.isArray(profiles) || profiles.length === 0) {
       return res.status(400).json({
@@ -107,6 +69,7 @@ export const updatePatientProfile = async (req: any, res: Response) => {
       });
     }
 
+    // Validate each profile
     for (const profile of profiles) {
       if (!profile.type || !profile.value) {
         return res.status(400).json({
@@ -121,27 +84,78 @@ export const updatePatientProfile = async (req: any, res: Response) => {
           message: "Profile type must be 'phone', 'email', or 'address'",
         });
       }
+
+      // Validate email format
+      if (profile.type === "email") {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(profile.value.trim())) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid email format",
+          });
+        }
+      }
+
+      // Validate phone format (Vietnamese)
+      if (profile.type === "phone") {
+        const phoneRegex = /^(?:\+84|0)[1-9]\d{8,9}$/;
+        const cleanPhone = profile.value.replace(/\s/g, "");
+        if (!phoneRegex.test(cleanPhone)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid Vietnamese phone number",
+          });
+        }
+      }
+
+      // Validate address
+      if (profile.type === "address") {
+        if (!profile.value.trim()) {
+          return res.status(400).json({
+            success: false,
+            message: "Address value cannot be empty",
+          });
+        }
+      }
     }
 
-    const result = await updatePatientProfileService(patientId, profiles);
-    res.status(200).json({
-      success: true,
-      data: formatProfile(result),
-      message: "Patient profiles updated successfully",
-    });
-  } catch (error: any) {
-    console.error("❌ Error updating profiles:", error.message);
-
-    if (error.message === "PATIENT_NOT_FOUND") {
-      return res.status(404).json({
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        message: "Patient not found",
+        message: "User ID not found in token",
       });
     }
 
-    res.status(500).json({
+    const patient = await setupPatientProfileService(userId, {
+      fullName,
+      gender,
+      dateOfBirth,
+      cccd,
+      profiles,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Patient profile setup successfully",
+      data: formatPatient(patient),
+    });
+  } catch (error: any) {
+    console.error("❌ Error setting up patient profile:", error.message);
+
+    const errorMessages: { [key: string]: string } = {
+      PATIENT_ALREADY_SETUP:
+        "Patient profile already setup. Cannot setup again.",
+      CCCD_ALREADY_EXISTS: "This CCCD is already registered",
+      CCCD_INVALID_FORMAT: "CCCD must be exactly 12 digits",
+      DOB_INVALID_FORMAT: "Invalid date of birth format",
+      DOB_CANNOT_BE_FUTURE: "Date of birth cannot be in the future",
+    };
+
+    const message = errorMessages[error.message] || error.message;
+
+    res.status(400).json({
       success: false,
-      message: error.message || "Failed to update profiles",
+      message,
     });
   }
 };
@@ -150,17 +164,22 @@ export const updatePatientProfile = async (req: any, res: Response) => {
 
 export const getPatients = async (req: Request, res: Response) => {
   try {
-    const patients = await getPatientsService();
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const patients = await getPatientsService(page, limit);
 
     return res.json({
       success: true,
+      page,
+      limit,
       patients: patients.map(formatPatient),
     });
   } catch (error) {
     console.error(error);
     return res.status(500).json({
       success: false,
-      message: "Get patients failed",
+      message: "Failed to get patients",
     });
   }
 };
@@ -168,6 +187,13 @@ export const getPatients = async (req: Request, res: Response) => {
 export const getPatientById = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid patient ID",
+      });
+    }
+
     const patient = await getPatientByIdService(id);
 
     return res.json({
@@ -184,7 +210,7 @@ export const getPatientById = async (req: Request, res: Response) => {
 
     return res.status(500).json({
       success: false,
-      message: "Get patient failed",
+      message: "Failed to get patient",
     });
   }
 };
@@ -194,10 +220,18 @@ export const getPatientById = async (req: Request, res: Response) => {
 export const updatePatient = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid patient ID",
+      });
+    }
+
     const patient = await updatePatientService(id, req.body);
 
     return res.json({
       success: true,
+      message: "Patient updated successfully",
       patient: formatPatient(patient),
     });
   } catch (error: any) {
@@ -211,7 +245,7 @@ export const updatePatient = async (req: Request, res: Response) => {
     console.error("Update patient error:", error);
     return res.status(500).json({
       success: false,
-      message: "Update patient failed",
+      message: "Failed to update patient",
     });
   }
 };
@@ -220,18 +254,18 @@ export const uploadPatientAvatar = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded",
+      });
+    }
+
     const patient = await Patient.findByPk(id);
     if (!patient) {
       return res.status(404).json({
         success: false,
         message: "Patient not found",
-      });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "No file uploaded",
       });
     }
 
@@ -242,13 +276,15 @@ export const uploadPatientAvatar = async (req: Request, res: Response) => {
     return res.json({
       success: true,
       message: "Patient avatar uploaded successfully",
-      avatar: avatarPath,
+      data: {
+        avatar: avatarPath,
+      },
     });
   } catch (error) {
     console.error("Upload patient avatar error:", error);
     return res.status(500).json({
       success: false,
-      message: "Upload avatar failed",
+      message: "Failed to upload avatar",
     });
   }
 };
@@ -258,11 +294,18 @@ export const uploadPatientAvatar = async (req: Request, res: Response) => {
 export const deletePatient = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid patient ID",
+      });
+    }
+
     await deletePatientService(id);
 
     return res.json({
       success: true,
-      message: "Patient deleted",
+      message: "Patient deleted successfully",
     });
   } catch (error: any) {
     if (error.message === "PATIENT_NOT_FOUND") {
@@ -274,7 +317,7 @@ export const deletePatient = async (req: Request, res: Response) => {
 
     return res.status(500).json({
       success: false,
-      message: "Delete patient failed",
+      message: "Failed to delete patient",
     });
   }
 };
