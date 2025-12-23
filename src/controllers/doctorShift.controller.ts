@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import DoctorShift from "../models/DoctorShift";
 import Doctor from "../models/Doctor";
 import Shift from "../models/Shift";
+import Appointment from "../models/Appointment";
 
 export const assignDoctorToShift = async (req: Request, res: Response) => {
   try {
@@ -38,6 +39,10 @@ export const unassignDoctorFromShift = async (req: Request, res: Response) => {
       return res
         .status(404)
         .json({ success: false, message: "Assignment not found" });
+    const { doctorId, shiftId, workDate } = doctorShift;
+    const appointments = await Appointment.findAll({
+      where: { doctorId, shiftId, date: workDate },
+    });
     await doctorShift.destroy();
     return res.json({ success: true, message: "Doctor unassigned from shift" });
   } catch (error) {
