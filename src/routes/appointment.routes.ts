@@ -1,17 +1,17 @@
-// routes/appointment.routes.ts
 import { Router } from "express";
 import { createAppointment } from "../controllers/appointment.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
+import { RoleCode } from "../constant/role";
 
 const router = Router();
 
 router.use(verifyToken);
 
-// Patient tự đặt
-router.post("/", requireRole("PATIENT"), createAppointment);
+// Patient đặt online
+router.post("/", requireRole(RoleCode.PATIENT), createAppointment);
 
-// Receptionist đặt hộ
-router.post("/offline", requireRole("RECEPTIONIST"), createAppointment);
+// Receptionist đặt offline
+router.post("/offline", requireRole(RoleCode.RECEPTIONIST), createAppointment);
 
 export default router;

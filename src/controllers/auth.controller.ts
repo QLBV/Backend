@@ -1,158 +1,113 @@
 import { Request, Response } from "express";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import User from "../models/User";
-import Role from "../models/Role";
 import Patient from "../models/Patient";
-import { generateAccessToken, generateRefreshToken } from "../utils/jwt";
+import Doctor from "../models/Doctor";
+import { RoleCode } from "../constant/role";
+import { comparePassword, hashPassword } from "../utils/password";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyAccessToken,
+} from "../utils/jwt";
+import jwt from "jsonwebtoken";
 
-export const login = async (req: Request, res: Response) => {
+/* ================= REGISTER ================= */
+export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, roleId = RoleCode.PATIENT } = req.body;
 
-    // Validate
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required",
+        message: "EMAIL_AND_PASSWORD_REQUIRED",
       });
     }
 
-    // Find user
-    const user = await User.findOne({
-      where: { email },
-      include: [{ model: Role, attributes: ["name"] }],
-    });
-
-    if (!user || !user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid email or password",
-      });
-    }
-
-    // Compare password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid email or password",
-      });
-    }
-
-    // Generate JWT
-    const payload = {
-      id: user.id,
-      role: user.Role?.name || "PATIENT",
-    };
-
-    const accessToken = generateAccessToken(payload);
-    const refreshToken = generateRefreshToken(payload);
-
-    //  Response
-    return res.json({
-      success: true,
-      message: "Login successful",
-      tokens: {
-        accessToken,
-        refreshToken,
-      },
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.Role?.name,
-      },
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      success: false,
-      message: "Login failed",
-    });
-  }
-};
-
-export const register = async (req: Request, res: Response) => {
-  try {
-    const { email, password, fullName, roleId } = req.body;
-
-    if (!email || !password || !fullName) {
+    const existed = await User.findOne({ where: { email } });
+    if (existed) {
       return res.status(400).json({
         success: false,
-        message: "Email, password and fullName are required",
+        message: "EMAIL_ALREADY_EXISTS",
       });
     }
-
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
-    if (!passwordRegex.test(password)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Password must be at least 6 characters and include both letters and numbers",
-      });
-    }
-
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: "Email already exists",
-      });
-    }
-
-    let finalRoleId = roleId;
-    let roleName = "";
-    if (roleId) {
-      const role = await Role.findByPk(roleId);
-      if (!role) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid roleId",
-        });
-      }
-      roleName = role.name;
-    } else {
-      const patientRole = await Role.findOne({ where: { name: "PATIENT" } });
-      if (!patientRole) {
-        return res.status(500).json({
-          success: false,
-          message: "Patient role not found",
-        });
-      }
-      finalRoleId = patientRole.id;
-      roleName = patientRole.name;
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
       email,
-      password: hashedPassword,
-      fullName,
-      roleId: finalRoleId,
+      password: await hashPassword(password),
+      roleId,
+      fullName: "",
     });
-
-    //Patient sẽ tạo sau khi login và update profile
 
     return res.status(201).json({
       success: true,
-      message: "Registration successful",
+      message: "REGISTER_SUCCESS",
       user: {
         id: user.id,
         email: user.email,
-        fullName: user.fullName,
-        role: roleName,
+        roleId: user.roleId,
       },
     });
   } catch (error) {
     console.error("Register error:", error);
     return res.status(500).json({
       success: false,
-      message: "Registration failed",
+      message: "REGISTER_FAILED",
     });
   }
 };
+
+/* ================= LOGIN  ================= */
+export const login = async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  const user = await User.findOne({ where: { email } });
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: "INVALID_CREDENTIALS",
+    });
+  }
+
+  const valid = await comparePassword(password, user.password);
+  if (!valid) {
+    return res.status(401).json({
+      success: false,
+      message: "INVALID_CREDENTIALS",
+    });
+  }
+
+  let patientId: number | null = null;
+  let doctorId: number | null = null;
+
+  if (user.roleId === RoleCode.PATIENT) {
+    const patient = await Patient.findOne({ where: { userId: user.id } });
+    patientId = patient ? patient.id : null;
+  }
+
+  if (user.roleId === RoleCode.DOCTOR) {
+    const doctor = await Doctor.findOne({ where: { userId: user.id } });
+    doctorId = doctor ? doctor.id : null;
+  }
+
+  const payload = {
+    userId: user.id,
+    roleId: user.roleId,
+    patientId,
+    doctorId,
+  };
+
+  return res.json({
+    success: true,
+    message: "LOGIN_SUCCESS",
+    tokens: {
+      accessToken: generateAccessToken(payload),
+      refreshToken: generateRefreshToken(payload),
+    },
+    user: payload,
+  });
+};
+
+/* ================= REFRESH TOKEN ================= */
 export const refreshToken = async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
@@ -160,35 +115,39 @@ export const refreshToken = async (req: Request, res: Response) => {
     if (!refreshToken) {
       return res.status(400).json({
         success: false,
-        message: "Refresh token is required",
+        message: "REFRESH_TOKEN_REQUIRED",
       });
     }
 
     const secret = process.env.JWT_REFRESH_SECRET;
     if (!secret) {
-      throw new Error("JWT_REFRESH_SECRET is not defined");
+      throw new Error("JWT_REFRESH_SECRET_NOT_DEFINED");
     }
 
     const decoded = jwt.verify(refreshToken, secret) as {
-      id: number;
-      role: string;
+      userId: number;
+      roleId: RoleCode;
+      patientId?: number | null;
+      doctorId?: number | null;
     };
 
     const newAccessToken = generateAccessToken({
-      id: decoded.id,
-      role: decoded.role,
+      userId: decoded.userId,
+      roleId: decoded.roleId,
+      patientId: decoded.patientId ?? null,
+      doctorId: decoded.doctorId ?? null,
     });
 
     return res.json({
       success: true,
-      message: "Token refreshed successfully",
+      message: "REFRESH_SUCCESS",
       accessToken: newAccessToken,
     });
   } catch (error) {
     console.error("Refresh token error:", error);
     return res.status(401).json({
       success: false,
-      message: "Invalid or expired refresh token",
+      message: "INVALID_REFRESH_TOKEN",
     });
   }
 };

@@ -10,47 +10,47 @@ import {
 
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
-import { validatePatient } from "../middlewares/patient.middlewares";
-import { uploadPatientAvatar as uploadPatientAvatarMiddleware } from "../middlewares/uploadPatientAvatar.middlewares";
+import { RoleCode } from "../constant/role";
+import { validatePatient } from "../middlewares/validatePatient.middlewares";
+import { uploadPatientAvatar as uploadMiddleware } from "../middlewares/uploadPatientAvatar.middlewares";
 
 const router = Router();
-
-// ============ AUTH REQUIRED ============
 router.use(verifyToken);
 
-// ============ PATIENT SETUP ============
-router.post("/setup", requireRole("PATIENT"), setupPatientProfile);
+router.post("/setup", requireRole(RoleCode.PATIENT), setupPatientProfile);
 
-// ============ PATIENT CRUD ============
-router.get("/", requireRole("ADMIN", "DOCTOR", "RECEPTIONIST"), getPatients);
+router.get(
+  "/",
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
+  getPatients
+);
 
 router.get(
   "/:id",
-  requireRole("ADMIN", "DOCTOR", "RECEPTIONIST"),
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
   validatePatient,
   getPatientById
 );
 
 router.put(
   "/:id",
-  requireRole("ADMIN", "DOCTOR", "RECEPTIONIST"),
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
   validatePatient,
   updatePatient
 );
 
 router.delete(
   "/:id",
-  requireRole("ADMIN", "DOCTOR", "RECEPTIONIST"),
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
   validatePatient,
   deletePatient
 );
 
-// ============ AVATAR ============
 router.post(
   "/:id/avatar",
-  requireRole("PATIENT"),
+  requireRole(RoleCode.PATIENT),
   validatePatient,
-  uploadPatientAvatarMiddleware.single("avatar"),
+  uploadMiddleware.single("avatar"),
   uploadPatientAvatar
 );
 

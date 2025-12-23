@@ -5,39 +5,26 @@ import {
   createUser,
   updateUser,
   deleteUser,
-  changePassword,
 } from "../controllers/user.controller";
+
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
-import { uploadUserAvatar as uploadAvatarMiddleware } from "../middlewares/uploadUserAvatar.middlewares";
-import { uploadAvatar } from "../controllers/user.controller";
+import { RoleCode } from "../constant/role";
 
 const router = Router();
 
 router.use(verifyToken);
 
-// GET /api/users
-router.get("/", requireRole("ADMIN"), getAllUsers);
+// ============ ADMIN ONLY ============
 
-// GET /api/users/:id
-router.get("/:id", getUserById);
+router.get("/", requireRole(RoleCode.ADMIN), getAllUsers);
 
-// POST /api/users
-router.post("/", requireRole("ADMIN"), createUser);
+router.get("/:id", requireRole(RoleCode.ADMIN), getUserById);
 
-// PUT /api/users/:id
-router.put("/:id", requireRole("ADMIN"), updateUser);
+router.post("/", requireRole(RoleCode.ADMIN), createUser);
 
-// DELETE /api/users/:id
-router.delete("/:id", requireRole("ADMIN"), deleteUser);
+router.put("/:id", requireRole(RoleCode.ADMIN), updateUser);
 
-// PUT /api/users/:id/change-password
-router.put("/:id/change-password", changePassword);
-
-router.post(
-  "/:id/avatar",
-  uploadAvatarMiddleware.single("avatar"),
-  uploadAvatar
-);
+router.delete("/:id", requireRole(RoleCode.ADMIN), deleteUser);
 
 export default router;

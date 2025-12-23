@@ -5,18 +5,17 @@ import {
 } from "../controllers/visit.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
+import { RoleCode } from "../constant/role";
 
 const router = Router();
 router.use(verifyToken);
 
-// RECEPTIONIST check-in
 router.post(
   "/checkin/:appointmentId",
-  requireRole("RECEPTIONIST"),
+  requireRole(RoleCode.RECEPTIONIST),
   checkInAppointment
 );
 
-// DOCTOR hoàn tất khám
-router.put("/:id/complete", requireRole("DOCTOR"), completeVisit);
+router.put("/:id/complete", requireRole(RoleCode.DOCTOR), completeVisit);
 
 export default router;

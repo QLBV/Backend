@@ -1,12 +1,11 @@
-// controllers/visit.controller.ts
-import { Response } from "express";
-import { AuthRequest } from "../middlewares/auth.middlewares";
+
+import { Request, Response } from "express";
 import {
   checkInAppointmentService,
   completeVisitService,
 } from "../services/visit.service";
 
-export const checkInAppointment = async (req: AuthRequest, res: Response) => {
+export const checkInAppointment = async (req: Request, res: Response) => {
   try {
     const visit = await checkInAppointmentService(
       Number(req.params.appointmentId)
@@ -22,7 +21,7 @@ export const checkInAppointment = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const completeVisit = async (req: AuthRequest, res: Response) => {
+export const completeVisit = async (req: Request, res: Response) => {
   try {
     const { diagnosis, note } = req.body;
 
