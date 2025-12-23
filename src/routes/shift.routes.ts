@@ -7,17 +7,19 @@ import {
   deleteShift,
 } from "../controllers/shift.controller";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
+import { RoleCode } from "../constant/role";
+import { verifyToken } from "@/middlewares/auth.middlewares";
 
 const router = Router();
+router.use(verifyToken);
 
 router.get("/shifts", getAllShifts);
 
 router.get("/shifts/:id", getShiftById);
 
-router.post("/shifts", requireRole("ADMIN"), createShift);
+router.post("/shifts", requireRole(RoleCode.ADMIN), createShift);
 
-router.put("/shifts/:id", requireRole("ADMIN"), updateShift);
+router.put("/shifts/:id", requireRole(RoleCode.ADMIN), updateShift);
 
-router.delete("/shifts/:id", requireRole("ADMIN"), deleteShift);
-
+router.delete("/shifts/:id", requireRole(RoleCode.ADMIN), deleteShift);
 export default router;

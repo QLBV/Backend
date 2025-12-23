@@ -8,18 +8,20 @@ import {
   getAllSpecialties,
 } from "../controllers/doctor.controller";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
+import { RoleCode } from "../constant/role";
+import { verifyToken } from "@/middlewares/auth.middlewares";
 
 const router = Router();
+router.use(verifyToken);
 
-router.get("/doctors", requireRole("ADMIN"), getAllDoctors);
+router.get("/doctors", requireRole(RoleCode.ADMIN), getAllDoctors);
 
-router.get("/doctors/:id", requireRole("ADMIN"), getDoctorById);
+router.get("/doctors/:id", requireRole(RoleCode.ADMIN), getDoctorById);
 
-router.post("/doctors", requireRole("ADMIN"), createDoctorController);
+router.post("/doctors", requireRole(RoleCode.ADMIN), createDoctorController);
+router.put("/doctors/:id", requireRole(RoleCode.ADMIN), updateDoctor);
 
-router.put("/doctors/:id", requireRole("ADMIN"), updateDoctor);
-
-router.delete("/doctors/:id", requireRole("ADMIN"), deleteDoctor);
+router.delete("/doctors/:id", requireRole(RoleCode.ADMIN), deleteDoctor);
 
 router.get("/specialties", getAllSpecialties);
 

@@ -25,9 +25,14 @@ export const createAppointment = async (req: Request, res: Response) => {
       data: appointment,
     });
   } catch (e: any) {
+    const map: Record<string, string> = {
+      DOCTOR_NOT_ON_DUTY: "Bác sĩ không trực ca này",
+      SHIFT_FULL: "Ca khám đã đủ 40 lượt",
+    };
+
     res.status(400).json({
       success: false,
-      message: e.message,
+      message: map[e.message] || e.message,
     });
   }
 };

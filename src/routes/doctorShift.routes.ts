@@ -6,14 +6,17 @@ import {
   getDoctorsOnDuty,
 } from "../controllers/doctorShift.controller";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
+import { RoleCode } from "../constant/role";
+import { verifyToken } from "@/middlewares/auth.middlewares";
 
 const router = Router();
+router.use(verifyToken);
 
-router.post("/doctor-shifts", requireRole("ADMIN"), assignDoctorToShift);
+router.post("/doctor-shifts", requireRole(RoleCode.ADMIN), assignDoctorToShift);
 
 router.delete(
   "/doctor-shifts/:id",
-  requireRole("ADMIN"),
+  requireRole(RoleCode.ADMIN),
   unassignDoctorFromShift
 );
 
