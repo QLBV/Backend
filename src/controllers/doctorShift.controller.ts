@@ -63,7 +63,16 @@ export const unassignDoctorFromShift = async (req: Request, res: Response) => {
       });
       substituteDoctorId = substituteShift?.doctorId;
     }
-    await doctorShift.destroy();
+    if (substituteDoctorId && appointments.length > 0) {
+      await Promise.all(
+        appointments.map((app) => app.update({ doctorId: substituteDoctorId }))
+      );
+      appointments.forEach((app) => {
+        console.log(
+          `Notify patient ${app.patientId}: Your appointment has been reassigned to doctor ${substituteDoctorId}`
+        );
+      });
+    }
     return res.json({ success: true, message: "Doctor unassigned from shift" });
   } catch (error) {
     return res.status(500).json({
