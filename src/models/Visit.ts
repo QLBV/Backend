@@ -1,61 +1,45 @@
-import { DataTypes, Model, Optional } from "sequelize";
-import sequelize from "../config/database";
+// models/Visit.ts
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from ".";
+import Appointment from "./Appointment";
+import Doctor from "./Doctor";
 import Patient from "./Patient";
 
-interface VisitAttributes {
-  id: number;
-  visitCode: string;
-  patientId: number;
-  visitDate: Date;
-  symptomInitial: string;
-  status: "waiting" | "examining" | "done";
+export default class Visit extends Model {
+  declare id: number;
+  declare appointmentId: number;
+  declare patientId: number;
+  declare doctorId: number;
+  declare checkInTime: Date;
+  declare diagnosis?: string;
+  declare note?: string;
+  declare status: "EXAMINING" | "COMPLETED";
 }
 
-interface VisitCreationAttributes
-  extends Optional<VisitAttributes, "id" | "visitCode" | "status"> {}
-
-class Visit
-  extends Model<VisitAttributes, VisitCreationAttributes>
-  implements VisitAttributes
-{
-  public id!: number;
-  public visitCode!: string;
-  public patientId!: number;
-  public visitDate!: Date;
-  public symptomInitial!: string;
-  public status!: "waiting" | "examining" | "done";
-}
 Visit.init(
   {
-    id: {
-      type: DataTypes.INTEGER,
-      primaryKey: true,
-      autoIncrement: true,
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    appointmentId: { type: DataTypes.INTEGER, allowNull: false, unique: true },
+    patientId: { type: DataTypes.INTEGER, allowNull: false },
+    doctorId: { type: DataTypes.INTEGER, allowNull: false },
+    checkInTime: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
     },
-    visitCode: {
-      type: DataTypes.STRING,
-    },
-    patientId: {
-      type: DataTypes.INTEGER,
-    },
-    visitDate: {
-      type: DataTypes.DATEONLY,
-    },
-    symptomInitial: {
-      type: DataTypes.TEXT,
-    },
+    diagnosis: { type: DataTypes.TEXT },
+    note: { type: DataTypes.TEXT },
     status: {
-      type: DataTypes.ENUM("waiting", "examining", "done"),
+      type: DataTypes.ENUM("EXAMINING", "COMPLETED"),
+      defaultValue: "EXAMINING",
     },
   },
   {
     sequelize,
     tableName: "visits",
-    timestamps: true,
-    underscored: true,
   }
 );
-Visit.belongsTo(Patient, { foreignKey: "patientId" });
-Patient.hasMany(Visit, { foreignKey: "patientId" });
 
-export default Visit;
+// Associations
+Visit.belongsTo(Appointment, { foreignKey: "appointmentId" });
+Visit.belongsTo(Patient, { foreignKey: "patientId" });
+Visit.belongsTo(Doctor, { foreignKey: "doctorId" });
