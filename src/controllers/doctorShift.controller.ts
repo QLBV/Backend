@@ -43,6 +43,26 @@ export const unassignDoctorFromShift = async (req: Request, res: Response) => {
     const appointments = await Appointment.findAll({
       where: { doctorId, shiftId, date: workDate },
     });
+    const oldDoctor = await Doctor.findByPk(doctorId);
+    let substituteDoctorId = null;
+    if (oldDoctor) {
+      const { Op } = require("sequelize");
+      const substituteShift = await DoctorShift.findOne({
+        where: {
+          shiftId,
+          workDate,
+          doctorId: { [Op.ne]: doctorId },
+        },
+        include: [
+          {
+            model: Doctor,
+            as: "doctor",
+            where: { specialtyId: oldDoctor.specialtyId },
+          },
+        ],
+      });
+      substituteDoctorId = substituteShift?.doctorId;
+    }
     await doctorShift.destroy();
     return res.json({ success: true, message: "Doctor unassigned from shift" });
   } catch (error) {
