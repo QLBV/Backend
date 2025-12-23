@@ -7,6 +7,8 @@ import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
 import path from "path";
 import patientRoutes from "./routes/patient.routes";
+import appointmentRoutes from "./routes/appointment.routes";
+
 const app: Application = express();
 
 // Security Middlewares
@@ -51,6 +53,7 @@ app.get("/", (req: Request, res: Response) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/patients", patientRoutes); // Placeholder, replace with actual patientRoutes
 app.use("/api/users", userRoutes);
+app.use("/api/appointments", appointmentRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {
