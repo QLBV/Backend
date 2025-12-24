@@ -8,6 +8,8 @@ import authRoutes from "./routes/auth.routes";
 import path from "path";
 import patientRoutes from "./routes/patient.routes";
 import appointmentRoutes from "./routes/appointment.routes";
+import { errorHandler } from "./middlewares/errorHandler.middlewares";
+import visitRoutes from "./routes/visit.routes";
 
 const app: Application = express();
 
@@ -37,7 +39,7 @@ app.use(morgan("dev"));
 // Body Parser
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 // Health Check Route
 app.get("/", (req: Request, res: Response) => {
@@ -54,7 +56,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/patients", patientRoutes); // Placeholder, replace with actual patientRoutes
 app.use("/api/users", userRoutes);
 app.use("/api/appointments", appointmentRoutes);
-
+app.use("/api/visits", visitRoutes);
+app.use("/api/doctors", require("./routes/doctor.routes").default);
+app.use("/api/doctor-shifts", require("./routes/doctorShift.routes").default);
+app.use("/api/specialties", require("./routes/specialty.routes").default);
 // 404 Handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({
@@ -64,15 +69,6 @@ app.use((req: Request, res: Response) => {
 });
 
 // Global Error Handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error("Error:", err.stack);
+app.use(errorHandler);
 
-  res.status(500).json({
-    success: false,
-    message: "Internal Server Error",
-    error: process.env.NODE_ENV === "development" ? err.message : undefined,
-  });
-});
-
-app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 export default app;

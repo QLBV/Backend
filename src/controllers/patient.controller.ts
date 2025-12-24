@@ -43,7 +43,7 @@ const formatPatient = (patient: any) => ({
 
 export const setupPatientProfile = async (req: any, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     const { fullName, gender, dateOfBirth, cccd, profiles } = req.body;
 
     // Validate required fields
@@ -55,10 +55,10 @@ export const setupPatientProfile = async (req: any, res: Response) => {
     }
 
     // Validate gender
-    if (!["male", "female", "other"].includes(gender)) {
+    if (!["MALE", "FEMALE", "OTHER"].includes(gender)) {
       return res.status(400).json({
         success: false,
-        message: "Gender must be 'male', 'female', or 'other'",
+        message: "Gender must be 'MALE', 'FEMALE', or 'OTHER'",
       });
     }
 

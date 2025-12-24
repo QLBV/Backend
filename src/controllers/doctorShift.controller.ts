@@ -5,27 +5,59 @@ import Shift from "../models/Shift";
 
 export const assignDoctorToShift = async (req: Request, res: Response) => {
   try {
-    const { doctorId, shiftId, workDate } = req.body;
+    const doctorId = Number(req.body.doctorId);
+    const shiftId = Number(req.body.shiftId);
+    const workDate = String(req.body.workDate || "").trim(); // YYYY-MM-DD
 
-    const exists = await DoctorShift.findOne({
-      where: { doctorId, shiftId, workDate },
-    });
-    if (exists)
+    if (!doctorId || !shiftId || !workDate) {
       return res.status(400).json({
         success: false,
-        message: "Doctor already assigned to this shift on this date",
+        message: "Missing doctorId/shiftId/workDate",
       });
+    }
+
+    // Bonus: check format YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "workDate must be YYYY-MM-DD",
+      });
+    }
+
+    // Bonus: check doctor/shift exists (ăn điểm)
+    const [doctor, shift] = await Promise.all([
+      Doctor.findByPk(doctorId),
+      Shift.findByPk(shiftId),
+    ]);
+    if (!doctor)
+      return res
+        .status(404)
+        .json({ success: false, message: "Doctor not found" });
+    if (!shift)
+      return res
+        .status(404)
+        .json({ success: false, message: "Shift not found" });
+
+    // Tạo trực tiếp, nếu trùng DB sẽ chặn
     const doctorShift = await DoctorShift.create({
       doctorId,
       shiftId,
       workDate,
     });
+
     return res.status(201).json({ success: true, data: doctorShift });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({
+        success: false,
+        message: "Doctor already assigned to this shift on this date",
+      });
+    }
+
     return res.status(500).json({
       success: false,
       message: "Assign doctor to shift failed",
-      error,
+      error: error?.message || error,
     });
   }
 };

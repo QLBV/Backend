@@ -6,7 +6,7 @@ interface PatientAttributes {
   id: number;
   patientCode: string;
   fullName: string;
-  gender: "male" | "female" | "other";
+  gender: "MALE" | "FEMALE" | "OTHER";
   dateOfBirth: Date;
   avatar?: string | null;
   cccd?: string;
@@ -24,7 +24,7 @@ class Patient
   public id!: number;
   public patientCode!: string;
   public fullName!: string;
-  public gender!: "male" | "female" | "other";
+  public gender!: "MALE" | "FEMALE" | "OTHER";
   public dateOfBirth!: Date;
   public avatar?: string | null;
   public cccd?: string | undefined;
@@ -43,22 +43,22 @@ Patient.init(
       type: DataTypes.STRING(20),
       allowNull: true,
       unique: true,
-      field: "patient_code",
+      field: "patientCode",
     },
     fullName: {
       type: DataTypes.STRING(100),
       allowNull: false,
-      field: "fullName", 
+      field: "fullName",
     },
     gender: {
-      type: DataTypes.ENUM("male", "female", "other"),
+      type: DataTypes.ENUM("MALE", "FEMALE", "OTHER"),
       allowNull: false,
       field: "gender",
     },
     dateOfBirth: {
       type: DataTypes.DATEONLY,
       allowNull: false,
-      field: "dob",
+      field: "dateOfBirth",
     },
     avatar: {
       type: DataTypes.STRING(255),
@@ -74,12 +74,12 @@ Patient.init(
     userId: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: true,
-      field: "user_id",
+      field: "userId",
     },
     isActive: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
-      field: "is_active",
+      field: "isActive",
     },
   },
   {

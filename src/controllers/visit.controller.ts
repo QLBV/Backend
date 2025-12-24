@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 import {
   checkInAppointmentService,
@@ -16,8 +15,13 @@ export const checkInAppointment = async (req: Request, res: Response) => {
       message: "Check-in successful",
       data: visit,
     });
-  } catch (e: any) {
-    res.status(400).json({ success: false, message: e.message });
+  } catch (err: any) {
+    if (err?.name === "SequelizeUniqueConstraintError") {
+      return res
+        .status(409)
+        .json({ message: "APPOINTMENT_ALREADY_CHECKED_IN" });
+    }
+    throw err;
   }
 };
 

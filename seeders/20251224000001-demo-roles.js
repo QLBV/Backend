@@ -4,26 +4,30 @@ module.exports = {
   async up(queryInterface) {
     await queryInterface.bulkInsert("roles", [
       {
+        id: 1,
         name: "ADMIN",
-        description: "Quản trị hệ thống",
+        description: "Quản trị viên hệ thống",
         createdAt: new Date(),
         updatedAt: new Date(),
       },
       {
+        id: 2,
         name: "DOCTOR",
         description: "Bác sĩ",
         createdAt: new Date(),
         updatedAt: new Date(),
       },
       {
-        name: "RECEPTIONIST",
-        description: "Lễ tân",
+        id: 3,
+        name: "PATIENT",
+        description: "Bệnh nhân",
         createdAt: new Date(),
         updatedAt: new Date(),
       },
       {
-        name: "PATIENT",
-        description: "Bệnh nhân",
+        id: 4,
+        name: "RECEPTIONIST",
+        description: "Lễ tân",
         createdAt: new Date(),
         updatedAt: new Date(),
       },

@@ -13,7 +13,7 @@ interface ProfileInput {
 
 interface SetupPatientProfileInput {
   fullName: string;
-  gender: "male" | "female" | "other";
+  gender: "MALE" | "FEMALE" | "OTHER";
   dateOfBirth: string;
   cccd: string;
   profiles: ProfileInput[];

@@ -14,7 +14,7 @@ import jwt from "jsonwebtoken";
 /* ================= REGISTER ================= */
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, roleId = RoleCode.PATIENT } = req.body;
+    const { email, password, fullName, roleId = RoleCode.PATIENT } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -35,7 +35,7 @@ export const register = async (req: Request, res: Response) => {
       email,
       password: await hashPassword(password),
       roleId,
-      fullName: "",
+      fullName: fullName || "",
     });
 
     return res.status(201).json({
@@ -44,6 +44,7 @@ export const register = async (req: Request, res: Response) => {
       user: {
         id: user.id,
         email: user.email,
+        fullName: user.fullName,
         roleId: user.roleId,
       },
     });

@@ -27,81 +27,74 @@ export const createAppointmentService = async (
     symptomInitial,
   } = input;
 
-  // =========================
-  // 1️⃣ Kiểm tra bác sĩ có trực ca đó không
-  // =========================
-  const doctorShift = await DoctorShift.findOne({
-    where: {
-      doctorId,
-      shiftId,
-      workDate: date,
-    },
-  });
-
-  if (!doctorShift) {
-    throw new Error("DOCTOR_NOT_ON_DUTY");
-  }
-
-  // =========================
-  // 2️⃣ Transaction chống race-condition
-  // =========================
   return await sequelize.transaction(
-    { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+    { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
     async (t) => {
-      // =========================
-      // 3️⃣ Đếm số lịch đã đặt
-      // =========================
-      const count = await Appointment.count({
+      // 1) Lock DoctorShift row (xếp hàng đặt lịch theo ca)
+      const ds = await DoctorShift.findOne({
+        where: { doctorId, shiftId, workDate: date },
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+      if (!ds) throw new Error("DOCTOR_NOT_ON_DUTY");
+
+      // 2) Giới hạn 40 lịch / ngày (tất cả ca)
+      const dayCount = await Appointment.count({
+        where: {
+          doctorId,
+          date,
+          status: { [Op.ne]: "CANCELLED" },
+        },
+        transaction: t,
+      });
+      if (dayCount >= BOOKING_CONFIG.MAX_APPOINTMENTS_PER_DAY)
+        throw new Error("DAY_FULL");
+
+      // 3) Lấy slot cuối của ca (lock row thật)
+      const last = await Appointment.findOne({
         where: {
           doctorId,
           shiftId,
           date,
-          status: {
-            [Op.ne]: "CANCELLED",
-          },
+          status: { [Op.ne]: "CANCELLED" },
         },
+        order: [["slotNumber", "DESC"]],
         transaction: t,
         lock: t.LOCK.UPDATE,
       });
 
-      if (count >= BOOKING_CONFIG.MAX_SLOTS_PER_SHIFT) {
+      let nextSlot = last ? Number(last.slotNumber) + 1 : 1;
+      if (nextSlot > BOOKING_CONFIG.MAX_SLOTS_PER_SHIFT)
         throw new Error("SHIFT_FULL");
+
+      // 4) Create + retry nếu đụng unique slot
+      while (nextSlot <= BOOKING_CONFIG.MAX_SLOTS_PER_SHIFT) {
+        try {
+          const appt = await Appointment.create(
+            {
+              patientId,
+              doctorId,
+              shiftId,
+              date,
+              slotNumber: nextSlot,
+              bookingType,
+              bookedBy,
+              symptomInitial,
+              status: "WAITING",
+            },
+            { transaction: t }
+          );
+          return appt;
+        } catch (err: any) {
+          if (err?.name === "SequelizeUniqueConstraintError") {
+            nextSlot += 1;
+            continue;
+          }
+          throw err;
+        }
       }
 
-      // =========================
-      // 4️⃣ Tìm slotNumber tiếp theo
-      // =========================
-      const lastSlot = await Appointment.max("slotNumber", {
-        where: { doctorId, shiftId, date },
-        transaction: t,
-        lock: t.LOCK.UPDATE,
-      });
-
-      const nextSlot = lastSlot ? Number(lastSlot) + 1 : 1;
-
-      if (nextSlot > BOOKING_CONFIG.MAX_SLOTS_PER_SHIFT) {
-        throw new Error("SHIFT_FULL");
-      }
-
-      // =========================
-      // 5️⃣ Tạo appointment
-      // =========================
-      const appointment = await Appointment.create(
-        {
-          patientId,
-          doctorId,
-          shiftId,
-          date,
-          slotNumber: nextSlot,
-          bookingType,
-          bookedBy,
-          symptomInitial,
-          status: "WAITING",
-        },
-        { transaction: t }
-      );
-
-      return appointment;
+      throw new Error("SHIFT_FULL");
     }
   );
 };

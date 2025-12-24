@@ -10,19 +10,35 @@ import {
 import { requireRole } from "../middlewares/roleCheck.middlewares";
 import { RoleCode } from "../constant/role";
 import { verifyToken } from "@/middlewares/auth.middlewares";
+import { getShiftsByDoctor } from "@/controllers/doctorShift.controller";
 
 const router = Router();
 router.use(verifyToken);
 
-router.get("/doctors", requireRole(RoleCode.ADMIN), getAllDoctors);
+router.get("/", 
+  requireRole(RoleCode.ADMIN), 
+  getAllDoctors);
 
-router.get("/doctors/:id", requireRole(RoleCode.ADMIN), getDoctorById);
+router.get("/:id", 
+  requireRole(RoleCode.ADMIN), 
+  getDoctorById);
 
-router.post("/doctors", requireRole(RoleCode.ADMIN), createDoctorController);
-router.put("/doctors/:id", requireRole(RoleCode.ADMIN), updateDoctor);
+router.post("/", 
+  requireRole(RoleCode.ADMIN), 
+  createDoctorController);
 
-router.delete("/doctors/:id", requireRole(RoleCode.ADMIN), deleteDoctor);
+router.put("/:id", 
+  requireRole(RoleCode.ADMIN), 
+  updateDoctor);
 
-router.get("/specialties", getAllSpecialties);
+router.delete("/:id", 
+  requireRole(RoleCode.ADMIN), 
+  deleteDoctor);
+
+router.get("/specialties", 
+  getAllSpecialties);
+
+router.get("/:doctorId/shifts", 
+  getShiftsByDoctor);
 
 export default router;

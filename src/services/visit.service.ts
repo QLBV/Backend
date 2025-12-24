@@ -7,6 +7,7 @@ export const checkInAppointmentService = async (appointmentId: number) => {
     // 1. Check appointment
     const appointment = await Appointment.findByPk(appointmentId, {
       transaction: t,
+      lock: t.LOCK.UPDATE,
     });
 
     if (!appointment) throw new Error("APPOINTMENT_NOT_FOUND");

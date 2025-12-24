@@ -49,6 +49,7 @@ DoctorShift.init(
     sequelize,
     tableName: "doctor_shifts",
     timestamps: true,
+    indexes: [{ unique: true, fields: ["doctorId", "shiftId", "workDate"] }],
   }
 );
 
