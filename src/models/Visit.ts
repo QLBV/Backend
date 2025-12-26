@@ -11,6 +11,8 @@ export default class Visit extends Model {
   declare patientId: number;
   declare doctorId: number;
   declare checkInTime: Date;
+  declare symptoms?: string;
+  declare diseaseCategoryId?: number;
   declare diagnosis?: string;
   declare note?: string;
   declare status: "EXAMINING" | "COMPLETED";
@@ -26,6 +28,8 @@ Visit.init(
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
     },
+    symptoms: { type: DataTypes.TEXT },
+    diseaseCategoryId: { type: DataTypes.INTEGER.UNSIGNED },
     diagnosis: { type: DataTypes.TEXT },
     note: { type: DataTypes.TEXT },
     status: {
