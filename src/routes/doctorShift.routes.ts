@@ -25,8 +25,16 @@ router.post("/", requireRole(RoleCode.ADMIN), assignDoctorToShift);
 router.delete("/:id", requireRole(RoleCode.ADMIN), unassignDoctorFromShift);
 
 // Reschedule actions (Admin only)
-router.get("/:id/reschedule-preview", requireRole(RoleCode.ADMIN), previewReschedule);
-router.post("/:id/cancel-and-reschedule", requireRole(RoleCode.ADMIN), cancelShiftAndReschedule);
+router.get(
+  "/:id/reschedule-preview",
+  requireRole(RoleCode.ADMIN),
+  previewReschedule
+);
+router.post(
+  "/:id/cancel-and-reschedule",
+  requireRole(RoleCode.ADMIN),
+  cancelShiftAndReschedule
+);
 router.post("/:id/restore", requireRole(RoleCode.ADMIN), restoreShift);
 
 export default router;
