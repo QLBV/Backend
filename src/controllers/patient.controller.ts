@@ -3,6 +3,7 @@ import {
   setupPatientProfileService,
   getPatientsService,
   getPatientByIdService,
+  getPatientByCccdService,
   updatePatientService,
   deletePatientService,
 } from "../services/patient.service";
@@ -166,13 +167,23 @@ export const getPatients = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
+    const cccd = req.query.cccd as string | undefined;
 
-    const patients = await getPatientsService(page, limit);
+    const patients = await getPatientsService(page, limit, cccd);
+
+    // Check if searching by CCCD but no results found
+    if (cccd && patients.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `Không tìm thấy bệnh nhân với CCCD: ${cccd}`,
+      });
+    }
 
     return res.json({
       success: true,
       page,
       limit,
+      ...(cccd && { cccd }), // Include cccd in response if provided
       patients: patients.map(formatPatient),
     });
   } catch (error) {
