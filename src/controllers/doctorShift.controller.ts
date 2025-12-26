@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import DoctorShift from "../models/DoctorShift";
 import Doctor from "../models/Doctor";
 import Shift from "../models/Shift";
-import Appointment from "../models/Appointment";
+import { cancelDoctorShiftAndReschedule } from "../services/appointmentReschedule.service";
 
 export const assignDoctorToShift = async (req: Request, res: Response) => {
   try {
@@ -66,51 +66,42 @@ export const assignDoctorToShift = async (req: Request, res: Response) => {
 export const unassignDoctorFromShift = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const cancelReason = req.body.cancelReason || "Admin unassigned doctor from shift";
+
+    // Validate doctorShift exists
     const doctorShift = await DoctorShift.findByPk(id);
-    if (!doctorShift)
-      return res
-        .status(404)
-        .json({ success: false, message: "Assignment not found" });
-    const { doctorId, shiftId, workDate } = doctorShift;
-    const appointments = await Appointment.findAll({
-      where: { doctorId, shiftId, date: workDate },
+    if (!doctorShift) {
+      return res.status(404).json({
+        success: false,
+        message: "Assignment not found"
+      });
+    }
+
+    // Use official reschedule service with transaction safety
+    const result = await cancelDoctorShiftAndReschedule(
+      Number(id),
+      cancelReason
+    );
+
+    // Return detailed result
+    return res.json({
+      success: true,
+      message: "Doctor unassigned from shift successfully",
+      data: {
+        totalAppointments: result.totalAppointments,
+        rescheduledCount: result.rescheduledCount,
+        failedCount: result.failedCount,
+        details: result.details,
+      },
     });
-    const oldDoctor = await Doctor.findByPk(doctorId);
-    let substituteDoctorId = null;
-    if (oldDoctor) {
-      const { Op } = require("sequelize");
-      const substituteShift = await DoctorShift.findOne({
-        where: {
-          shiftId,
-          workDate,
-          doctorId: { [Op.ne]: doctorId },
-        },
-        include: [
-          {
-            model: Doctor,
-            as: "doctor",
-            where: { specialtyId: oldDoctor.specialtyId },
-          },
-        ],
-      });
-      substituteDoctorId = substituteShift?.doctorId;
-    }
-    if (substituteDoctorId && appointments.length > 0) {
-      await Promise.all(
-        appointments.map((app) => app.update({ doctorId: substituteDoctorId }))
-      );
-      appointments.forEach((app) => {
-        console.log(
-          `Notify patient ${app.patientId}: Your appointment has been reassigned to doctor ${substituteDoctorId}`
-        );
-      });
-    }
-    return res.json({ success: true, message: "Doctor unassigned from shift" });
-  } catch (error) {
+  } catch (error: any) {
+    // Handle specific errors
+    const errorMessage = error?.message || "Unassign doctor from shift failed";
+
     return res.status(500).json({
       success: false,
-      message: "Unassign doctor from shift failed",
-      error,
+      message: errorMessage,
+      error: error?.message || error,
     });
   }
 };
