@@ -1,7 +1,5 @@
 # 🏥 Healthcare Management System - Backend
 
-> Hệ thống quản lý phòng khám với tính năng reschedule tự động và notification thông minh
-
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](./CHANGELOG.md)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.x-brightgreen.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/typescript-5.x-blue.svg)](https://www.typescriptlang.org)
