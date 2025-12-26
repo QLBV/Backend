@@ -51,7 +51,7 @@ export const createAppointment = async (req: Request, res: Response) => {
       symptomInitial,
     });
 
-    // 🆕 Emit event để gửi notification
+    //  Emit event để gửi notification
     notifyAppointmentCreated(appointment.id);
 
     return res.json({
@@ -85,7 +85,7 @@ export const cancelAppointment = async (req: Request, res: Response) => {
       requesterPatientId: req.user?.patientId ?? null,
     });
 
-    // 🆕 Emit event để gửi notification hủy lịch
+    //  Emit event để gửi notification hủy lịch
     notifyAppointmentCancelled(id, "Bệnh nhân hủy lịch");
 
     return res.json({
@@ -115,7 +115,7 @@ export const getAppointments = async (req: Request, res: Response) => {
     const shiftId = req.query.shiftId ? Number(req.query.shiftId) : undefined;
     const status = req.query.status ? String(req.query.status) : undefined;
 
-    // 🔐 Nếu là PATIENT, chỉ cho xem lịch của chính mình
+    // Nếu là PATIENT, chỉ cho xem lịch của chính mình
     let patientIdFilter: number | undefined = undefined;
     if (req.user?.roleId === RoleCode.PATIENT) {
       if (!req.user.patientId) {

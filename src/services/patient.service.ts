@@ -132,10 +132,17 @@ export const setupPatientProfileService = async (
 
 /* ================= READ ================= */
 
-export const getPatientsService = async (page = 1, limit = 10) => {
+export const getPatientsService = async (page = 1, limit = 10, cccd?: string) => {
   const offset = (page - 1) * limit;
+  const where: any = { isActive: true };
+
+  // Filter by CCCD if provided
+  if (cccd) {
+    where.cccd = cccd;
+  }
+
   return Patient.findAll({
-    where: { isActive: true },
+    where,
     include: [{ model: PatientProfile, as: "profiles" }],
     limit,
     offset,
@@ -146,6 +153,17 @@ export const getPatientsService = async (page = 1, limit = 10) => {
 export const getPatientByIdService = async (id: number) => {
   const patient = await Patient.findOne({
     where: { id, isActive: true },
+    include: [{ model: PatientProfile, as: "profiles" }],
+  });
+  if (!patient) {
+    throw new Error("PATIENT_NOT_FOUND");
+  }
+  return patient;
+};
+
+export const getPatientByCccdService = async (cccd: string) => {
+  const patient = await Patient.findOne({
+    where: { cccd, isActive: true },
     include: [{ model: PatientProfile, as: "profiles" }],
   });
   if (!patient) {

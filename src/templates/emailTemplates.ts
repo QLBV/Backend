@@ -144,7 +144,7 @@ export function appointmentConfirmationTemplate(data: {
 }): string {
   const content = `
     <div class="header">
-      <h1>✅ Xác nhận lịch khám</h1>
+      <h1>Xác nhận lịch khám</h1>
     </div>
     <div class="content">
       <p>Xin chào <strong>${data.patientName}</strong>,</p>
@@ -259,14 +259,14 @@ export function doctorChangedTemplate(data: {
 }): string {
   const content = `
     <div class="header" style="background: linear-gradient(135deg, #ffa751 0%, #ffe259 100%);">
-      <h1>🔄 Thông báo thay đổi bác sĩ</h1>
+      <h1>Thông báo thay đổi bác sĩ</h1>
     </div>
     <div class="content">
       <p>Xin chào <strong>${data.patientName}</strong>,</p>
       <p>Chúng tôi xin thông báo có sự thay đổi về bác sĩ khám cho lịch hẹn của bạn.</p>
 
       <div class="warning-box">
-        <strong>⚠️ Thay đổi:</strong> Bác sĩ khám của bạn đã được chuyển
+        <strong>Thay đổi:</strong> Bác sĩ khám của bạn đã được chuyển
       </div>
 
       <div class="info-box">
@@ -301,7 +301,7 @@ export function doctorChangedTemplate(data: {
       </div>
 
       <div class="success-box">
-        <p style="margin: 0;"><strong>✅ Lịch khám của bạn vẫn được giữ nguyên</strong></p>
+        <p style="margin: 0;"><strong>Lịch khám của bạn vẫn được giữ nguyên</strong></p>
         <p style="margin: 5px 0 0 0; font-size: 14px;">Chỉ có bác sĩ khám thay đổi, các thông tin khác không đổi.</p>
       </div>
 

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import DoctorShift from "../models/DoctorShift";
 import Doctor from "../models/Doctor";
 import Shift from "../models/Shift";
+import { cancelDoctorShiftAndReschedule } from "../services/appointmentReschedule.service";
 
 export const assignDoctorToShift = async (req: Request, res: Response) => {
   try {
@@ -65,18 +66,42 @@ export const assignDoctorToShift = async (req: Request, res: Response) => {
 export const unassignDoctorFromShift = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const cancelReason = req.body.cancelReason || "Admin unassigned doctor from shift";
+
+    // Validate doctorShift exists
     const doctorShift = await DoctorShift.findByPk(id);
-    if (!doctorShift)
-      return res
-        .status(404)
-        .json({ success: false, message: "Assignment not found" });
-    await doctorShift.destroy();
-    return res.json({ success: true, message: "Doctor unassigned from shift" });
-  } catch (error) {
+    if (!doctorShift) {
+      return res.status(404).json({
+        success: false,
+        message: "Assignment not found"
+      });
+    }
+
+    // Use official reschedule service with transaction safety
+    const result = await cancelDoctorShiftAndReschedule(
+      Number(id),
+      cancelReason
+    );
+
+    // Return detailed result
+    return res.json({
+      success: true,
+      message: "Doctor unassigned from shift successfully",
+      data: {
+        totalAppointments: result.totalAppointments,
+        rescheduledCount: result.rescheduledCount,
+        failedCount: result.failedCount,
+        details: result.details,
+      },
+    });
+  } catch (error: any) {
+    // Handle specific errors
+    const errorMessage = error?.message || "Unassign doctor from shift failed";
+
     return res.status(500).json({
       success: false,
-      message: "Unassign doctor from shift failed",
-      error,
+      message: errorMessage,
+      error: error?.message || error,
     });
   }
 };

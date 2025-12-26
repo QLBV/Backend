@@ -11,6 +11,8 @@ import appointmentRoutes from "./routes/appointment.routes";
 import { errorHandler } from "./middlewares/errorHandler.middlewares";
 import visitRoutes from "./routes/visit.routes";
 import notificationRoutes from "./routes/notification.routes";
+import medicineRoutes from "./routes/medicine.routes";
+import prescriptionRoutes from "./routes/prescription.routes";
 
 const app: Application = express();
 
@@ -63,6 +65,9 @@ app.use("/api/doctor-shifts", require("./routes/doctorShift.routes").default);
 app.use("/api/specialties", require("./routes/specialty.routes").default);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/shifts", require("./routes/shift.routes").default);
+app.use("/api/medicines", medicineRoutes);
+app.use("/api/prescriptions", prescriptionRoutes);
+
 // 404 Handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({

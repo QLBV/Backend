@@ -102,7 +102,7 @@ export async function sendAppointmentConfirmation(
     // 4. Gửi email
     const emailSent = await sendEmail({
       to: patientUser.email,
-      subject: "✅ Xác nhận lịch khám - Hệ thống Phòng khám",
+      subject: "Xác nhận lịch khám - Hệ thống Phòng khám",
       html: emailHtml,
     });
 
@@ -112,7 +112,7 @@ export async function sendAppointmentConfirmation(
         emailSent: true,
         emailSentAt: new Date(),
       });
-      console.log(`✅ Sent appointment confirmation to ${patientUser.email}`);
+      console.log(`Sent appointment confirmation to ${patientUser.email}`);
     }
   } catch (error) {
     console.error("Error in sendAppointmentConfirmation:", error);
@@ -164,7 +164,9 @@ export async function sendAppointmentCancellation(
       userId: patientUser.id,
       type: NotificationType.APPOINTMENT_CANCELLED,
       title: "Lịch khám đã bị hủy",
-      message: `Lịch khám với ${doctorUser.fullName} vào ${shift.name} ngày ${appointment.date} đã bị hủy${reason ? `: ${reason}` : ""}`,
+      message: `Lịch khám với ${doctorUser.fullName} vào ${shift.name} ngày ${
+        appointment.date
+      } đã bị hủy${reason ? `: ${reason}` : ""}`,
       relatedAppointmentId: appointmentId,
     });
 
@@ -290,9 +292,7 @@ export async function sendDoctorChangeNotification(
         emailSent: true,
         emailSentAt: new Date(),
       });
-      console.log(
-        `✅ Sent doctor change notification to ${patientUser.email}`
-      );
+      console.log(`✅ Sent doctor change notification to ${patientUser.email}`);
     }
   } catch (error) {
     console.error("Error in sendDoctorChangeNotification:", error);

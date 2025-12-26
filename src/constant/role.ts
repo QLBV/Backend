@@ -1,6 +1,6 @@
 export enum RoleCode {
   ADMIN = 1,
-  DOCTOR = 2,
+  RECEPTIONIST = 2,
   PATIENT = 3,
-  RECEPTIONIST = 4,
+  DOCTOR = 4,
 }
