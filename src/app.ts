@@ -10,6 +10,7 @@ import patientRoutes from "./routes/patient.routes";
 import appointmentRoutes from "./routes/appointment.routes";
 import { errorHandler } from "./middlewares/errorHandler.middlewares";
 import visitRoutes from "./routes/visit.routes";
+import notificationRoutes from "./routes/notification.routes";
 
 const app: Application = express();
 
@@ -60,6 +61,8 @@ app.use("/api/visits", visitRoutes);
 app.use("/api/doctors", require("./routes/doctor.routes").default);
 app.use("/api/doctor-shifts", require("./routes/doctorShift.routes").default);
 app.use("/api/specialties", require("./routes/specialty.routes").default);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/shifts", require("./routes/shift.routes").default);
 // 404 Handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({

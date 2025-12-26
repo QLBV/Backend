@@ -41,10 +41,10 @@ router.put(
   cancelAppointment
 );
 
-// Lấy danh sách lịch hẹn
+// Lấy danh sách lịch hẹn (PATIENT chỉ xem lịch của mình)
 router.get(
   "/",
-  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR),
+  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR, RoleCode.PATIENT),
   getAppointmentsValidator,
   getAppointments
 );

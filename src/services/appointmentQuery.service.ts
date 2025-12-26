@@ -9,6 +9,7 @@ export const getAppointmentsService = async (q: {
   doctorId?: number;
   shiftId?: number;
   status?: string;
+  patientId?: number;
 }) => {
   const where: any = {};
 
@@ -16,6 +17,7 @@ export const getAppointmentsService = async (q: {
   if (q.doctorId) where.doctorId = q.doctorId;
   if (q.shiftId) where.shiftId = q.shiftId;
   if (q.status) where.status = q.status;
+  if (q.patientId) where.patientId = q.patientId;
 
   return Appointment.findAll({
     where,

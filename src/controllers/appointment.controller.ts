@@ -3,6 +3,10 @@ import { createAppointmentService } from "../services/appointment.service";
 import { RoleCode } from "../constant/role";
 import { cancelAppointmentService } from "../services/appointmentCancel.service";
 import { getAppointmentsService } from "../services/appointmentQuery.service";
+import {
+  notifyAppointmentCreated,
+  notifyAppointmentCancelled,
+} from "../events/appointmentEvents";
 
 export const createAppointment = async (req: Request, res: Response) => {
   try {
@@ -47,11 +51,15 @@ export const createAppointment = async (req: Request, res: Response) => {
       symptomInitial,
     });
 
+    // 🆕 Emit event để gửi notification
+    notifyAppointmentCreated(appointment.id);
+
     return res.json({
       success: true,
       message: "APPOINTMENT_CREATED",
       data: appointment,
     });
+    
   } catch (e: any) {
     const map: Record<string, string> = {
       DOCTOR_NOT_ON_DUTY: "Bác sĩ không trực ca này",
@@ -76,6 +84,9 @@ export const cancelAppointment = async (req: Request, res: Response) => {
       requesterRole: role,
       requesterPatientId: req.user?.patientId ?? null,
     });
+
+    // 🆕 Emit event để gửi notification hủy lịch
+    notifyAppointmentCancelled(id, "Bệnh nhân hủy lịch");
 
     return res.json({
       success: true,
@@ -104,11 +115,24 @@ export const getAppointments = async (req: Request, res: Response) => {
     const shiftId = req.query.shiftId ? Number(req.query.shiftId) : undefined;
     const status = req.query.status ? String(req.query.status) : undefined;
 
+    // 🔐 Nếu là PATIENT, chỉ cho xem lịch của chính mình
+    let patientIdFilter: number | undefined = undefined;
+    if (req.user?.roleId === RoleCode.PATIENT) {
+      if (!req.user.patientId) {
+        return res.status(400).json({
+          success: false,
+          message: "PATIENT_NOT_SETUP",
+        });
+      }
+      patientIdFilter = req.user.patientId;
+    }
+
     const data = await getAppointmentsService({
       date,
       doctorId,
       shiftId,
       status,
+      patientId: patientIdFilter,
     });
 
     return res.json({ success: true, data });
