@@ -3,15 +3,24 @@ import sequelize from "../config/database";
 import Doctor from "./Doctor";
 import Shift from "./Shift";
 
+export enum DoctorShiftStatus {
+  ACTIVE = "ACTIVE",
+  CANCELLED = "CANCELLED",
+  REPLACED = "REPLACED",
+}
+
 interface DoctorShiftAttributes {
   id: number;
   doctorId: number;
   shiftId: number;
   workDate: string;
+  status: DoctorShiftStatus;
+  replacedBy?: number | null;
+  cancelReason?: string | null;
 }
 
 interface DoctorShiftCreationAttributes
-  extends Optional<DoctorShiftAttributes, "id"> {}
+  extends Optional<DoctorShiftAttributes, "id" | "status" | "replacedBy" | "cancelReason"> {}
 
 class DoctorShift
   extends Model<DoctorShiftAttributes, DoctorShiftCreationAttributes>
@@ -21,6 +30,9 @@ class DoctorShift
   public doctorId!: number;
   public shiftId!: number;
   public workDate!: string;
+  public status!: DoctorShiftStatus;
+  public replacedBy?: number | null;
+  public cancelReason?: string | null;
 }
 
 DoctorShift.init(
@@ -43,6 +55,20 @@ DoctorShift.init(
     workDate: {
       type: DataTypes.STRING(10),
       allowNull: false,
+    },
+    status: {
+      type: DataTypes.ENUM(...Object.values(DoctorShiftStatus)),
+      allowNull: false,
+      defaultValue: DoctorShiftStatus.ACTIVE,
+    },
+    replacedBy: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: true,
+      references: { model: Doctor, key: "id" },
+    },
+    cancelReason: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
   },
   {

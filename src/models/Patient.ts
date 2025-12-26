@@ -1,6 +1,7 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 import PatientProfile from "./PatientProfile";
+import User from "./User";
 
 interface PatientAttributes {
   id: number;
@@ -96,6 +97,12 @@ Patient.hasMany(PatientProfile, {
 
 PatientProfile.belongsTo(Patient, {
   foreignKey: "patientId",
+});
+
+// Association with User
+Patient.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
 });
 
 export default Patient;
