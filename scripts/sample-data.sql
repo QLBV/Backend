@@ -11,6 +11,12 @@ USE healthcare_db;
 -- Xóa dữ liệu cũ (nếu có)
 SET FOREIGN_KEY_CHECKS = 0;
 
+TRUNCATE TABLE prescription_details;
+TRUNCATE TABLE prescriptions;
+TRUNCATE TABLE medicine_exports;
+TRUNCATE TABLE medicine_imports;
+TRUNCATE TABLE medicines;
+TRUNCATE TABLE disease_categories;
 TRUNCATE TABLE visits;
 TRUNCATE TABLE appointments;
 TRUNCATE TABLE notifications;
@@ -229,13 +235,184 @@ INSERT INTO notifications (id, userId, type, title, message, relatedAppointmentI
  14, 0, 1, NOW(), NOW(), NOW());
 
 -- ===============================================
--- 11. VISITS (Phiếu khám - cho appointments đã check-in)
+-- 11. DISEASE CATEGORIES (Loại bệnh - ICD-10)
 -- ===============================================
--- Schema: id, appointmentId, patientId, doctorId, checkInTime, diagnosis, note, status
-INSERT INTO visits (id, appointmentId, patientId, doctorId, checkInTime, diagnosis, note, status, createdAt, updatedAt) VALUES
-(1, 13, 3, 1, NOW(), 'Viêm amidan cấp',
- 'Kê đơn: Amoxicillin 500mg x 3 lần/ngày x 7 ngày, Paracetamol 500mg khi sốt. Tái khám sau 7 ngày nếu không đỡ.',
- 'COMPLETED', NOW(), NOW());
+INSERT INTO disease_categories (id, code, name, description, createdAt, updatedAt) VALUES
+(1, 'J03', 'Viêm amidan cấp', 'Viêm amidan cấp tính', NOW(), NOW()),
+(2, 'J06', 'Nhiễm trùng đường hô hấp trên', 'Nhiễm trùng đường hô hấp trên cấp tính', NOW(), NOW()),
+(3, 'K29', 'Viêm dạ dày', 'Viêm dạ dày và tá tràng', NOW(), NOW()),
+(4, 'I10', 'Tăng huyết áp', 'Tăng huyết áp nguyên phát', NOW(), NOW()),
+(5, 'L70', 'Mụn trứng cá', 'Mụn trứng cá (Acne vulgaris)', NOW(), NOW()),
+(6, 'Z34', 'Khám thai định kỳ', 'Khám thai cho thai kỳ bình thường', NOW(), NOW()),
+(7, 'J20', 'Viêm phế quản cấp', 'Viêm phế quản cấp tính', NOW(), NOW()),
+(8, 'A09', 'Tiêu chảy', 'Tiêu chảy và viêm dạ dày ruột', NOW(), NOW());
+
+-- ===============================================
+-- 12. MEDICINES (Thuốc trong kho)
+-- ===============================================
+INSERT INTO medicines (id, medicineCode, name, `group`, activeIngredient, manufacturer, unit, importPrice, salePrice, quantity, minStockLevel, expiryDate, description, status, createdAt, updatedAt) VALUES
+-- Kháng sinh
+(1, 'MED-000001', 'Amoxicillin 500mg', 'Kháng sinh', 'Amoxicillin', 'Công ty Dược phẩm Hà Nội', 'VIEN', 500, 1000, 5000, 500, '2026-12-31', 'Kháng sinh nhóm Penicillin, điều trị nhiễm khuẩn đường hô hấp', 'ACTIVE', NOW(), NOW()),
+(2, 'MED-000002', 'Augmentin 625mg', 'Kháng sinh', 'Amoxicillin + Clavulanic acid', 'GSK Việt Nam', 'VIEN', 3000, 5000, 3000, 300, '2026-06-30', 'Kháng sinh phổ rộng, điều trị nhiễm khuẩn nặng', 'ACTIVE', NOW(), NOW()),
+
+-- Giảm đau - Hạ sốt
+(3, 'MED-000003', 'Paracetamol 500mg', 'Giảm đau - Hạ sốt', 'Paracetamol', 'Công ty Dược Hậu Giang', 'VIEN', 100, 200, 10000, 1000, '2027-03-31', 'Thuốc giảm đau, hạ sốt thông dụng', 'ACTIVE', NOW(), NOW()),
+(4, 'MED-000004', 'Ibuprofen 400mg', 'Giảm đau - Chống viêm', 'Ibuprofen', 'Công ty Dược Sài Gòn', 'VIEN', 500, 800, 4000, 400, '2026-09-30', 'Thuốc giảm đau, chống viêm không steroid', 'ACTIVE', NOW(), NOW()),
+
+-- Thuốc dạ dày
+(5, 'MED-000005', 'Omeprazole 20mg', 'Thuốc dạ dày', 'Omeprazole', 'Teva Việt Nam', 'VIEN', 800, 1500, 3000, 300, '2026-08-31', 'Ức chế bơm proton, điều trị loét dạ dày', 'ACTIVE', NOW(), NOW()),
+(6, 'MED-000006', 'Phosphalugel', 'Thuốc dạ dày', 'Aluminium phosphate', 'Pharmedic France', 'GOI', 2000, 3500, 2000, 200, '2026-12-31', 'Chống trào ngược dạ dày, trung hòa acid', 'ACTIVE', NOW(), NOW()),
+
+-- Thuốc tim mạch
+(7, 'MED-000007', 'Amlodipine 5mg', 'Thuốc tim mạch', 'Amlodipine', 'Pymepharco', 'VIEN', 300, 600, 5000, 500, '2027-06-30', 'Thuốc hạ huyết áp nhóm chẹn kênh canxi', 'ACTIVE', NOW(), NOW()),
+(8, 'MED-000008', 'Bisoprolol 5mg', 'Thuốc tim mạch', 'Bisoprolol', 'Berlin Pharma', 'VIEN', 800, 1500, 3000, 300, '2026-10-31', 'Thuốc chẹn beta, điều trị tăng huyết áp', 'ACTIVE', NOW(), NOW()),
+
+-- Vitamin
+(9, 'MED-000009', 'Vitamin C 1000mg', 'Vitamin', 'Ascorbic acid', 'DHG Pharma', 'VIEN', 1000, 2000, 6000, 600, '2027-12-31', 'Bổ sung vitamin C, tăng sức đề kháng', 'ACTIVE', NOW(), NOW()),
+(10, 'MED-000010', 'Vitamin B Complex', 'Vitamin', 'Vitamin B1, B6, B12', 'US Pharma', 'VIEN', 1500, 2500, 4000, 400, '2026-11-30', 'Bổ sung vitamin nhóm B', 'ACTIVE', NOW(), NOW()),
+
+-- Thuốc ho
+(11, 'MED-000011', 'Prospan 100ml', 'Thuốc ho', 'Hedera helix extract', 'Engelhard Germany', 'CHAI', 30000, 55000, 500, 50, '2026-07-31', 'Siro long đàm, trị ho có đờm', 'ACTIVE', NOW(), NOW()),
+(12, 'MED-000012', 'Bisolvon 8mg', 'Thuốc ho', 'Bromhexine', 'Boehringer Vietnam', 'VIEN', 1200, 2000, 2000, 200, '2026-05-31', 'Thuốc long đàm', 'ACTIVE', NOW(), NOW()),
+
+-- Thuốc ngoài da
+(13, 'MED-000013', 'Gel trị mụn Acnes 25g', 'Thuốc ngoài da', 'Benzoyl peroxide', 'Rohto Việt Nam', 'TUYP', 25000, 45000, 1000, 100, '2026-04-30', 'Gel điều trị mụn trứng cá', 'ACTIVE', NOW(), NOW()),
+(14, 'MED-000014', 'Dung dịch Betadine 100ml', 'Thuốc sát khuẩn', 'Povidone-iodine', 'Mundipharma', 'CHAI', 20000, 35000, 1500, 150, '2026-08-31', 'Dung dịch sát khuẩn vết thương', 'ACTIVE', NOW(), NOW()),
+
+-- Thuốc tiêu chảy
+(15, 'MED-000015', 'Smecta', 'Thuốc tiêu hóa', 'Diosmectite', 'Ipsen France', 'GOI', 3000, 5000, 3000, 300, '2026-09-30', 'Thuốc cầm tiêu chảy, hấp phụ độc tố', 'ACTIVE', NOW(), NOW());
+
+-- ===============================================
+-- 13. MEDICINE IMPORTS (Lịch sử nhập thuốc)
+-- ===============================================
+INSERT INTO medicine_imports (id, medicineId, quantity, importPrice, importDate, userId, createdAt, updatedAt) VALUES
+-- Đợt nhập tháng 12/2025
+(1, 1, 5000, 500, '2025-12-01', 1, NOW(), NOW()),  -- Amoxicillin
+(2, 2, 3000, 3000, '2025-12-01', 1, NOW(), NOW()),  -- Augmentin
+(3, 3, 10000, 100, '2025-12-01', 1, NOW(), NOW()),  -- Paracetamol
+(4, 5, 3000, 800, '2025-12-05', 1, NOW(), NOW()),  -- Omeprazole
+(5, 7, 5000, 300, '2025-12-05', 1, NOW(), NOW()),  -- Amlodipine
+(6, 9, 6000, 1000, '2025-12-10', 1, NOW(), NOW()),  -- Vitamin C
+(7, 11, 500, 30000, '2025-12-15', 1, NOW(), NOW()),  -- Prospan
+(8, 13, 1000, 25000, '2025-12-20', 1, NOW(), NOW());  -- Gel trị mụn
+
+-- ===============================================
+-- 14. VISITS (Phiếu khám - có triệu chứng và loại bệnh)
+-- ===============================================
+INSERT INTO visits (id, appointmentId, patientId, doctorId, checkInTime, symptoms, diseaseCategoryId, diagnosis, note, status, createdAt, updatedAt) VALUES
+-- Visit 1: Viêm amidan - ĐÃ KÊ ĐƠN
+(1, 13, 3, 1, '2025-12-27 08:30:00', 'Đau họng, sốt 38.5°C, nuốt đau, mệt mỏi', 1,
+ 'Viêm amidan cấp độ 2',
+ 'Bệnh nhân có triệu chứng viêm amidan cấp, họng đỏ, amidan to. Kê đơn kháng sinh và thuốc hạ sốt. Khuyên nghỉ ngơi, uống nhiều nước. Tái khám sau 5-7 ngày.',
+ 'COMPLETED', '2025-12-27 08:30:00', NOW()),
+
+-- Visit 2: Viêm dạ dày - ĐÃ KÊ ĐƠN
+(2, 3, 3, 2, '2025-12-26 09:00:00', 'Đau bụng vùng thượng vị, ợ nóng, buồn nôn sau ăn', 3,
+ 'Viêm dạ dày cấp',
+ 'Triệu chứng viêm dạ dày điển hình. Kê thuốc ức chế acid, thuốc bảo vệ niêm mạc. Kiêng ăn cay, nóng, chua. Ăn nhiều bữa/ngày.',
+ 'COMPLETED', '2025-12-26 09:00:00', NOW()),
+
+-- Visit 3: Tăng huyết áp - ĐÃ KÊ ĐƠN
+(3, 8, 3, 5, '2025-12-26 19:00:00', 'Huyết áp 160/100 mmHg, đau đầu, chóng mặt, mệt', 4,
+ 'Tăng huyết áp độ 2',
+ 'Huyết áp cao cần điều trị. Kê thuốc hạ áp. Khuyên giảm muối, tập thể dục nhẹ, kiểm soát cân nặng. Theo dõi huyết áp tại nhà.',
+ 'COMPLETED', '2025-12-26 19:00:00', NOW()),
+
+-- Visit 4: Mụn trứng cá - ĐÃ KÊ ĐƠN
+(4, 9, 4, 6, '2025-12-26 19:30:00', 'Mụn nhiều ở mặt, mụn đầu đen, mụn viêm đỏ', 5,
+ 'Mụn trứng cá mức độ trung bình',
+ 'Mụn trứng cá do tăng tiết bã nhờn. Kê gel bôi ngoài, vitamin. Khuyên vệ sinh da sạch, không nặn mụn.',
+ 'COMPLETED', '2025-12-26 19:30:00', NOW()),
+
+-- Visit 5: Tiêu chảy - ĐÃ KÊ ĐƠN
+(5, 4, 4, 2, '2025-12-26 09:30:00', 'Tiêu chảy 5-6 lần/ngày, phân lỏng, đau bụng quặn', 8,
+ 'Tiêu chảy cấp do nhiễm khuẩn',
+ 'Tiêu chảy cấp, cần bù nước điện giải. Kê thuốc cầm tiêu chảy, men vi sinh. Kiêng ăn dầu mỡ, sữa.',
+ 'COMPLETED', '2025-12-26 09:30:00', NOW());
+
+-- ===============================================
+-- 15. PRESCRIPTIONS (Đơn thuốc - có mã tự động)
+-- ===============================================
+INSERT INTO prescriptions (id, prescriptionCode, visitId, doctorId, patientId, totalAmount, status, note, createdAt, updatedAt) VALUES
+-- Đơn 1: Viêm amidan (Visit 1)
+(1, 'RX-20251227-00001', 1, 1, 3, 32000, 'DRAFT',
+ 'Uống đủ liều kháng sinh, không tự ý ngưng thuốc. Tái khám nếu sau 3 ngày vẫn sốt cao.',
+ '2025-12-27 08:45:00', NOW()),
+
+-- Đơn 2: Viêm dạ dày (Visit 2)
+(2, 'RX-20251226-00001', 2, 2, 3, 52500, 'DRAFT',
+ 'Uống thuốc trước ăn 30 phút. Ăn nhiều bữa, tránh căng thẳng.',
+ '2025-12-26 09:15:00', NOW()),
+
+-- Đơn 3: Tăng huyết áp (Visit 3) - ĐÃ KHÓA
+(3, 'RX-20251226-00002', 3, 5, 3, 43200, 'LOCKED',
+ 'Uống thuốc mỗi sáng cùng giờ. Đo huyết áp hàng ngày, ghi chép lại.',
+ '2025-12-26 19:15:00', NOW()),
+
+-- Đơn 4: Mụn trứng cá (Visit 4)
+(4, 'RX-20251226-00003', 4, 6, 4, 115000, 'DRAFT',
+ 'Bôi gel 2 lần/ngày sau khi rửa mặt sạch. Uống vitamin đều đặn.',
+ '2025-12-26 19:45:00', NOW()),
+
+-- Đơn 5: Tiêu chảy (Visit 5)
+(5, 'RX-20251226-00004', 5, 2, 4, 40000, 'DRAFT',
+ 'Uống nhiều nước lọc. Ăn cháo loãng, tránh đồ ăn khó tiêu.',
+ '2025-12-26 09:45:00', NOW());
+
+-- ===============================================
+-- 16. PRESCRIPTION DETAILS (Chi tiết đơn thuốc)
+-- ===============================================
+-- Đơn 1: Viêm amidan (Amoxicillin + Paracetamol)
+INSERT INTO prescription_details (id, prescriptionId, medicineId, medicineName, quantity, unit, unitPrice, dosageMorning, dosageNoon, dosageAfternoon, dosageEvening, instruction, createdAt, updatedAt) VALUES
+(1, 1, 1, 'Amoxicillin 500mg', 21, 'VIEN', 1000, 1, 1, 1, 0,
+ 'Uống sau ăn 30 phút. Uống đủ 7 ngày liên tục.', NOW(), NOW()),
+(2, 1, 3, 'Paracetamol 500mg', 10, 'VIEN', 200, 1, 0, 1, 1,
+ 'Uống khi sốt trên 38.5°C. Cách mỗi lần uống ít nhất 4 giờ.', NOW(), NOW()),
+
+-- Đơn 2: Viêm dạ dày (Omeprazole + Phosphalugel)
+(3, 2, 5, 'Omeprazole 20mg', 30, 'VIEN', 1500, 1, 0, 0, 0,
+ 'Uống trước ăn sáng 30 phút.', NOW(), NOW()),
+(4, 2, 6, 'Phosphalugel', 15, 'GOI', 3500, 1, 1, 1, 0,
+ 'Uống sau ăn 1 giờ hoặc khi đau.', NOW(), NOW()),
+
+-- Đơn 3: Tăng huyết áp (Amlodipine + Bisoprolol)
+(5, 3, 7, 'Amlodipine 5mg', 60, 'VIEN', 600, 1, 0, 0, 0,
+ 'Uống mỗi sáng cùng giờ.', NOW(), NOW()),
+(6, 3, 8, 'Bisoprolol 5mg', 30, 'VIEN', 1500, 0.5, 0, 0, 0,
+ 'Uống nửa viên mỗi sáng.', NOW(), NOW()),
+
+-- Đơn 4: Mụn trứng cá (Gel + Vitamin C)
+(7, 4, 13, 'Gel trị mụn Acnes 25g', 2, 'TUYP', 45000, 0, 0, 0, 0,
+ 'Bôi lên vùng da có mụn, sáng và tối sau khi rửa mặt.', NOW(), NOW()),
+(8, 4, 9, 'Vitamin C 1000mg', 30, 'VIEN', 2000, 1, 0, 0, 0,
+ 'Uống sau ăn sáng.', NOW(), NOW()),
+
+-- Đơn 5: Tiêu chảy (Smecta)
+(9, 5, 15, 'Smecta', 12, 'GOI', 5000, 1, 1, 1, 0,
+ 'Pha với nước, uống trước ăn 30 phút hoặc giữa các bữa ăn.', NOW(), NOW());
+
+-- ===============================================
+-- 17. MEDICINE EXPORTS (Lịch sử xuất thuốc - Audit trail)
+-- ===============================================
+INSERT INTO medicine_exports (id, medicineId, quantity, exportDate, userId, reason, createdAt, updatedAt) VALUES
+-- Xuất cho đơn RX-20251227-00001 (Viêm amidan)
+(1, 1, 21, '2025-12-27 08:45:00', 1, 'PRESCRIPTION_RX-20251227-00001', NOW(), NOW()),
+(2, 3, 10, '2025-12-27 08:45:00', 1, 'PRESCRIPTION_RX-20251227-00001', NOW(), NOW()),
+
+-- Xuất cho đơn RX-20251226-00001 (Viêm dạ dày)
+(3, 5, 30, '2025-12-26 09:15:00', 2, 'PRESCRIPTION_RX-20251226-00001', NOW(), NOW()),
+(4, 6, 15, '2025-12-26 09:15:00', 2, 'PRESCRIPTION_RX-20251226-00001', NOW(), NOW()),
+
+-- Xuất cho đơn RX-20251226-00002 (Tăng huyết áp)
+(5, 7, 60, '2025-12-26 19:15:00', 5, 'PRESCRIPTION_RX-20251226-00002', NOW(), NOW()),
+(6, 8, 30, '2025-12-26 19:15:00', 5, 'PRESCRIPTION_RX-20251226-00002', NOW(), NOW()),
+
+-- Xuất cho đơn RX-20251226-00003 (Mụn trứng cá)
+(7, 13, 2, '2025-12-26 19:45:00', 6, 'PRESCRIPTION_RX-20251226-00003', NOW(), NOW()),
+(8, 9, 30, '2025-12-26 19:45:00', 6, 'PRESCRIPTION_RX-20251226-00003', NOW(), NOW()),
+
+-- Xuất cho đơn RX-20251226-00004 (Tiêu chảy)
+(9, 15, 12, '2025-12-26 09:45:00', 2, 'PRESCRIPTION_RX-20251226-00004', NOW(), NOW());
 
 -- ===============================================
 -- VERIFY DATA

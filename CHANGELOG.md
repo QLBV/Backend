@@ -4,6 +4,151 @@ Tất cả các thay đổi quan trọng của dự án được ghi lại ở �
 
 ---
 
+## [2.0.0] - 2025-12-26
+
+### 🎉 Major Release - Medicine & Prescription Management System
+
+#### ✨ Features mới
+
+**Module Medicine Management (Quản lý thuốc):**
+- ✅ CRUD đầy đủ cho Medicines
+- ✅ Tự động generate mã thuốc (MED-000001, MED-000002, ...)
+- ✅ Quản lý tồn kho (quantity, minStockLevel)
+- ✅ Nhập kho thuốc (medicine_imports)
+- ✅ Lịch sử xuất kho (medicine_exports) - Audit Trail
+- ✅ Cảnh báo thuốc sắp hết (lowStock filter)
+- ✅ Đánh dấu thuốc hết hạn (status: EXPIRED)
+- ✅ Soft delete thuốc (status: REMOVED)
+- ✅ Hỗ trợ 6 đơn vị: VIEN, ML, HOP, CHAI, TUYP, GOI
+
+**Module Prescription Management (Kê đơn thuốc):**
+- ✅ Bác sĩ kê đơn thuốc cho bệnh nhân
+- ✅ Tự động generate mã đơn (RX-YYYYMMDD-XXXXX)
+- ✅ **Tự động trừ kho** khi kê đơn
+- ✅ **Pessimistic Locking** để tránh race condition
+- ✅ **Price Snapshot** - Lưu giá tại thời điểm kê đơn
+- ✅ Cập nhật đơn thuốc (chỉ khi DRAFT)
+- ✅ Hủy đơn thuốc + Hoàn trả kho tự động
+- ✅ Khóa đơn thuốc (status: LOCKED) sau thanh toán
+- ✅ Xuất PDF đơn thuốc (với Digital Signature)
+- ✅ Transaction safety (rollback nếu lỗi)
+- ✅ 1 Visit = 1 Prescription (UNIQUE constraint)
+
+**Module Disease Categories (Danh mục bệnh):**
+- ✅ Quản lý danh mục bệnh theo chuẩn ICD-10
+- ✅ Link Visit với Disease Category
+- ✅ Hỗ trợ chẩn đoán chính xác hơn
+
+#### 📦 Models
+
+**Mới thêm (v2.0):**
+- `Medicine` - Thông tin thuốc + Tồn kho
+- `MedicineImport` - Lịch sử nhập kho
+- `MedicineExport` - Lịch sử xuất kho (Audit Trail)
+- `DiseaseCategory` - Danh mục bệnh (ICD-10)
+- `Prescription` - Đơn thuốc
+- `PrescriptionDetail` - Chi tiết đơn thuốc (with price snapshot)
+
+**Updated:**
+- `Visit` - Thêm `symptoms`, `diseaseCategoryId`
+
+#### 🗄️ Database Changes
+
+**New Migrations:**
+- `20251226074030-create-medicines.js` - Tạo bảng medicines
+- `20251226074417-create-disease-categories.js` - Tạo bảng disease_categories
+- `20251226074430-update-visits-add-symptoms-and-category.js` - Cập nhật visits
+- `20251226074509-create-prescriptions.js` - Tạo bảng prescriptions
+- `20251226074511-create-prescription-details.js` - Tạo bảng prescription_details
+- `20251226080000-create-medicine-imports.js` - Tạo bảng medicine_imports
+- `20251226080001-create-medicine-exports.js` - Tạo bảng medicine_exports
+
+**New Tables:** 7 tables
+**Total Tables:** 19 tables
+
+#### 🔧 Services
+
+**Mới:**
+- `medicine.service.ts` - CRUD thuốc, nhập/xuất kho, low stock alert
+- `prescription.service.ts` - Kê đơn, cập nhật, hủy, PDF export
+- `codeGenerator.ts` - Utility sinh mã tự động
+- `digitalSignature.ts` - Chữ ký số cho đơn thuốc
+- `pdfGenerator.ts` - Xuất PDF đơn thuốc
+
+#### 🎯 Controllers
+
+**Mới:**
+- `medicine.controller.ts` - API endpoints cho Medicine
+- `prescription.controller.ts` - API endpoints cho Prescription
+
+#### 🛣️ Routes
+
+**Mới:**
+- `GET /api/medicines` - Lấy danh sách thuốc (filter: status, group, lowStock, search)
+- `GET /api/medicines/:id` - Xem chi tiết thuốc
+- `POST /api/medicines` - Tạo thuốc mới (ADMIN)
+- `PUT /api/medicines/:id` - Cập nhật thuốc (ADMIN)
+- `DELETE /api/medicines/:id` - Xóa thuốc (ADMIN, soft delete)
+- `POST /api/medicines/:id/import` - Nhập kho (ADMIN)
+- `GET /api/medicines/:id/imports` - Lịch sử nhập kho (ADMIN)
+- `GET /api/medicines/:id/exports` - Lịch sử xuất kho (ADMIN)
+- `POST /api/medicines/:id/mark-expired` - Đánh dấu hết hạn (ADMIN)
+
+- `POST /api/prescriptions` - Kê đơn thuốc (DOCTOR)
+- `GET /api/prescriptions/:id` - Xem chi tiết đơn (DOCTOR, PATIENT)
+- `PUT /api/prescriptions/:id` - Cập nhật đơn (DOCTOR, chỉ DRAFT)
+- `POST /api/prescriptions/:id/cancel` - Hủy đơn (DOCTOR, chỉ DRAFT)
+- `GET /api/prescriptions/patient/:patientId` - Đơn thuốc theo bệnh nhân
+- `GET /api/prescriptions/visit/:visitId` - Đơn thuốc theo visit
+- `GET /api/prescriptions/:id/pdf` - Xuất PDF đơn thuốc
+
+#### 🎨 Middlewares
+
+**Mới:**
+- `validateMedicine.middlewares.ts` - Validate request cho Medicine
+- `validatePrescription.middlewares.ts` - Validate request cho Prescription
+
+#### 📚 Documentation
+
+**Updated:**
+- `docs/API-TESTING-GUIDE.md` - Gộp 3 file API test guide + Thêm Medicine & Prescription
+- `docs/DATABASE-SCHEMA.md` - Cập nhật với 7 bảng mới
+- `docs/README.md` - Cập nhật tổng quan hệ thống
+
+#### 📦 Dependencies
+
+**Không thay đổi** - Sử dụng dependencies hiện có
+
+#### ⚙️ Configuration
+
+**Không cần thêm config** - Tất cả đã có sẵn
+
+---
+
+## 🔄 Breaking Changes (v2.0)
+
+- ❌ **NONE** - Backward compatible với v1.0
+
+---
+
+## 🚀 Migration Guide (v1.0 → v2.0)
+
+```bash
+# 1. Pull code mới
+git pull origin main
+
+# 2. Cài đặt dependencies (nếu có)
+npm install
+
+# 3. Chạy migrations mới
+npx sequelize-cli db:migrate
+
+# 4. (Optional) Seed dữ liệu mẫu cho medicines
+# Tạo file seeder hoặc import manual
+```
+
+---
+
 ## [1.0.0] - 2025-12-25
 
 ### 🎉 Initial Release
@@ -185,41 +330,47 @@ EMAIL_PASSWORD=your-app-password
 
 ## 📊 Thống kê
 
-### Code Metrics
-- **Tổng Models**: 9 (1 mới)
-- **Tổng Services**: 15+ (3 mới)
-- **Tổng Controllers**: 12+ (2 mới)
-- **Tổng Routes**: 8+ (2 mới)
-- **Tổng API Endpoints**: 40+ (7 mới)
-- **Migrations**: 14 (2 mới)
+### Code Metrics (v2.0)
+- **Tổng Models**: 15 (+6 mới)
+- **Tổng Services**: 17+ (+2 mới)
+- **Tổng Controllers**: 14+ (+2 mới)
+- **Tổng Routes**: 10+ (+2 mới)
+- **Tổng API Endpoints**: 55+ (+15 mới)
+- **Migrations**: 21 (+7 mới)
 - **Email Templates**: 3 (fancy, responsive)
 
-### Files Changed
-- **Files mới tạo**: 12 files
-  - 3 services
-  - 2 controllers
-  - 2 routes
-  - 1 model
-  - 1 template file
-  - 1 events file
-  - 2 migrations
+### Files Changed (v2.0)
+- **Files mới tạo**: 20+ files
+  - 6 models (Medicine, MedicineImport, MedicineExport, DiseaseCategory, Prescription, PrescriptionDetail)
+  - 2 services (medicine.service, prescription.service)
+  - 3 utilities (codeGenerator, digitalSignature, pdfGenerator)
+  - 2 controllers (medicine.controller, prescription.controller)
+  - 2 routes (medicine.routes, prescription.routes)
+  - 2 middlewares (validateMedicine, validatePrescription)
+  - 7 migrations
+  - 1 associations file
 
-- **Files đã sửa**: 4 files
-  - `app.ts`
-  - `appointment.controller.ts`
-  - `DoctorShift.ts` (model)
+- **Files đã cập nhật**: 10+ files
+  - `app.ts` (register routes)
+  - `Visit.ts` (model - add symptoms, diseaseCategoryId)
+  - `index.ts` (models - import new models)
   - `package.json`
+  - `CHANGELOG.md`
+  - `docs/API-TESTING-GUIDE.md`
+  - `docs/DATABASE-SCHEMA.md`
+  - `docs/README.md`
 
-- **Docs tạo mới**: 6 markdown files
+- **Docs updated**: 3 markdown files
 
-### Lines of Code
-- **Services**: ~800 lines
-- **Templates**: ~400 lines
-- **Controllers**: ~300 lines
-- **Models**: ~100 lines
-- **Routes**: ~50 lines
-- **Migrations**: ~150 lines
-- **Total**: ~1800 lines of new code
+### Lines of Code (v2.0 additions)
+- **Models**: ~600 lines
+- **Services**: ~1200 lines
+- **Controllers**: ~600 lines
+- **Middlewares**: ~200 lines
+- **Utilities**: ~300 lines
+- **Routes**: ~100 lines
+- **Migrations**: ~350 lines
+- **Total**: ~3350 lines of new code
 
 ---
 

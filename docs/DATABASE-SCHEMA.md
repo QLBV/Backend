@@ -4,14 +4,17 @@
 
 Database sử dụng **MySQL 8.x** với **Sequelize ORM**.
 
-**Tổng số bảng**: 12 tables
+**Tổng số bảng**: 19 tables
 **Engine**: InnoDB
 **Charset**: utf8mb4_unicode_ci
+
+**Version**: 2.0.0 (Updated: 2025-12-26)
 
 ---
 
 ## 📊 Sơ đồ quan hệ (ER Diagram)
 
+### Core System (v1.0)
 ```
 ┌─────────────┐
 │    users    │───────┐
@@ -41,14 +44,41 @@ Database sử dụng **MySQL 8.x** với **Sequelize ORM**.
                 ┌──────────┐
                 │  visits  │
                 └──────────┘
+```
 
-┌──────────────┐   ┌──────────┐
-│ specialties  │◄──│ doctors  │
-└──────────────┘   └──────────┘
+### Medicine & Prescription System (v2.0)
+```
+┌─────────────────┐
+│    medicines    │
+└────────┬────────┘
+         │
+         ├──────────┬─────────────┬────────────┐
+         │          │             │            │
+         ▼          ▼             ▼            ▼
+┌──────────────┐  ┌─────────────┐  ┌────────────────────┐
+│  medicine    │  │  medicine   │  │  prescription      │
+│   imports    │  │   exports   │  │     details        │
+└──────────────┘  └─────────────┘  └────────┬───────────┘
+                                             │
+                                             ▼
+                                    ┌────────────────┐
+                                    │ prescriptions  │
+                                    └────────┬───────┘
+                                             │
+                                             ├──────┐
+                                             ▼      ▼
+                                    ┌──────────┐  ┌──────────┐
+                                    │ visits   │  │ patients │
+                                    └──────────┘  └──────────┘
 
-┌──────────┐   ┌──────────────┐
-│  shifts  │◄──│doctor_shifts │
-└──────────┘   └──────────────┘
+┌────────────────────┐
+│ disease_categories │
+└──────────┬─────────┘
+           │
+           ▼
+      ┌──────────┐
+      │ visits   │
+      └──────────┘
 ```
 
 ---
@@ -201,7 +231,7 @@ KEY (userId, createdAt)
 
 ---
 
-### **9. visits**
+### **9. visits** ⭐
 Thông tin khám bệnh (sau khi appointment hoàn thành)
 
 | Column | Type | Description |
@@ -209,9 +239,158 @@ Thông tin khám bệnh (sau khi appointment hoàn thành)
 | `id` | INT (PK) | ID duy nhất |
 | `appointmentId` | INT (FK → appointments.id) | Link tới lịch hẹn |
 | `diagnosis` | TEXT | Chẩn đoán |
+| `symptoms` | TEXT | Triệu chứng (mới) |
+| `diseaseCategoryId` | INT (FK → disease_categories.id) | Danh mục bệnh (ICD-10) |
 | `prescription` | TEXT | Đơn thuốc |
 | `notes` | TEXT | Ghi chú bác sĩ |
 | `visitDate` | DATETIME | Thời gian khám |
+
+**Updated:** Migration [20251226074430-update-visits-add-symptoms-and-category.js](../migrations/20251226074430-update-visits-add-symptoms-and-category.js)
+
+---
+
+### **10. disease_categories** 🆕
+Danh mục bệnh theo tiêu chuẩn ICD-10
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INT (PK) | ID duy nhất |
+| `code` | VARCHAR(10) UNIQUE | Mã ICD-10 (J03, I10, E11, ...) |
+| `name` | VARCHAR(255) | Tên bệnh |
+| `description` | TEXT | Mô tả chi tiết |
+
+**Sample:**
+- J03 - Viêm amidan cấp
+- I10 - Tăng huyết áp
+- E11 - Đái tháo đường type 2
+- J18 - Viêm phổi
+
+**Migration:** [20251226074417-create-disease-categories.js](../migrations/20251226074417-create-disease-categories.js)
+
+---
+
+### **11. medicines** 🆕
+Quản lý thuốc và tồn kho
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INT (PK) | ID duy nhất |
+| `medicineCode` | VARCHAR(20) UNIQUE | Mã thuốc (MED-000001, ...) |
+| `name` | VARCHAR(200) | Tên thuốc |
+| `group` | VARCHAR(100) | Nhóm thuốc (Kháng sinh, Giảm đau, ...) |
+| `activeIngredient` | VARCHAR(200) | Hoạt chất |
+| `manufacturer` | VARCHAR(200) | Nhà sản xuất |
+| `unit` | ENUM | Đơn vị: VIEN, ML, HOP, CHAI, TUYP, GOI |
+| `importPrice` | DECIMAL(10,2) | Giá nhập (VNĐ) |
+| `salePrice` | DECIMAL(10,2) | Giá bán (VNĐ) |
+| `quantity` | INT | Tồn kho hiện tại |
+| `minStockLevel` | INT | Mức tồn tối thiểu (default: 10) |
+| `expiryDate` | DATE | Ngày hết hạn |
+| `description` | TEXT | Mô tả, hướng dẫn sử dụng |
+| `status` | ENUM | ACTIVE, EXPIRED, REMOVED |
+
+**Indexes:**
+```sql
+UNIQUE KEY (medicineCode)
+KEY (status)
+KEY (group)
+```
+
+**Migration:** [20251226074030-create-medicines.js](../migrations/20251226074030-create-medicines.js)
+
+---
+
+### **12. medicine_imports** 🆕
+Lịch sử nhập kho (Audit Trail)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INT (PK) | ID duy nhất |
+| `medicineId` | INT (FK → medicines.id) | Thuốc nào |
+| `quantity` | INT | Số lượng nhập |
+| `importPrice` | DECIMAL(10,2) | Giá nhập |
+| `importDate` | DATETIME | Ngày nhập |
+| `userId` | INT (FK → users.id) | Người nhập (Admin) |
+
+**Migration:** [20251226080000-create-medicine-imports.js](../migrations/20251226080000-create-medicine-imports.js)
+
+---
+
+### **13. medicine_exports** 🆕
+Lịch sử xuất kho (Audit Trail)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INT (PK) | ID duy nhất |
+| `medicineId` | INT (FK → medicines.id) | Thuốc nào |
+| `quantity` | INT | Số lượng xuất |
+| `exportDate` | DATETIME | Ngày xuất |
+| `userId` | INT (FK → users.id) | Người xuất (Doctor) |
+| `reason` | VARCHAR(255) | Lý do xuất |
+
+**Reason format:**
+- `PRESCRIPTION_{prescriptionCode}` - Kê đơn thuốc
+- `ADJUSTMENT` - Điều chỉnh tồn kho
+- `EXPIRED` - Hủy thuốc hết hạn
+- `DAMAGED` - Thuốc hỏng
+
+**Migration:** [20251226080001-create-medicine-exports.js](../migrations/20251226080001-create-medicine-exports.js)
+
+---
+
+### **14. prescriptions** 🆕
+Đơn thuốc
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INT (PK) | ID duy nhất |
+| `prescriptionCode` | VARCHAR(30) UNIQUE | Mã đơn (RX-YYYYMMDD-XXXXX) |
+| `visitId` | INT (FK → visits.id) UNIQUE | Phiếu khám (1 visit = 1 prescription) |
+| `doctorId` | INT (FK → doctors.id) | Bác sĩ kê đơn |
+| `patientId` | INT (FK → patients.id) | Bệnh nhân |
+| `totalAmount` | DECIMAL(10,2) | Tổng tiền |
+| `status` | ENUM | DRAFT, LOCKED, CANCELLED |
+| `note` | TEXT | Ghi chú của bác sĩ |
+| `digitalSignature` | TEXT | Chữ ký số |
+
+**Indexes:**
+```sql
+UNIQUE KEY (prescriptionCode)
+UNIQUE KEY (visitId)
+KEY (doctorId, status)
+KEY (patientId)
+```
+
+**Migration:** [20251226074509-create-prescriptions.js](../migrations/20251226074509-create-prescriptions.js)
+
+---
+
+### **15. prescription_details** 🆕
+Chi tiết đơn thuốc (Snapshot giá)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INT (PK) | ID duy nhất |
+| `prescriptionId` | INT (FK → prescriptions.id) | Đơn thuốc |
+| `medicineId` | INT (FK → medicines.id) | Thuốc |
+| `medicineName` | VARCHAR(200) | Tên thuốc (snapshot) |
+| `quantity` | INT | Số lượng |
+| `unit` | ENUM | Đơn vị (snapshot) |
+| `unitPrice` | DECIMAL(10,2) | Giá bán (snapshot) |
+| `dosageMorning` | DECIMAL(4,2) | Liều sáng (0-99.99) |
+| `dosageNoon` | DECIMAL(4,2) | Liều trưa |
+| `dosageAfternoon` | DECIMAL(4,2) | Liều chiều |
+| `dosageEvening` | DECIMAL(4,2) | Liều tối |
+| `instruction` | TEXT | Hướng dẫn sử dụng |
+
+**Indexes:**
+```sql
+KEY (prescriptionId)
+```
+
+**Lý do snapshot:** Giá thuốc có thể thay đổi sau này, cần lưu giá tại thời điểm kê đơn
+
+**Migration:** [20251226074511-create-prescription-details.js](../migrations/20251226074511-create-prescription-details.js)
 
 ---
 
@@ -221,6 +400,7 @@ Tất cả migrations nằm trong `/migrations`:
 
 ```bash
 migrations/
+# Core System (v1.0)
 ├── 20231201120000-create-users.js
 ├── 20231201120100-create-patients.js
 ├── 20231201120200-create-specialties.js
@@ -229,8 +409,19 @@ migrations/
 ├── 20231201120500-create-doctor-shifts.js
 ├── 20231201120600-create-appointments.js
 ├── 20231201120700-create-visits.js
+
+# Reschedule & Notification (v1.5)
 ├── 20251225175542-add-status-to-doctor-shifts.js   ← Reschedule feature
-└── 20251225182320-create-notifications.js          ← Notification feature
+├── 20251225182320-create-notifications.js          ← Notification feature
+
+# Medicine & Prescription System (v2.0)
+├── 20251226074030-create-medicines.js
+├── 20251226074417-create-disease-categories.js
+├── 20251226074430-update-visits-add-symptoms-and-category.js
+├── 20251226074509-create-prescriptions.js
+├── 20251226074511-create-prescription-details.js
+├── 20251226080000-create-medicine-imports.js
+└── 20251226080001-create-medicine-exports.js
 ```
 
 **Chạy migrations:**
@@ -247,6 +438,7 @@ npx sequelize-cli db:migrate:undo
 
 ## 📈 Relationships Summary
 
+### Core System
 ```
 users (1) ──── (1) patients
 users (1) ──── (1) doctors
@@ -255,13 +447,28 @@ users (1) ──── (N) notifications
 doctors (N) ──── (1) specialties
 doctors (1) ──── (N) doctor_shifts
 doctors (1) ──── (N) appointments
+doctors (1) ──── (N) prescriptions
 
 shifts (1) ──── (N) doctor_shifts
 shifts (1) ──── (N) appointments
 
 patients (1) ──── (N) appointments
+patients (1) ──── (N) prescriptions
+
 appointments (1) ──── (1) visits
 appointments (1) ──── (N) notifications
+```
+
+### Medicine & Prescription System
+```
+medicines (1) ──── (N) medicine_imports
+medicines (1) ──── (N) medicine_exports
+medicines (1) ──── (N) prescription_details
+
+prescriptions (1) ──── (1) visits (UNIQUE)
+prescriptions (1) ──── (N) prescription_details
+
+visits (N) ──── (1) disease_categories
 ```
 
 ---
@@ -278,10 +485,25 @@ appointments (1) ──── (N) notifications
 - Field `emailSent` track xem đã gửi email chưa
 - Field `relatedAppointmentId` để link tới appointment
 
-### **3. Unique Constraints**
+### **3. Medicine Inventory Management**
+- **Pessimistic Locking**: `SELECT ... FOR UPDATE` khi kê đơn
+- **Auto Stock Deduction**: Trừ kho tự động khi tạo prescription
+- **Audit Trail**: medicine_imports + medicine_exports track mọi thay đổi
+- **Price Snapshot**: Lưu giá tại thời điểm kê đơn (prescription_details)
+
+### **4. Prescription Business Logic**
+- 1 Visit chỉ có 1 Prescription (UNIQUE constraint)
+- Status workflow: DRAFT → LOCKED (không thể sửa sau khi thanh toán)
+- Chỉ bác sĩ kê đơn mới được sửa/hủy
+- Hủy đơn → Hoàn trả kho tự động
+
+### **5. Unique Constraints**
 - Email unique trong `users`
 - (doctorId, shiftId, workDate) unique trong `doctor_shifts`
 - (doctorId, shiftId, date, slotNumber) unique trong `appointments`
+- `medicineCode` unique trong `medicines`
+- `prescriptionCode` unique trong `prescriptions`
+- `visitId` unique trong `prescriptions` (1 visit = 1 prescription)
 
 ---
 

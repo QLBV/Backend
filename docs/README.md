@@ -11,32 +11,51 @@
 
 ## 📋 Tổng quan hệ thống
 
-Healthcare Management System là hệ thống quản lý phòng khám với các chức năng chính:
+Healthcare Management System là hệ thống quản lý phòng khám toàn diện với các chức năng chính:
 
+### Core Features (v1.0)
 - ✅ Quản lý bác sĩ (CRUD + Chuyên khoa + Mã BS000xxx)
+- ✅ Quản lý bệnh nhân (Patient profiles + Medical history)
 - ✅ Quản lý ca làm việc (Sáng/Chiều/Tối)
 - ✅ Gán bác sĩ vào ca làm
-- ✅ Hiển thị bác sĩ trực trong ngày
-- ✅ **Tự động chuyển lịch hẹn khi bác sĩ nghỉ**
+- ✅ Đặt lịch khám (Online/Offline)
+- ✅ **Tự động chuyển lịch hẹn khi bác sĩ nghỉ (Reschedule System)**
 - ✅ **Hệ thống thông báo email + in-app notification**
+
+### New Features (v2.0)
+- ✅ **Quản lý thuốc (Medicine Management)**
+  - Tồn kho, nhập/xuất kho
+  - Cảnh báo thuốc sắp hết
+  - Audit trail (lịch sử xuất nhập)
+- ✅ **Kê đơn thuốc (Prescription Management)**
+  - Tự động trừ kho
+  - Pessimistic locking
+  - Price snapshot
+  - Xuất PDF đơn thuốc
+- ✅ **Danh mục bệnh (Disease Categories - ICD-10)**
 
 ---
 
 ## 📚 Tài liệu theo chức năng
 
 ### **🚀 Quick Start**
-- [Quick Start Guide](./QUICK-START.md) - Hướng dẫn cài đặt và chạy nhanh
+- [Quick Start Guide](./QUICK-START.md) - Hướng dẫn cài đặt và chạy nhanh (5 phút)
 
 ### **📡 API & Testing**
-- [API Testing Guide](./API-TESTING.md) - Hướng dẫn test API
-- [Test Reschedule](./TEST-RESCHEDULE.md) - Hướng dẫn test reschedule system
+- [API Testing Guide - COMPLETE](./API-TESTING-GUIDE.md) - **Hướng dẫn test API đầy đủ (All modules)**
+  - Core APIs (Patient, Doctor, Appointment)
+  - Medicine Management APIs
+  - Prescription Management APIs
+  - Reschedule & Notification APIs
+- [Test Reschedule](./TEST-RESCHEDULE.md) - Hướng dẫn test reschedule system chi tiết
+- ~[API Testing (Old)](./API-TESTING.md)~ - Deprecated, xem API-TESTING-GUIDE.md
 
 ### **🔧 Core Features**
 - [Reschedule System](./RESCHEDULE-SYSTEM.md) - Hệ thống reschedule tự động
 - [Notification System](./NOTIFICATION-SYSTEM.md) - Hệ thống email + in-app notification
 
 ### **🗄️ Database**
-- [Database Schema](./DATABASE-SCHEMA.md) - Cấu trúc database đầy đủ
+- [Database Schema](./DATABASE-SCHEMA.md) - Cấu trúc database đầy đủ (19 tables)
 
 ---
 
@@ -186,24 +205,46 @@ Bệnh nhân → GET /api/notifications
 
 ## 📊 Thống kê Dự án
 
-| Metric | Value |
-|--------|-------|
-| **Tổng số Models** | 12+ |
-| **Tổng số API Endpoints** | 40+ |
-| **Tổng số Migrations** | 14 |
-| **Tổng số Services** | 15+ |
-| **Tổng số Controllers** | 10+ |
-| **Email Templates** | 3 (Fancy, Responsive) |
-| **Event Listeners** | 3 |
+| Metric | Value | Version |
+|--------|-------|---------|
+| **Tổng số Models** | 15 | v2.0 (+6) |
+| **Tổng số API Endpoints** | 55+ | v2.0 (+15) |
+| **Tổng số Migrations** | 21 | v2.0 (+7) |
+| **Tổng số Services** | 17+ | v2.0 (+2) |
+| **Tổng số Controllers** | 14+ | v2.0 (+2) |
+| **Tổng số Tables** | 19 | v2.0 (+7) |
+| **Email Templates** | 3 (Fancy, Responsive) | v1.0 |
+| **Event Listeners** | 3 | v1.0 |
 
 ---
 
 ## 🔗 Quick Links
 
-- [Quick Start](./QUICK-START.md) - Bắt đầu nhanh trong 5 phút
-- [API Testing](./API-TESTING.md) - Test API với Postman/curl
-- [Reschedule System](./RESCHEDULE-SYSTEM.md) - Logic reschedule tự động
-- [Notification System](./NOTIFICATION-SYSTEM.md) - Email + in-app notifications
+### Essential Docs
+- 🚀 [Quick Start](./QUICK-START.md) - Bắt đầu nhanh trong 5 phút
+- 📘 [API Testing Guide - COMPLETE](./API-TESTING-GUIDE.md) - **Test all APIs** (Core + Medicine + Prescription)
+- 🗄️ [Database Schema](./DATABASE-SCHEMA.md) - Cấu trúc 19 tables
+
+### Feature Docs
+- 🔄 [Reschedule System](./RESCHEDULE-SYSTEM.md) - Logic reschedule tự động
+- 📧 [Notification System](./NOTIFICATION-SYSTEM.md) - Email + in-app notifications
+
+---
+
+## 🎯 Modules
+
+### Core Modules (v1.0)
+- Patient Management
+- Doctor Management
+- Appointment Booking
+- Visit Management
+- Reschedule System
+- Notification System
+
+### New Modules (v2.0)
+- **Medicine Management** - Quản lý thuốc + Tồn kho
+- **Prescription Management** - Kê đơn thuốc tự động
+- **Disease Categories** - Danh mục bệnh ICD-10
 
 ---
 
@@ -211,8 +252,8 @@ Bệnh nhân → GET /api/notifications
 
 Hệ thống được phát triển bởi team Healthcare Management System.
 
-Phiên bản: **1.0.0**
-Ngày cập nhật: **25/12/2025**
+**Phiên bản hiện tại**: **2.0.0** (Major Release)
+**Ngày cập nhật**: **26/12/2025**
 
 ---
 
