@@ -27,6 +27,7 @@ class Doctor
   public position?: string;
   public degree?: string;
   public description?: string;
+  public baseSalary?: number;
 }
 
 Doctor.init(
