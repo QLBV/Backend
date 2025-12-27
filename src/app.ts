@@ -13,6 +13,7 @@ import visitRoutes from "./routes/visit.routes";
 import notificationRoutes from "./routes/notification.routes";
 import medicineRoutes from "./routes/medicine.routes";
 import prescriptionRoutes from "./routes/prescription.routes";
+import invoiceRoutes from "./routes/invoice.routes";
 
 const app: Application = express();
 
@@ -67,6 +68,9 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/shifts", require("./routes/shift.routes").default);
 app.use("/api/medicines", medicineRoutes);
 app.use("/api/prescriptions", prescriptionRoutes);
+
+// Invoice routes
+app.use("/api/invoices", invoiceRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {

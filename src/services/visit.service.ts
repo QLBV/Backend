@@ -1,10 +1,11 @@
 import Appointment from "../models/Appointment";
 import Visit from "../models/Visit";
 import { sequelize } from "../models";
+import { createInvoiceService } from "./invoice.service";
+import { getPrescriptionByVisitService } from "./prescription.service";
 
 export const checkInAppointmentService = async (appointmentId: number) => {
   return sequelize.transaction(async (t) => {
-    // 1. Check appointment
     const appointment = await Appointment.findByPk(appointmentId, {
       transaction: t,
       lock: t.LOCK.UPDATE,
@@ -14,7 +15,6 @@ export const checkInAppointmentService = async (appointmentId: number) => {
     if (appointment.status !== "WAITING")
       throw new Error("APPOINTMENT_NOT_WAITING");
 
-    // 2. Tạo visit
     const visit = await Visit.create(
       {
         appointmentId: appointment.id,
@@ -24,7 +24,6 @@ export const checkInAppointmentService = async (appointmentId: number) => {
       { transaction: t }
     );
 
-    // 3. Update appointment
     appointment.status = "CHECKED_IN";
     await appointment.save({ transaction: t });
 
@@ -39,13 +38,25 @@ export const completeVisitService = async (
 ) => {
   const visit = await Visit.findByPk(visitId);
   if (!visit) throw new Error("VISIT_NOT_FOUND");
-
   if (visit.status === "COMPLETED") throw new Error("VISIT_ALREADY_COMPLETED");
 
   visit.diagnosis = diagnosis;
   visit.note = note;
   visit.status = "COMPLETED";
-
   await visit.save();
+
+  const prescription = await getPrescriptionByVisitService(visitId);
+  let total = 0;
+  if (prescription && prescription.totalAmount) {
+    total += Number(prescription.totalAmount);
+  }
+  await createInvoiceService({
+    appointmentId: visit.appointmentId,
+    patientId: visit.patientId,
+    doctorId: visit.doctorId,
+    total,
+    note: `Tự động tạo khi hoàn thành khám bệnh cho Visit #${visit.id}`,
+  });
+
   return visit;
 };
