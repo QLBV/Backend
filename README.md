@@ -195,11 +195,10 @@ DB_PASSWORD=your_database_password
 # ============ JWT AUTHENTICATION ============
 # Access Token
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production-min-64-chars
-JWT_EXPIRES_IN=7d
+JWT_ACCESS_EXPIRES_IN=1h
 
 # Refresh Token
 JWT_REFRESH_SECRET=your-super-secret-refresh-jwt-key-change-this-in-production-min-64-chars
-JWT_ACCESS_EXPIRES_IN=1h
 JWT_REFRESH_EXPIRES_IN=7d
 
 # ============ REDIS (for token blacklist) ============
