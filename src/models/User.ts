@@ -9,6 +9,7 @@ interface UserAttributes {
   fullName: string;
   roleId: number;
   isActive: boolean;
+  avatar?: string;
 }
 
 interface UserCreationAttributes
@@ -24,6 +25,7 @@ class User
   public fullName!: string;
   public roleId!: number;
   public isActive!: boolean;
+  public avatar?: string;
 
   public Role?: {
     name: string;
@@ -57,6 +59,10 @@ User.init(
     isActive: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
+    },
+    avatar: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
     },
   },
   {

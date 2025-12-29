@@ -1,0 +1,85 @@
+import { DataTypes, Model, Optional } from "sequelize";
+import sequelize from "../config/database";
+import Doctor from "./Doctor";
+import Shift from "./Shift";
+
+export enum DoctorShiftStatus {
+  ACTIVE = "ACTIVE",
+  CANCELLED = "CANCELLED",
+  REPLACED = "REPLACED",
+}
+
+interface DoctorShiftAttributes {
+  id: number;
+  doctorId: number;
+  shiftId: number;
+  workDate: string;
+  status: DoctorShiftStatus;
+  replacedBy?: number | null;
+  cancelReason?: string | null;
+}
+
+interface DoctorShiftCreationAttributes
+  extends Optional<DoctorShiftAttributes, "id" | "status" | "replacedBy" | "cancelReason"> {}
+
+class DoctorShift
+  extends Model<DoctorShiftAttributes, DoctorShiftCreationAttributes>
+  implements DoctorShiftAttributes
+{
+  public id!: number;
+  public doctorId!: number;
+  public shiftId!: number;
+  public workDate!: string;
+  public status!: DoctorShiftStatus;
+  public replacedBy?: number | null;
+  public cancelReason?: string | null;
+}
+
+DoctorShift.init(
+  {
+    id: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    doctorId: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
+      references: { model: Doctor, key: "id" },
+    },
+    shiftId: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
+      references: { model: Shift, key: "id" },
+    },
+    workDate: {
+      type: DataTypes.STRING(10),
+      allowNull: false,
+    },
+    status: {
+      type: DataTypes.ENUM(...Object.values(DoctorShiftStatus)),
+      allowNull: false,
+      defaultValue: DoctorShiftStatus.ACTIVE,
+    },
+    replacedBy: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: true,
+      references: { model: Doctor, key: "id" },
+    },
+    cancelReason: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+  },
+  {
+    sequelize,
+    tableName: "doctor_shifts",
+    timestamps: true,
+    indexes: [{ unique: true, fields: ["doctorId", "shiftId", "workDate"] }],
+  }
+);
+
+DoctorShift.belongsTo(Doctor, { foreignKey: "doctorId", as: "doctor" });
+DoctorShift.belongsTo(Shift, { foreignKey: "shiftId", as: "shift" });
+
+export default DoctorShift;

@@ -3,6 +3,16 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import userRoutes from "./routes/user.routes";
+import authRoutes from "./routes/auth.routes";
+import path from "path";
+import patientRoutes from "./routes/patient.routes";
+import appointmentRoutes from "./routes/appointment.routes";
+import { errorHandler } from "./middlewares/errorHandler.middlewares";
+import visitRoutes from "./routes/visit.routes";
+import notificationRoutes from "./routes/notification.routes";
+import medicineRoutes from "./routes/medicine.routes";
+import prescriptionRoutes from "./routes/prescription.routes";
 
 const app: Application = express();
 
@@ -32,6 +42,7 @@ app.use(morgan("dev"));
 // Body Parser
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 // Health Check Route
 app.get("/", (req: Request, res: Response) => {
@@ -44,11 +55,18 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 // API Routes
-// app.use('/api/auth', authRoutes);
-// app.use('/api/users', userRoutes);
-// app.use('/api/patients', patientRoutes);
-import authRoutes from "./routes/authRoutes";
 app.use("/api/auth", authRoutes);
+app.use("/api/patients", patientRoutes); // Placeholder, replace with actual patientRoutes
+app.use("/api/users", userRoutes);
+app.use("/api/appointments", appointmentRoutes);
+app.use("/api/visits", visitRoutes);
+app.use("/api/doctors", require("./routes/doctor.routes").default);
+app.use("/api/doctor-shifts", require("./routes/doctorShift.routes").default);
+app.use("/api/specialties", require("./routes/specialty.routes").default);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/shifts", require("./routes/shift.routes").default);
+app.use("/api/medicines", medicineRoutes);
+app.use("/api/prescriptions", prescriptionRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {
@@ -59,14 +77,6 @@ app.use((req: Request, res: Response) => {
 });
 
 // Global Error Handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error("Error:", err.stack);
-
-  res.status(500).json({
-    success: false,
-    message: "Internal Server Error",
-    error: process.env.NODE_ENV === "development" ? err.message : undefined,
-  });
-});
+app.use(errorHandler);
 
 export default app;
