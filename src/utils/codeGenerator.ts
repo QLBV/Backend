@@ -1,6 +1,10 @@
 import { Op } from "sequelize";
 import Prescription from "../models/Prescription";
 import Medicine from "../models/Medicine";
+import Invoice from "../models/Invoice";
+import Payroll from "../models/Payroll";
+import User from "../models/User";
+import { RoleCode } from "../constant/role";
 
 /**
  * Generate prescription code with format: RX-YYYYMMDD-00001
@@ -59,4 +63,105 @@ export const generateMedicineCode = async (): Promise<string> => {
   // Format: MED-000001 (6 digits)
   const sequenceStr = sequence.toString().padStart(6, "0");
   return `MED-${sequenceStr}`;
+};
+
+/**
+ * Generate invoice code with format: INV-YYYYMMDD-00001
+ * Sequential counter resets daily
+ */
+export const generateInvoiceCode = async (): Promise<string> => {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
+
+  // Find the latest invoice code for today
+  const latestInvoice = await Invoice.findOne({
+    where: {
+      invoiceCode: {
+        [Op.like]: `INV-${dateStr}-%`,
+      },
+    },
+    order: [["invoiceCode", "DESC"]],
+  });
+
+  let sequence = 1;
+  if (latestInvoice) {
+    // Extract the sequence number from the last code
+    const lastCode = latestInvoice.invoiceCode;
+    const lastSequence = parseInt(lastCode.split("-")[2], 10);
+    sequence = lastSequence + 1;
+  }
+
+  // Format: INV-YYYYMMDD-00001
+  const sequenceStr = sequence.toString().padStart(5, "0");
+  return `INV-${dateStr}-${sequenceStr}`;
+};
+
+/**
+ * Generate payroll code with format: PAY-YYYYMM-00001
+ * Sequential counter resets monthly
+ */
+export const generatePayrollCode = async (
+  year: number,
+  month: number
+): Promise<string> => {
+  const yearMonth = `${year}${month.toString().padStart(2, "0")}`; // YYYYMM
+
+  // Find the latest payroll code for this month
+  const latestPayroll = await Payroll.findOne({
+    where: {
+      payrollCode: {
+        [Op.like]: `PAY-${yearMonth}-%`,
+      },
+    },
+    order: [["payrollCode", "DESC"]],
+  });
+
+  let sequence = 1;
+  if (latestPayroll) {
+    // Extract the sequence number from the last code
+    const lastCode = latestPayroll.payrollCode;
+    const lastSequence = parseInt(lastCode.split("-")[2], 10);
+    sequence = lastSequence + 1;
+  }
+
+  // Format: PAY-YYYYMM-00001
+  const sequenceStr = sequence.toString().padStart(5, "0");
+  return `PAY-${yearMonth}-${sequenceStr}`;
+};
+
+/**
+ * Generate user code based on role
+ * Format: BN000xxx (Patient), BS000xxx (Doctor), NV000xxx (Staff)
+ */
+export const generateUserCode = async (roleId: number): Promise<string> => {
+  let prefix = "NV"; // Default: Staff (Nhân viên)
+
+  if (roleId === RoleCode.PATIENT) {
+    prefix = "BN"; // Bệnh nhân
+  } else if (roleId === RoleCode.DOCTOR) {
+    prefix = "BS"; // Bác sĩ
+  }
+
+  // Find the latest user code with this prefix
+  const latestUser = await User.findOne({
+    where: {
+      userCode: {
+        [Op.like]: `${prefix}%`,
+      },
+    },
+    order: [["userCode", "DESC"]],
+  });
+
+  let sequence = 1;
+  if (latestUser && latestUser.userCode) {
+    // Extract the sequence number from the last code
+    const lastSequence = parseInt(latestUser.userCode.substring(2), 10);
+    if (!isNaN(lastSequence)) {
+      sequence = lastSequence + 1;
+    }
+  }
+
+  // Format: BN000001, BS000001, NV000001 (6 digits)
+  const sequenceStr = sequence.toString().padStart(6, "0");
+  return `${prefix}${sequenceStr}`;
 };

@@ -8,6 +8,12 @@ import RolePermission from "./RolePermission";
 import Patient from "./Patient";
 import PatientProfile from "./PatientProfile";
 
+import Doctor from "./Doctor";
+import Specialty from "./Specialty";
+import Shift from "./Shift";
+import DoctorShift from "./DoctorShift";
+import Appointment from "./Appointment";
+
 import Medicine from "./Medicine";
 import MedicineImport from "./MedicineImport";
 import MedicineExport from "./MedicineExport";
@@ -17,6 +23,15 @@ import Visit from "./Visit";
 
 import Prescription from "./Prescription";
 import PrescriptionDetail from "./PrescriptionDetail";
+
+import Invoice from "./Invoice";
+import InvoiceItem from "./InvoiceItem";
+import Payment from "./Payment";
+
+import Payroll from "./Payroll";
+import Attendance from "./Attendance";
+
+import Notification from "./Notification";
 
 // Setup associations after all models are loaded
 import { setupAssociations } from "./associations";
@@ -30,6 +45,11 @@ export {
   RolePermission,
   Patient,
   PatientProfile,
+  Doctor,
+  Specialty,
+  Shift,
+  DoctorShift,
+  Appointment,
   Medicine,
   MedicineImport,
   MedicineExport,
@@ -37,4 +57,10 @@ export {
   Visit,
   Prescription,
   PrescriptionDetail,
+  Invoice,
+  InvoiceItem,
+  Payment,
+  Payroll,
+  Attendance,
+  Notification,
 };

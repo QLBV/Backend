@@ -15,6 +15,7 @@ import {
   validateCreatePrescription,
   validateUpdatePrescription,
 } from "../middlewares/validatePrescription.middlewares";
+import { validateNumericId } from "../middlewares/validators/common.validators";
 
 const router = Router();
 
@@ -28,18 +29,38 @@ router.post(
   validateCreatePrescription,
   createPrescription
 );
+// Update prescription
 router.put(
   "/:id",
+  validateNumericId("id"),
   requireRole(RoleCode.DOCTOR),
   validateUpdatePrescription,
   updatePrescription
 );
-router.post("/:id/cancel", requireRole(RoleCode.DOCTOR), cancelPrescription);
-router.get("/visit/:visitId", requireRole(RoleCode.DOCTOR), getPrescriptionByVisit);
+// Cancel prescription
+router.post(
+  "/:id/cancel",
+  validateNumericId("id"),
+  requireRole(RoleCode.DOCTOR),
+  cancelPrescription
+);
+// Get prescription by visit ID
+router.get(
+  "/visit/:visitId",
+  validateNumericId("visitId"),
+  requireRole(RoleCode.DOCTOR),
+  getPrescriptionByVisit
+);
 
 // Doctor and Patient can view prescriptions
-router.get("/:id/pdf", exportPrescriptionPDF); // Must be before /:id to avoid route conflict
-router.get("/:id", getPrescriptionById);
-router.get("/patient/:patientId", getPrescriptionsByPatient);
+router.get("/:id/pdf", validateNumericId("id"), exportPrescriptionPDF); // Must be before /:id to avoid route conflict
+// Get prescription by ID
+router.get("/:id", validateNumericId("id"), getPrescriptionById);
+// Get prescriptions by patient ID
+router.get(
+  "/patient/:patientId",
+  validateNumericId("patientId"),
+  getPrescriptionsByPatient
+);
 
 export default router;

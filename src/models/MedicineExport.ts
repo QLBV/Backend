@@ -63,12 +63,8 @@ MedicineExport.init(
     sequelize,
     modelName: "MedicineExport",
     tableName: "medicine_exports",
+    timestamps: true,
   }
 );
-
-MedicineExport.belongsTo(Medicine, {
-  foreignKey: "medicineId",
-  as: "medicine",
-});
 
 export default MedicineExport;

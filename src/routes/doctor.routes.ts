@@ -14,30 +14,30 @@ import { getShiftsByDoctor } from "@/controllers/doctorShift.controller";
 
 const router = Router();
 router.use(verifyToken);
-
+// Get all doctors (Admin only)
 router.get("/", 
   requireRole(RoleCode.ADMIN), 
   getAllDoctors);
-
+// Get doctor by ID (Admin only)
 router.get("/:id", 
   requireRole(RoleCode.ADMIN), 
   getDoctorById);
-
+// Create new doctor (Admin only)
 router.post("/", 
   requireRole(RoleCode.ADMIN), 
   createDoctorController);
-
+// Update doctor (Admin only)
 router.put("/:id", 
   requireRole(RoleCode.ADMIN), 
   updateDoctor);
-
+// Delete doctor (Admin only)
 router.delete("/:id", 
   requireRole(RoleCode.ADMIN), 
   deleteDoctor);
-
+// Get all specialties
 router.get("/specialties", 
   getAllSpecialties);
-
+//  Get shifts by doctor ID
 router.get("/:doctorId/shifts", 
   getShiftsByDoctor);
 

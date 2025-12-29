@@ -1,0 +1,88 @@
+import { Router } from "express";
+import {
+  calculatePayroll,
+  getPayrolls,
+  getMyPayrolls,
+  getPayrollById,
+  approvePayroll,
+  payPayroll,
+  getUserPayrollHistory,
+  getPayrollStatistics,
+  exportPayrollPDF,
+} from "../controllers/payroll.controller";
+import { verifyToken } from "../middlewares/auth.middlewares";
+import { requireRole } from "../middlewares/roleCheck.middlewares";
+import { RoleCode } from "../constant/role";
+import { validateNumericId, validatePagination } from "../middlewares/validators/common.validators";
+
+const router = Router();
+
+// All routes require authentication
+router.use(verifyToken);
+
+// Calculate payroll (Admin only)
+router.post(
+  "/calculate",
+  requireRole(RoleCode.ADMIN),
+  calculatePayroll
+);
+
+// Statistics (Admin only) - must be before /:id
+router.get(
+  "/statistics",
+  requireRole(RoleCode.ADMIN),
+  getPayrollStatistics
+);
+
+// My payrolls (all authenticated users)
+router.get(
+  "/my",
+  getMyPayrolls
+);
+
+// User payroll history - must be before /:id to avoid conflict
+router.get(
+  "/user/:userId",
+  validateNumericId("userId"),
+  getUserPayrollHistory // Authorization check inside controller
+);
+
+// Get all payrolls (Admin only)
+router.get(
+  "/",
+  requireRole(RoleCode.ADMIN),
+  validatePagination,
+  getPayrolls
+);
+
+// Get payroll by ID
+router.get(
+  "/:id",
+  validateNumericId("id"),
+  getPayrollById // Authorization check inside controller
+);
+
+// Approve payroll (Admin only)
+router.put(
+  "/:id/approve",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN),
+  approvePayroll
+);
+
+// Mark as paid (Admin only)
+router.put(
+  "/:id/pay",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN),
+  payPayroll
+);
+
+// Export PDF
+router.get(
+  "/:id/pdf",
+  validateNumericId("id"),
+  exportPayrollPDF // Authorization check inside controller
+);
+
+export default router;

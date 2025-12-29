@@ -47,7 +47,7 @@ MedicineImport.init(
       allowNull: false,
     },
     importPrice: {
-      type: DataTypes.FLOAT,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
     },
     importDate: {
@@ -63,12 +63,8 @@ MedicineImport.init(
     sequelize,
     modelName: "MedicineImport",
     tableName: "medicine_imports",
+    timestamps: true,
   }
 );
-
-MedicineImport.belongsTo(Medicine, {
-  foreignKey: "medicineId",
-  as: "medicine",
-});
 
 export default MedicineImport;

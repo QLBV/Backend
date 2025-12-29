@@ -10,10 +10,15 @@ interface UserAttributes {
   roleId: number;
   isActive: boolean;
   avatar?: string;
+  userCode?: string;
+  oauth2Provider?: "GOOGLE";
+  oauth2Id?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 interface UserCreationAttributes
-  extends Optional<UserAttributes, "id" | "isActive"> {}
+  extends Optional<UserAttributes, "id" | "isActive" | "password"> {}
 
 class User
   extends Model<UserAttributes, UserCreationAttributes>
@@ -26,6 +31,12 @@ class User
   public roleId!: number;
   public isActive!: boolean;
   public avatar?: string;
+  public userCode?: string;
+  public oauth2Provider?: "GOOGLE";
+  public oauth2Id?: string;
+
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
 
   public Role?: {
     name: string;
@@ -46,7 +57,7 @@ User.init(
     },
     password: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true, // Nullable for OAuth users
     },
     fullName: {
       type: DataTypes.STRING(100),
@@ -64,6 +75,19 @@ User.init(
       type: DataTypes.STRING(255),
       allowNull: true,
     },
+    userCode: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      unique: true,
+    },
+    oauth2Provider: {
+      type: DataTypes.ENUM("GOOGLE"),
+      allowNull: true,
+    },
+    oauth2Id: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
   },
   {
     sequelize,
@@ -71,9 +95,5 @@ User.init(
     timestamps: true,
   }
 );
-
-/* ASSOCIATIONS */
-User.belongsTo(Role, { foreignKey: "roleId" });
-Role.hasMany(User, { foreignKey: "roleId" });
 
 export default User;

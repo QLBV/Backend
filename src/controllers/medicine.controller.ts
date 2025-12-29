@@ -10,6 +10,8 @@ import {
   getMedicineExportHistoryService,
   markMedicineAsExpiredService,
   removeMedicineService,
+  getExpiringMedicinesService,
+  autoMarkExpiredMedicinesService,
 } from "../services/medicine.service";
 
 /**
@@ -309,6 +311,63 @@ export const removeMedicine = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: errorMessage,
+    });
+  }
+};
+
+/**
+ * Get medicines expiring soon (within specified days)
+ * GET /api/medicines/expiring?days=30
+ * Role: ADMIN
+ */
+export const getExpiringMedicines = async (req: Request, res: Response) => {
+  try {
+    const days = req.query.days ? Number(req.query.days) : 30;
+
+    // Validate days parameter
+    if (isNaN(days) || days < 1 || days > 365) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid days parameter. Must be between 1 and 365.",
+      });
+    }
+
+    const medicines = await getExpiringMedicinesService(days);
+
+    return res.json({
+      success: true,
+      message: `Found ${medicines.length} medicine(s) expiring within ${days} day(s)`,
+      data: medicines,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get expiring medicines",
+    });
+  }
+};
+
+/**
+ * Manually trigger auto-mark expired medicines
+ * POST /api/medicines/auto-mark-expired
+ * Role: ADMIN
+ */
+export const autoMarkExpired = async (req: Request, res: Response) => {
+  try {
+    const result = await autoMarkExpiredMedicinesService();
+
+    return res.json({
+      success: true,
+      message: `Marked ${result.markedCount} medicine(s) as expired`,
+      data: {
+        count: result.markedCount,
+        medicines: result.medicines,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to auto-mark expired medicines",
     });
   }
 };

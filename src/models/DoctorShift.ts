@@ -79,7 +79,4 @@ DoctorShift.init(
   }
 );
 
-DoctorShift.belongsTo(Doctor, { foreignKey: "doctorId", as: "doctor" });
-DoctorShift.belongsTo(Shift, { foreignKey: "shiftId", as: "shift" });
-
 export default DoctorShift;

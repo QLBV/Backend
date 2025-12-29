@@ -10,6 +10,7 @@ import {
   verifyAccessToken,
 } from "../utils/jwt";
 import jwt from "jsonwebtoken";
+import { TokenBlacklistService } from "../config/redis.config";
 
 /* ================= REGISTER ================= */
 export const register = async (req: Request, res: Response) => {
@@ -149,6 +150,50 @@ export const refreshToken = async (req: Request, res: Response) => {
     return res.status(401).json({
       success: false,
       message: "INVALID_REFRESH_TOKEN",
+    });
+  }
+};
+
+/* ================= LOGOUT ================= */
+export const logout = async (req: Request, res: Response) => {
+  try {
+    // Get token from request (stored by verifyToken middleware)
+    const token = (req as any).token;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "NO_TOKEN_PROVIDED",
+      });
+    }
+
+    // Decode to get expiration time
+    const decoded = jwt.decode(token) as { exp: number };
+    if (!decoded || !decoded.exp) {
+      return res.status(400).json({
+        success: false,
+        message: "INVALID_TOKEN",
+      });
+    }
+
+    // Calculate remaining TTL in seconds
+    const now = Math.floor(Date.now() / 1000);
+    const ttl = decoded.exp - now;
+
+    if (ttl > 0) {
+      // Add to blacklist with TTL
+      await TokenBlacklistService.addToBlacklist(token, ttl);
+    }
+
+    return res.json({
+      success: true,
+      message: "LOGOUT_SUCCESS",
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "LOGOUT_FAILED",
     });
   }
 };

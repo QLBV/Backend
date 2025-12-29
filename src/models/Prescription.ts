@@ -83,6 +83,7 @@ Prescription.init(
     sequelize,
     modelName: "Prescription",
     tableName: "prescriptions",
+    timestamps: true,
   }
 );
 

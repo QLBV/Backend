@@ -19,10 +19,10 @@ export default class Appointment extends Model {
 
 Appointment.init(
   {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    patientId: { type: DataTypes.INTEGER, allowNull: false },
-    doctorId: { type: DataTypes.INTEGER, allowNull: false },
-    shiftId: { type: DataTypes.INTEGER, allowNull: false },
+    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+    patientId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    doctorId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    shiftId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     date: { type: DataTypes.DATEONLY, allowNull: false },
     slotNumber: { type: DataTypes.INTEGER, allowNull: false },
     bookingType: {
@@ -42,16 +42,13 @@ Appointment.init(
   {
     sequelize,
     tableName: "appointments",
+    timestamps: true,
     indexes: [
       {
         unique: true,
-        fields: ["doctorId", "shiftId", "date", "slotNumber"], // ❗ chặn trùng
+        fields: ["doctorId", "shiftId", "date", "slotNumber"],
+        name: "appointments_slot_unique",
       },
     ],
   }
 );
-
-// Associations
-Appointment.belongsTo(Patient, { foreignKey: "patientId" });
-Appointment.belongsTo(Doctor, { foreignKey: "doctorId" });
-Appointment.belongsTo(Shift, { foreignKey: "shiftId" });

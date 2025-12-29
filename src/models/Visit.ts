@@ -20,10 +20,10 @@ export default class Visit extends Model {
 
 Visit.init(
   {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    appointmentId: { type: DataTypes.INTEGER, allowNull: false, unique: true },
-    patientId: { type: DataTypes.INTEGER, allowNull: false },
-    doctorId: { type: DataTypes.INTEGER, allowNull: false },
+    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+    appointmentId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, unique: true },
+    patientId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    doctorId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     checkInTime: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
@@ -40,10 +40,6 @@ Visit.init(
   {
     sequelize,
     tableName: "visits",
+    timestamps: true,
   }
 );
-
-// Associations
-Visit.belongsTo(Appointment, { foreignKey: "appointmentId" });
-Visit.belongsTo(Patient, { foreignKey: "patientId" });
-Visit.belongsTo(Doctor, { foreignKey: "doctorId" });

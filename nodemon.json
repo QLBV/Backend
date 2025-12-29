@@ -1,9 +1,20 @@
 {
   "watch": ["src"],
   "ext": "ts,json",
-  "ignore": ["src/**/*.spec.ts", "node_modules"],
-  "exec": "ts-node -r tsconfig-paths/register ./src/server.ts",
+  "ignore": [
+    "dist",
+    "uploads",
+    "logs",
+    "node_modules",
+    "src/**/*.spec.ts",
+    "*.log"
+  ],
+  "exec": "ts-node --transpile-only -r tsconfig-paths/register ./src/server.ts",
   "env": {
-    "NODE_ENV": "development"
-  }
+    "NODE_ENV": "development",
+    "TS_NODE_TRANSPILE_ONLY": "true"
+  },
+  "signal": "SIGTERM",
+  "delay": 200,
+  "verbose": true
 }

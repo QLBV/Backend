@@ -42,16 +42,4 @@ RolePermission.init(
   }
 );
 
-Role.belongsToMany(Permission, {
-  through: RolePermission,
-  foreignKey: "roleId",
-  as: "permissions",
-});
-
-Permission.belongsToMany(Role, {
-  through: RolePermission,
-  foreignKey: "permissionId",
-  as: "roles",
-});
-
 export default RolePermission;

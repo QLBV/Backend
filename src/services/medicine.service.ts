@@ -242,3 +242,73 @@ export const removeMedicineService = async (medicineId: number) => {
 
   return medicine;
 };
+
+/**
+ * Get medicines expiring within specified days threshold
+ * Default: 30 days
+ */
+export const getExpiringMedicinesService = async (
+  daysThreshold: number = 30
+) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Start of today
+
+  const thresholdDate = new Date(today);
+  thresholdDate.setDate(thresholdDate.getDate() + daysThreshold);
+
+  const medicines = await Medicine.findAll({
+    where: {
+      status: MedicineStatus.ACTIVE,
+      expiryDate: {
+        [Op.gte]: today, // Not yet expired
+        [Op.lte]: thresholdDate, // Within threshold
+      },
+    },
+    order: [["expiryDate", "ASC"]], // Soonest expiry first
+  });
+
+  // Calculate days until expiry for each medicine
+  const medicinesWithDays = medicines.map((medicine) => {
+    const daysUntilExpiry = Math.ceil(
+      (medicine.expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    return {
+      ...medicine.toJSON(),
+      daysUntilExpiry,
+    };
+  });
+
+  return medicinesWithDays;
+};
+
+/**
+ * Auto-mark expired medicines (for scheduled job)
+ * Returns count of medicines marked as expired
+ */
+export const autoMarkExpiredMedicinesService = async () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const expiredMedicines = await Medicine.findAll({
+    where: {
+      status: MedicineStatus.ACTIVE,
+      expiryDate: {
+        [Op.lt]: today, // Already expired
+      },
+    },
+  });
+
+  let markedCount = 0;
+
+  for (const medicine of expiredMedicines) {
+    medicine.status = MedicineStatus.EXPIRED;
+    await medicine.save();
+    markedCount++;
+  }
+
+  return {
+    markedCount,
+    medicines: expiredMedicines,
+  };
+};

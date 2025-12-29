@@ -21,7 +21,10 @@ router.get("/on-duty", getDoctorsOnDuty);
 // Admin actions cần đăng nhập
 router.use(verifyToken);
 
+// Assign doctor to shift (Admin only)
 router.post("/", requireRole(RoleCode.ADMIN), assignDoctorToShift);
+
+// Unassign doctor from shift (Admin only)
 router.delete("/:id", requireRole(RoleCode.ADMIN), unassignDoctorFromShift);
 
 // Reschedule actions (Admin only)
@@ -30,11 +33,15 @@ router.get(
   requireRole(RoleCode.ADMIN),
   previewReschedule
 );
+
+// Cancel and reschedule shift
 router.post(
   "/:id/cancel-and-reschedule",
   requireRole(RoleCode.ADMIN),
   cancelShiftAndReschedule
 );
+
+// Restore shift
 router.post("/:id/restore", requireRole(RoleCode.ADMIN), restoreShift);
 
 export default router;

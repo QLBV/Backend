@@ -68,7 +68,4 @@ Doctor.init(
   }
 );
 
-Doctor.belongsTo(User, { foreignKey: "userId", as: "user" });
-Doctor.belongsTo(Specialty, { foreignKey: "specialtyId", as: "specialty" });
-
 export default Doctor;

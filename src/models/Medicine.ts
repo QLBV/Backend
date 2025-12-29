@@ -134,6 +134,7 @@ Medicine.init(
     sequelize,
     modelName: "Medicine",
     tableName: "medicines",
+    timestamps: true,
   }
 );
 

@@ -1,6 +1,7 @@
 import Appointment from "../models/Appointment";
 import Visit from "../models/Visit";
 import { sequelize } from "../models";
+import { createInvoiceFromVisit } from "./invoice.service";
 
 export const checkInAppointmentService = async (appointmentId: number) => {
   return sequelize.transaction(async (t) => {
@@ -35,17 +36,46 @@ export const checkInAppointmentService = async (appointmentId: number) => {
 export const completeVisitService = async (
   visitId: number,
   diagnosis: string,
+  examinationFee: number,
+  createdBy: number,
   note?: string
 ) => {
-  const visit = await Visit.findByPk(visitId);
-  if (!visit) throw new Error("VISIT_NOT_FOUND");
+  return sequelize.transaction(async (t) => {
+    // 1. Lấy visit
+    const visit = await Visit.findByPk(visitId, { transaction: t });
+    if (!visit) throw new Error("VISIT_NOT_FOUND");
 
-  if (visit.status === "COMPLETED") throw new Error("VISIT_ALREADY_COMPLETED");
+    if (visit.status === "COMPLETED")
+      throw new Error("VISIT_ALREADY_COMPLETED");
 
-  visit.diagnosis = diagnosis;
-  visit.note = note;
-  visit.status = "COMPLETED";
+    // 2. Cập nhật visit
+    visit.diagnosis = diagnosis;
+    visit.note = note;
+    visit.status = "COMPLETED";
+    await visit.save({ transaction: t });
 
-  await visit.save();
-  return visit;
+    // 3. Tự động tạo invoice
+    try {
+      const invoice = await createInvoiceFromVisit(
+        visitId,
+        createdBy,
+        examinationFee,
+        t
+      );
+
+      return {
+        visit,
+        invoice,
+      };
+    } catch (error: any) {
+      // Nếu tạo invoice thất bại, vẫn cho phép complete visit
+      // nhưng log error
+      console.error("Failed to auto-create invoice:", error.message);
+      return {
+        visit,
+        invoice: null,
+        invoiceError: error.message,
+      };
+    }
+  });
 };

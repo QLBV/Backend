@@ -11,6 +11,7 @@ import {
   createAppointmentValidator,
   getAppointmentsValidator,
 } from "@/middlewares/validators/appointment.validators";
+import { validateNumericId } from "../middlewares/validators/common.validators";
 
 const router = Router();
 router.use(verifyToken);
@@ -37,6 +38,7 @@ router.post(
 //Hủy lịch trước 2 giờ
 router.put(
   "/:id/cancel",
+  validateNumericId("id"),
   requireRole(RoleCode.PATIENT, RoleCode.RECEPTIONIST),
   cancelAppointment
 );

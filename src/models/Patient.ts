@@ -90,19 +90,4 @@ Patient.init(
   }
 );
 
-Patient.hasMany(PatientProfile, {
-  foreignKey: "patientId",
-  as: "profiles",
-});
-
-PatientProfile.belongsTo(Patient, {
-  foreignKey: "patientId",
-});
-
-// Association with User
-Patient.belongsTo(User, {
-  foreignKey: "userId",
-  as: "user",
-});
-
 export default Patient;

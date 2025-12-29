@@ -4,6 +4,7 @@ import { JwtUserPayload } from "../types/auth";
 import Patient from "../models/Patient";
 import Doctor from "../models/Doctor";
 import { RoleCode } from "../constant/role";
+import { TokenBlacklistService } from "../config/redis.config";
 
 export const verifyToken = async (
   req: Request,
@@ -19,6 +20,15 @@ export const verifyToken = async (
   const token = authHeader.split(" ")[1];
 
   try {
+    // Check if token is blacklisted (logged out)
+    const isBlacklisted = await TokenBlacklistService.isBlacklisted(token);
+    if (isBlacklisted) {
+      return res.status(401).json({
+        success: false,
+        message: "TOKEN_REVOKED",
+      });
+    }
+
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET as string
@@ -26,6 +36,8 @@ export const verifyToken = async (
 
     // ✅ Luôn gán payload trước
     req.user = decoded;
+    // Store token in request for potential logout
+    (req as any).token = token;
 
     // ✅ Bổ sung patientId/doctorId từ DB theo role
     if (decoded.roleId === RoleCode.PATIENT) {

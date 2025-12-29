@@ -31,3 +31,5 @@ coverage/
 # Misc
 *.tmp
 *.temp
+
+.CHECKLIST_REVIEW.md

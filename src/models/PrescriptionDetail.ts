@@ -104,6 +104,7 @@ PrescriptionDetail.init(
     sequelize,
     modelName: "PrescriptionDetail",
     tableName: "prescription_details",
+    timestamps: true,
   }
 );
 
