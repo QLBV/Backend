@@ -92,10 +92,12 @@ export const login = async (req: Request, res: Response) => {
   }
 
   const payload = {
+    email: user.email,
+    fullName: user.fullName,
     userId: user.id,
     roleId: user.roleId,
-    patientId,
-    doctorId,
+    // patientId,
+    // doctorId,
   };
 
   return res.json({

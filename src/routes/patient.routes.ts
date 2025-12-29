@@ -18,7 +18,10 @@ import {
   setupPatientValidator,
   updatePatientValidator,
 } from "@/middlewares/validators/patient.validators";
-import { validateNumericId, validatePagination } from "../middlewares/validators/common.validators";
+import {
+  validateNumericId,
+  validatePagination,
+} from "../middlewares/validators/common.validators";
 
 const router = Router();
 router.use(verifyToken);
@@ -48,7 +51,12 @@ router.get(
 router.put(
   "/:id",
   validateNumericId("id"),
-  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
+  requireRole(
+    RoleCode.ADMIN,
+    RoleCode.DOCTOR,
+    RoleCode.RECEPTIONIST,
+    RoleCode.PATIENT
+  ),
   validatePatient,
   updatePatientValidator,
   updatePatient

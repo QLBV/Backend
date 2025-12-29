@@ -13,6 +13,7 @@ Version: 3.1.0 | Last Updated: 2025-12-29
 All test credentials, user IDs, patient codes, medicine codes, and prices are accurate and match the actual seeded database. No more placeholder or incorrect test data!
 
 **Key Changes:**
+
 - ✅ All user emails updated (e.g., `admin@healthcare.com` instead of `admin@test.com`)
 - ✅ All passwords are now `123456` (bcrypt hashed)
 - ✅ Correct medicine prices (Paracetamol: 500 VNĐ, Amoxicillin: 2000 VNĐ)
@@ -61,18 +62,21 @@ All test credentials, user IDs, patient codes, medicine codes, and prices are ac
 ### Test Levels
 
 #### 1. Unit Tests (Service Layer)
+
 - **Tools:** Jest + Supertest
 - **Coverage:** Business logic, calculations, validations
 - **Target:** 80%+ code coverage
 - **Files:** `__tests__/services/*.test.ts`
 
 #### 2. Integration Tests (API Layer)
+
 - **Tools:** Postman/Newman, Jest + Supertest
 - **Coverage:** All 104 API endpoints
 - **Target:** 100% endpoint coverage
 - **Files:** `__tests__/integration/*.test.ts`
 
 #### 3. E2E Tests (User Flows)
+
 - **Tools:** Postman Collections
 - **Coverage:** Critical business flows
 - **Scenarios:**
@@ -82,11 +86,13 @@ All test credentials, user IDs, patient codes, medicine codes, and prices are ac
   - Payroll calculation → approval → payment
 
 #### 4. Database Tests
+
 - **Tools:** MySQL queries, Sequelize ORM
 - **Coverage:** Data integrity, foreign keys, constraints
 - **Target:** All CRUD operations validated
 
 #### 5. Security Tests
+
 - **Tools:** Manual + OWASP ZAP
 - **Coverage:** Authentication, authorization, injection attacks
 - **Target:** Zero critical vulnerabilities
@@ -180,20 +186,20 @@ curl http://localhost:5001
 
 After running seeders (`20251229000001-full-system-seed.js`), these users are available:
 
-| Role | Email | Password | User ID | User Code | Full Name |
-|------|-------|----------|---------|-----------|-----------|
-| ADMIN | admin@healthcare.com | 123456 | 1 | ADM001 | Quản Trị Viên |
-| DOCTOR | nguyen.van.a@healthcare.com | 123456 | 2 | DOC001 | BS. Nguyễn Văn A |
-| DOCTOR | tran.thi.b@healthcare.com | 123456 | 3 | DOC002 | BS. Trần Thị B |
-| DOCTOR | le.van.c@healthcare.com | 123456 | 4 | DOC003 | BS. Lê Văn C |
-| DOCTOR | pham.thi.d@healthcare.com | 123456 | 5 | DOC004 | BS. Phạm Thị D |
-| PATIENT | patient1@gmail.com | 123456 | 6 | PAT001 | Ngô Văn K |
-| PATIENT | patient2@gmail.com | 123456 | 7 | PAT002 | Đỗ Thị L |
-| PATIENT | patient3@gmail.com | 123456 | 8 | PAT003 | Bùi Văn M |
-| PATIENT | patient4@gmail.com | 123456 | 9 | PAT004 | Vũ Thị N |
-| PATIENT | patient5@gmail.com | 123456 | 10 | PAT005 | Đặng Văn O |
-| RECEPTIONIST | receptionist1@healthcare.com | 123456 | 11 | REC001 | Nguyễn Thị E |
-| RECEPTIONIST | receptionist2@healthcare.com | 123456 | 12 | REC002 | Trần Văn F |
+| Role         | Email                        | Password | User ID | User Code | Full Name        |
+| ------------ | ---------------------------- | -------- | ------- | --------- | ---------------- |
+| ADMIN        | admin@healthcare.com         | 123456   | 1       | ADM001    | Quản Trị Viên    |
+| DOCTOR       | nguyen.van.a@healthcare.com  | 123456   | 2       | DOC001    | BS. Nguyễn Văn A |
+| DOCTOR       | tran.thi.b@healthcare.com    | 123456   | 3       | DOC002    | BS. Trần Thị B   |
+| DOCTOR       | le.van.c@healthcare.com      | 123456   | 4       | DOC003    | BS. Lê Văn C     |
+| DOCTOR       | pham.thi.d@healthcare.com    | 123456   | 5       | DOC004    | BS. Phạm Thị D   |
+| PATIENT      | patient1@gmail.com           | 123456   | 6       | PAT001    | Ngô Văn K        |
+| PATIENT      | patient2@gmail.com           | 123456   | 7       | PAT002    | Đỗ Thị L         |
+| PATIENT      | patient3@gmail.com           | 123456   | 8       | PAT003    | Bùi Văn M        |
+| PATIENT      | patient4@gmail.com           | 123456   | 9       | PAT004    | Vũ Thị N         |
+| PATIENT      | patient5@gmail.com           | 123456   | 10      | PAT005    | Đặng Văn O       |
+| RECEPTIONIST | receptionist1@healthcare.com | 123456   | 11      | REC001    | Nguyễn Thị E     |
+| RECEPTIONIST | receptionist2@healthcare.com | 123456   | 12      | REC002    | Trần Văn F       |
 
 **Note:** All passwords are hashed with bcrypt (10 rounds)
 
@@ -202,15 +208,18 @@ After running seeders (`20251229000001-full-system-seed.js`), these users are av
 The `20251229000001-full-system-seed.js` creates the following data:
 
 **Specialties (6):**
+
 - Nội khoa, Ngoại khoa, Nhi khoa, Sản phụ khoa, Tim mạch, Tai Mũi Họng
 
 **Doctors (4) with Shifts:**
+
 - BS001: Nguyễn Văn A (Nội khoa - Trưởng khoa)
 - BS002: Trần Thị B (Nhi khoa - Phó khoa)
 - BS003: Lê Văn C (Tim mạch)
 - BS004: Phạm Thị D (Ngoại khoa)
 
 **Patients (5) with Profiles:**
+
 - BN001: Ngô Văn K (CCCD: 001090001234)
 - BN002: Đỗ Thị L (CCCD: 001085005678)
 - BN003: Bùi Văn M (CCCD: 001015009876)
@@ -218,6 +227,7 @@ The `20251229000001-full-system-seed.js` creates the following data:
 - BN005: Đặng Văn O (CCCD: 001095008765)
 
 **Medicines (10):**
+
 - MED001: Paracetamol 500mg (1000 viên, 200/500 VNĐ)
 - MED002: Amoxicillin 500mg (500 viên, 1000/2000 VNĐ)
 - MED003: Vitamin C 500mg (2000 viên, 300/800 VNĐ)
@@ -230,10 +240,12 @@ The `20251229000001-full-system-seed.js` creates the following data:
 - MED010: Amlodipine 5mg (500 viên, 600/1200 VNĐ)
 
 **Appointments:**
+
 - 5 upcoming appointments (tomorrow)
 - 2 completed appointments (yesterday) with visits, prescriptions, and invoices
 
 **Completed Transactions:**
+
 - 2 visits with prescriptions (DT001, DT002)
 - 2 invoices fully paid (HD001: 215,000 VNĐ, HD002: 235,400 VNĐ)
 
@@ -250,6 +262,7 @@ npx sequelize-cli db:seed --seed 20251229000001-full-system-seed.js
 ### Quick Reference: Seed Data Cheat Sheet
 
 **Login Credentials (All passwords: `123456`):**
+
 ```
 Admin:        admin@healthcare.com
 Doctor 1:     nguyen.van.a@healthcare.com (BS001 - Nội khoa)
@@ -259,6 +272,7 @@ Patient 1:    patient1@gmail.com (BN001)
 ```
 
 **Medicine Prices for Testing:**
+
 ```
 MED001: Paracetamol 500mg    → 500 VNĐ (qty: 1000)
 MED002: Amoxicillin 500mg    → 2000 VNĐ (qty: 500)
@@ -268,6 +282,7 @@ MED006: Cetirizine 10mg      → 1000 VNĐ (qty: 800)
 ```
 
 **Payroll Coefficients:**
+
 ```
 ADMIN (roleId: 1)        → 3.0
 DOCTOR (roleId: 2)       → 2.5
@@ -276,6 +291,7 @@ RECEPTIONIST (roleId: 4) → 1.2
 ```
 
 **Existing Data for Testing:**
+
 ```
 Completed Visits: 2 (visitId: 1, 2)
 Prescriptions: 2 (DT001, DT002)
@@ -294,6 +310,7 @@ Upcoming Appointments: 5 (tomorrow)
 **Endpoint:** `POST /api/auth/register`
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:5001/api/auth/register \
   -H "Content-Type: application/json" \
@@ -306,6 +323,7 @@ curl -X POST http://localhost:5001/api/auth/register \
 ```
 
 **Expected Response (201):**
+
 ```json
 {
   "success": true,
@@ -323,12 +341,14 @@ curl -X POST http://localhost:5001/api/auth/register \
 ```
 
 **Database Validation:**
+
 ```sql
 SELECT * FROM users WHERE email = 'newuser@test.com';
 -- Verify: password is hashed (bcrypt), isActive = true, roleId = 4
 ```
 
 **Edge Cases:**
+
 - Duplicate email → 400 "Email already exists"
 - Invalid email format → 400 "Invalid email"
 - Weak password → 400 "Password too weak"
@@ -343,6 +363,7 @@ SELECT * FROM users WHERE email = 'newuser@test.com';
 **Endpoint:** `POST /api/auth/login`
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:5001/api/auth/login \
   -H "Content-Type: application/json" \
@@ -353,6 +374,7 @@ curl -X POST http://localhost:5001/api/auth/login \
 ```
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -370,12 +392,14 @@ curl -X POST http://localhost:5001/api/auth/login \
 ```
 
 **Token Validation:**
+
 ```bash
 # Decode JWT at https://jwt.io
 # Verify payload contains: userId, email, roleId, iat, exp
 ```
 
 **Edge Cases:**
+
 - Wrong password → 401 "Invalid credentials"
 - Non-existent email → 401 "Invalid credentials"
 - Inactive user → 403 "Account disabled"
@@ -389,12 +413,14 @@ curl -X POST http://localhost:5001/api/auth/login \
 **Endpoint:** `GET /api/users` (ADMIN only)
 
 **Request:**
+
 ```bash
 curl -X GET http://localhost:5001/api/users \
   -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
 ```
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -410,6 +436,7 @@ curl -X GET http://localhost:5001/api/users \
 ```
 
 **Edge Cases:**
+
 - No token → 401 "NO_TOKEN"
 - Invalid token → 401 "INVALID_TOKEN"
 - Expired token → 401 "INVALID_TOKEN"
@@ -424,12 +451,14 @@ curl -X GET http://localhost:5001/api/users \
 **Endpoint:** `POST /api/auth/logout`
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:5001/api/auth/logout \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -438,6 +467,7 @@ curl -X POST http://localhost:5001/api/auth/logout \
 ```
 
 **Verification:**
+
 ```bash
 # Try using same token again
 curl -X GET http://localhost:5001/api/users \
@@ -447,6 +477,7 @@ curl -X GET http://localhost:5001/api/users \
 ```
 
 **Redis Validation:**
+
 ```bash
 redis-cli
 > KEYS blacklist:*
@@ -460,15 +491,16 @@ redis-cli
 
 **Test Matrix:**
 
-| Endpoint | ADMIN | DOCTOR | RECEPTIONIST | PATIENT |
-|----------|-------|--------|--------------|---------|
-| GET /api/users | ✅ | ❌ | ❌ | ❌ |
-| POST /api/appointments | ❌ | ❌ | ❌ | ✅ |
-| POST /api/appointments/offline | ❌ | ❌ | ✅ | ❌ |
-| POST /api/prescriptions | ❌ | ✅ | ❌ | ❌ |
-| POST /api/medicines | ✅ | ❌ | ❌ | ❌ |
+| Endpoint                       | ADMIN | DOCTOR | RECEPTIONIST | PATIENT |
+| ------------------------------ | ----- | ------ | ------------ | ------- |
+| GET /api/users                 | ✅    | ❌     | ❌           | ❌      |
+| POST /api/appointments         | ❌    | ❌     | ❌           | ✅      |
+| POST /api/appointments/offline | ❌    | ❌     | ✅           | ❌      |
+| POST /api/prescriptions        | ❌    | ✅     | ❌           | ❌      |
+| POST /api/medicines            | ✅    | ❌     | ❌           | ❌      |
 
 **Test Procedure:**
+
 1. Login as each role
 2. Attempt to access endpoint
 3. Verify expected status code (200 or 403)
@@ -482,6 +514,7 @@ redis-cli
 **Endpoint:** `GET /api/permissions/role/1`
 
 **Setup:**
+
 ```sql
 -- Verify admin role has permissions
 SELECT r.name AS role, p.name AS permission
@@ -492,12 +525,14 @@ WHERE r.id = 1;
 ```
 
 **Request:**
+
 ```bash
 curl -X GET http://localhost:5001/api/permissions/role/1 \
   -H "Authorization: Bearer ADMIN_TOKEN"
 ```
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -525,12 +560,14 @@ curl -X GET http://localhost:5001/api/permissions/role/1 \
 **Objective:** Patient completes profile after registration
 
 **Prerequisites:**
+
 - User registered with roleId = 3 (PATIENT)
 - User logged in (has token)
 
 **Endpoint:** `POST /api/patients/setup`
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:5001/api/patients/setup \
   -H "Authorization: Bearer PATIENT_TOKEN" \
@@ -563,6 +600,7 @@ curl -X POST http://localhost:5001/api/patients/setup \
 ```
 
 **Expected Response (201):**
+
 ```json
 {
   "success": true,
@@ -583,12 +621,13 @@ curl -X POST http://localhost:5001/api/patients/setup \
 ```
 
 **Database Validation:**
+
 ```sql
 -- Check patient created
 SELECT * FROM patients WHERE userId = 4;
 
 -- Check profiles created
-SELECT * FROM patient_profiles WHERE patientId = 1;
+SELECT * FROM patient_profiles WHERE patient_id = 1;
 -- Expected: 3 rows (email, phone, address)
 
 -- Verify CCCD uniqueness
@@ -597,6 +636,7 @@ SELECT COUNT(*) FROM patients WHERE cccd = '001090001234';
 ```
 
 **Edge Cases:**
+
 - CCCD not 12 digits → 400 "CCCD must be 12 digits"
 - Duplicate CCCD → 400 "CCCD already exists"
 - Future dateOfBirth → 400 "DOB cannot be future"
@@ -611,6 +651,7 @@ SELECT COUNT(*) FROM patients WHERE cccd = '001090001234';
 **Endpoint:** `PUT /api/patients/:id`
 
 **Request:**
+
 ```bash
 curl -X PUT http://localhost:5001/api/patients/1 \
   -H "Authorization: Bearer ADMIN_TOKEN" \
@@ -631,6 +672,7 @@ curl -X PUT http://localhost:5001/api/patients/1 \
 ```
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -647,13 +689,14 @@ curl -X PUT http://localhost:5001/api/patients/1 \
 ```
 
 **Database Validation:**
+
 ```sql
 -- Old profiles should be deleted, new ones created
-SELECT * FROM patient_profiles WHERE patientId = 1;
+SELECT * FROM patient_profiles WHERE patient_id = 1;
 -- Expected: Only new phone number exists
 
 -- Verify transaction worked (all or nothing)
-SELECT COUNT(*) FROM patient_profiles WHERE patientId = 1;
+SELECT COUNT(*) FROM patient_profiles WHERE patient_id= 1;
 -- Expected: 1 (not partial update)
 ```
 
@@ -666,6 +709,7 @@ SELECT COUNT(*) FROM patient_profiles WHERE patientId = 1;
 **Objective:** Patient books online appointment
 
 **Prerequisites:**
+
 - Patient profile setup (patientCode exists)
 - Doctor assigned to shift for target date
 - Slots available (< 40 appointments that day)
@@ -673,6 +717,7 @@ SELECT COUNT(*) FROM patient_profiles WHERE patientId = 1;
 **Endpoint:** `POST /api/appointments`
 
 **Setup:**
+
 ```sql
 -- Assign doctor to shift
 INSERT INTO doctor_shifts (doctorId, shiftId, workDate, status, createdAt, updatedAt)
@@ -685,6 +730,7 @@ WHERE doctorId = 1 AND shiftId = 1 AND date = '2025-12-30';
 ```
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:5001/api/appointments \
   -H "Authorization: Bearer PATIENT_TOKEN" \
@@ -698,6 +744,7 @@ curl -X POST http://localhost:5001/api/appointments \
 ```
 
 **Expected Response (201):**
+
 ```json
 {
   "success": true,
@@ -720,6 +767,7 @@ curl -X POST http://localhost:5001/api/appointments \
 ```
 
 **Database Validation:**
+
 ```sql
 -- Check appointment created
 SELECT * FROM appointments WHERE id = 1;
@@ -736,6 +784,7 @@ SELECT * FROM notifications WHERE userId = 4 AND type = 'APPOINTMENT_CREATED';
 ```
 
 **Concurrency Test:**
+
 ```bash
 # Run 5 parallel bookings (simulate race condition)
 for i in {1..5}; do
@@ -759,6 +808,7 @@ ORDER BY slotNumber;
 ```
 
 **Edge Cases:**
+
 - Doctor not on duty → 400 "DOCTOR_NOT_ON_DUTY"
 - 40 appointments already → 400 "DAY_FULL"
 - Shift full (10 slots) → 400 "SHIFT_FULL"
@@ -775,6 +825,7 @@ ORDER BY slotNumber;
 **Business Rule:** Must cancel at least 2 hours before appointment time
 
 **Calculation:**
+
 ```
 Appointment time = date + shift.startTime + (slotNumber - 1) * slotDuration
 Deadline = appointmentTime - 2 hours
@@ -793,6 +844,7 @@ curl -X PUT http://localhost:5001/api/appointments/1/cancel \
 ```
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -807,6 +859,7 @@ curl -X PUT http://localhost:5001/api/appointments/1/cancel \
 ```
 
 **Database Validation:**
+
 ```sql
 SELECT status FROM appointments WHERE id = 1;
 -- Expected: CANCELLED
@@ -827,6 +880,7 @@ curl -X PUT http://localhost:5001/api/appointments/1/cancel \
 ```
 
 **Expected Response (400):**
+
 ```json
 {
   "success": false,
@@ -835,6 +889,7 @@ curl -X PUT http://localhost:5001/api/appointments/1/cancel \
 ```
 
 **Edge Cases:**
+
 - Already cancelled → 400 "Appointment already cancelled"
 - Already checked in → 400 "Cannot cancel checked-in appointment"
 - Wrong patient → 403 "Not your appointment"
@@ -848,11 +903,13 @@ curl -X PUT http://localhost:5001/api/appointments/1/cancel \
 **Objective:** Admin cancels doctor shift, system finds replacement and moves all appointments
 
 **Prerequisites:**
+
 - Doctor A has shift on 2025-12-30, shift 1 (Morning)
 - Doctor A has 5 appointments booked
 - Doctor B (same specialty) is available same shift/date
 
 **Setup:**
+
 ```sql
 -- Doctor A shift (will be cancelled)
 INSERT INTO doctor_shifts (doctorId, shiftId, workDate, status, createdAt, updatedAt)
@@ -874,6 +931,7 @@ INSERT INTO appointments (patientId, doctorId, shiftId, date, slotNumber, bookin
 **Endpoint:** `POST /api/doctor-shifts/:id/cancel-and-reschedule`
 
 **Request:**
+
 ```bash
 # Get doctor_shift ID
 DOCTOR_SHIFT_ID=$(mysql -u test_user -p healthcare_test -se \
@@ -883,11 +941,13 @@ curl -X POST http://localhost:5001/api/doctor-shifts/$DOCTOR_SHIFT_ID/cancel-and
   -H "Authorization: Bearer ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
+    "workDate":"2025-12-30",
     "cancelReason": "Doctor A is sick"
   }'
 ```
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -910,6 +970,7 @@ curl -X POST http://localhost:5001/api/doctor-shifts/$DOCTOR_SHIFT_ID/cancel-and
 ```
 
 **Database Validation:**
+
 ```sql
 -- Check doctor shift status
 SELECT status, replacedBy FROM doctor_shifts WHERE id = $DOCTOR_SHIFT_ID;
@@ -945,6 +1006,7 @@ DELETE FROM doctor_shifts WHERE doctorId = 2 AND workDate = '2025-12-30';
 **Request:** Same as above
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -964,6 +1026,7 @@ DELETE FROM doctor_shifts WHERE doctorId = 2 AND workDate = '2025-12-30';
 ```
 
 **Database Validation:**
+
 ```sql
 -- Shift marked as CANCELLED (not REPLACED)
 SELECT status, replacedBy FROM doctor_shifts WHERE id = $DOCTOR_SHIFT_ID;
@@ -987,10 +1050,12 @@ SELECT COUNT(*) FROM notifications WHERE type = 'APPOINTMENT_CANCELLED';
 **Objective:** Doctor creates prescription, stock automatically deducted
 
 **Prerequisites:**
+
 - Visit completed (status = COMPLETED)
 - Medicines available with sufficient stock
 
 **Setup:**
+
 ```sql
 -- Create completed visit
 INSERT INTO visits (appointmentId, patientId, doctorId, checkInTime, symptoms, diagnosis, status, createdAt, updatedAt)
@@ -1006,6 +1071,7 @@ SELECT medicineCode, name, quantity, importPrice, salePrice FROM medicines WHERE
 **Endpoint:** `POST /api/prescriptions`
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:5001/api/prescriptions \
   -H "Authorization: Bearer DOCTOR_TOKEN" \
@@ -1037,6 +1103,7 @@ curl -X POST http://localhost:5001/api/prescriptions \
 ```
 
 **Expected Response (201):**
+
 ```json
 {
   "success": true,
@@ -1048,7 +1115,7 @@ curl -X POST http://localhost:5001/api/prescriptions \
       "visitId": 1,
       "doctorId": 1,
       "patientId": 1,
-      "totalAmount": 34000.00,
+      "totalAmount": 34000.0,
       "status": "DRAFT",
       "details": [
         {
@@ -1056,7 +1123,7 @@ curl -X POST http://localhost:5001/api/prescriptions \
           "medicineId": 1,
           "medicineName": "Paracetamol 500mg",
           "quantity": 20,
-          "unitPrice": 500.00,
+          "unitPrice": 500.0,
           "dosageMorning": 1,
           "dosageEvening": 1,
           "instruction": "Take 1 tablet in morning and evening"
@@ -1066,7 +1133,7 @@ curl -X POST http://localhost:5001/api/prescriptions \
           "medicineId": 2,
           "medicineName": "Amoxicillin 500mg",
           "quantity": 12,
-          "unitPrice": 2000.00,
+          "unitPrice": 2000.0,
           "dosageMorning": 1,
           "dosageNoon": 1,
           "dosageAfternoon": 1,
@@ -1107,6 +1174,7 @@ SELECT COUNT(*) FROM prescription_details WHERE prescriptionId = 1;
 ```
 
 **Price Snapshot Verification:**
+
 ```sql
 -- Check that unitPrice is saved at prescription time
 SELECT medicineId, unitPrice FROM prescription_details WHERE prescriptionId = 1;
@@ -1122,6 +1190,7 @@ SELECT medicineId, unitPrice FROM prescription_details WHERE prescriptionId = 1;
 **Edge Cases:**
 
 **Test: Insufficient Stock**
+
 ```bash
 curl -X POST http://localhost:5001/api/prescriptions \
   -H "Authorization: Bearer DOCTOR_TOKEN" \
@@ -1138,6 +1207,7 @@ curl -X POST http://localhost:5001/api/prescriptions \
 ```
 
 **Expected Response (400):**
+
 ```json
 {
   "success": false,
@@ -1146,6 +1216,7 @@ curl -X POST http://localhost:5001/api/prescriptions \
 ```
 
 **Database Check:**
+
 ```sql
 -- Stock should NOT be deducted (transaction rollback)
 SELECT quantity FROM medicines WHERE id = 1;
@@ -1163,6 +1234,7 @@ SELECT COUNT(*) FROM prescriptions WHERE visitId = 1;
 **Objective:** Doctor edits prescription, old stock restored, new stock deducted
 
 **Setup:**
+
 ```sql
 -- Current state after PRX-001:
 -- Medicine 1 (Aspirin): quantity = 980
@@ -1173,6 +1245,7 @@ SELECT COUNT(*) FROM prescriptions WHERE visitId = 1;
 **Endpoint:** `PUT /api/prescriptions/:id`
 
 **Request:**
+
 ```bash
 # Change to: 30 Aspirin (was 20) + 5 Amoxicillin (was 12)
 curl -X PUT http://localhost:5001/api/prescriptions/1 \
@@ -1202,6 +1275,7 @@ curl -X PUT http://localhost:5001/api/prescriptions/1 \
 ```
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -1252,6 +1326,7 @@ SELECT totalAmount FROM prescriptions WHERE id = 1;
 **Objective:** Doctor cancels prescription, stock fully restored
 
 **Setup:**
+
 ```sql
 -- Current state:
 -- Medicine 1: 970
@@ -1262,12 +1337,14 @@ SELECT totalAmount FROM prescriptions WHERE id = 1;
 **Endpoint:** `POST /api/prescriptions/:id/cancel`
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:5001/api/prescriptions/1/cancel \
   -H "Authorization: Bearer DOCTOR_TOKEN"
 ```
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -1282,6 +1359,7 @@ curl -X POST http://localhost:5001/api/prescriptions/1/cancel \
 ```
 
 **Database Validation:**
+
 ```sql
 -- Stock restored
 SELECT medicineCode, quantity FROM medicines WHERE id IN (1, 2);
@@ -1295,6 +1373,7 @@ SELECT status FROM prescriptions WHERE id = 1;
 ```
 
 **Edge Case: Cannot Edit Locked Prescription**
+
 ```sql
 -- Lock prescription (simulates payment completed)
 UPDATE prescriptions SET status = 'LOCKED' WHERE id = 1;
@@ -1308,6 +1387,7 @@ curl -X PUT http://localhost:5001/api/prescriptions/1 \
 ```
 
 **Expected Response (400):**
+
 ```json
 {
   "success": false,
@@ -1324,6 +1404,7 @@ curl -X PUT http://localhost:5001/api/prescriptions/1 \
 **Objective:** When visit is completed, invoice is auto-created
 
 **Setup:**
+
 ```sql
 -- Visit with prescription (from PRX-001)
 -- Prescription total: 34000 (20*500 + 12*2000)
@@ -1333,6 +1414,7 @@ curl -X PUT http://localhost:5001/api/prescriptions/1 \
 **Endpoint:** `PUT /api/visits/:id/complete`
 
 **Request:**
+
 ```bash
 curl -X PUT http://localhost:5001/api/visits/1/complete \
   -H "Authorization: Bearer DOCTOR_TOKEN" \
@@ -1345,6 +1427,7 @@ curl -X PUT http://localhost:5001/api/visits/1/complete \
 ```
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -1359,17 +1442,18 @@ curl -X PUT http://localhost:5001/api/visits/1/complete \
       "id": 1,
       "invoiceCode": "INV000001",
       "visitId": 1,
-      "examinationFee": 200000.00,
-      "medicineTotalAmount": 34000.00,
-      "totalAmount": 234000.00,
+      "examinationFee": 200000.0,
+      "medicineTotalAmount": 34000.0,
+      "totalAmount": 234000.0,
       "paymentStatus": "UNPAID",
-      "paidAmount": 0.00
+      "paidAmount": 0.0
     }
   }
 }
 ```
 
 **Database Validation:**
+
 ```sql
 -- 1. Visit status
 SELECT status FROM visits WHERE id = 1;
@@ -1401,6 +1485,7 @@ SELECT status FROM prescriptions WHERE visitId = 1;
 **Endpoint:** `POST /api/invoices/:id/payments`
 
 **Request (Payment 1: 150,000):**
+
 ```bash
 curl -X POST http://localhost:5001/api/invoices/1/payments \
   -H "Authorization: Bearer RECEPTIONIST_TOKEN" \
@@ -1414,6 +1499,7 @@ curl -X POST http://localhost:5001/api/invoices/1/payments \
 ```
 
 **Expected Response (201):**
+
 ```json
 {
   "success": true,
@@ -1422,22 +1508,23 @@ curl -X POST http://localhost:5001/api/invoices/1/payments \
     "payment": {
       "id": 1,
       "invoiceId": 1,
-      "amount": 150000.00,
+      "amount": 150000.0,
       "paymentMethod": "CASH",
       "paymentDate": "2025-12-29T..."
     },
     "invoice": {
       "id": 1,
-      "totalAmount": 234000.00,
-      "paidAmount": 150000.00,
+      "totalAmount": 234000.0,
+      "paidAmount": 150000.0,
       "paymentStatus": "PARTIALLY_PAID",
-      "remainingAmount": 84000.00
+      "remainingAmount": 84000.0
     }
   }
 }
 ```
 
 **Database Validation:**
+
 ```sql
 -- Payment record created
 SELECT * FROM payments WHERE invoiceId = 1;
@@ -1449,6 +1536,7 @@ SELECT paidAmount, paymentStatus FROM invoices WHERE id = 1;
 ```
 
 **Request (Payment 2: 84,000 - Full payment):**
+
 ```bash
 curl -X POST http://localhost:5001/api/invoices/1/payments \
   -H "Authorization: Bearer RECEPTIONIST_TOKEN" \
@@ -1462,23 +1550,25 @@ curl -X POST http://localhost:5001/api/invoices/1/payments \
 ```
 
 **Expected Response (201):**
+
 ```json
 {
   "success": true,
   "message": "Payment recorded successfully - Invoice fully paid",
   "data": {
-    "payment": { "id": 2, "amount": 84000.00 },
+    "payment": { "id": 2, "amount": 84000.0 },
     "invoice": {
-      "totalAmount": 234000.00,
-      "paidAmount": 234000.00,
+      "totalAmount": 234000.0,
+      "paidAmount": 234000.0,
       "paymentStatus": "PAID",
-      "remainingAmount": 0.00
+      "remainingAmount": 0.0
     }
   }
 }
 ```
 
 **Database Validation:**
+
 ```sql
 -- 2 payments
 SELECT SUM(amount) FROM payments WHERE invoiceId = 1;
@@ -1490,6 +1580,7 @@ SELECT paymentStatus, paidAmount FROM invoices WHERE id = 1;
 ```
 
 **Edge Case: Overpayment**
+
 ```bash
 curl -X POST http://localhost:5001/api/invoices/1/payments \
   -H "Authorization: Bearer RECEPTIONIST_TOKEN" \
@@ -1501,6 +1592,7 @@ curl -X POST http://localhost:5001/api/invoices/1/payments \
 ```
 
 **Expected Response (400):**
+
 ```json
 {
   "success": false,
@@ -1517,6 +1609,7 @@ curl -X POST http://localhost:5001/api/invoices/1/payments \
 **Objective:** Calculate complex payroll with all components
 
 **Business Rules:**
+
 ```
 baseSalary = 2,500,000
 roleCoefficient:
@@ -1541,6 +1634,7 @@ netSalary = grossSalary - penaltyAmount
 ```
 
 **Setup:**
+
 ```sql
 -- Doctor user created 3 years ago
 UPDATE users SET createdAt = '2022-01-01' WHERE id = 2;
@@ -1562,6 +1656,7 @@ INSERT INTO attendance (userId, date, status, createdAt, updatedAt) VALUES
 ```
 
 **Expected Calculation:**
+
 ```
 yearsOfService = 2025 - 2022 = 3
 roleSalary = 2,500,000 * 2.5 = 6,250,000
@@ -1577,6 +1672,7 @@ netSalary = 7,027,500 - 200,000 = 6,827,500
 **Endpoint:** `POST /api/payrolls/calculate`
 
 **Request:**
+
 ```bash
 curl -X POST http://localhost:5001/api/payrolls/calculate \
   -H "Authorization: Bearer ADMIN_TOKEN" \
@@ -1589,6 +1685,7 @@ curl -X POST http://localhost:5001/api/payrolls/calculate \
 ```
 
 **Expected Response (201):**
+
 ```json
 {
   "success": true,
@@ -1600,20 +1697,20 @@ curl -X POST http://localhost:5001/api/payrolls/calculate \
       "userId": 2,
       "month": 12,
       "year": 2025,
-      "baseSalary": 2500000.00,
-      "roleCoefficient": 2.50,
-      "roleSalary": 6250000.00,
+      "baseSalary": 2500000.0,
+      "roleCoefficient": 2.5,
+      "roleSalary": 6250000.0,
       "yearsOfService": 3,
-      "experienceBonus": 750000.00,
-      "totalInvoices": 550000.00,
-      "commissionRate": 0.0500,
-      "commission": 27500.00,
+      "experienceBonus": 750000.0,
+      "totalInvoices": 550000.0,
+      "commissionRate": 0.05,
+      "commission": 27500.0,
       "daysOff": 3,
       "allowedDaysOff": 2,
       "penaltyDaysOff": 1,
-      "penaltyAmount": 200000.00,
-      "grossSalary": 7027500.00,
-      "netSalary": 6827500.00,
+      "penaltyAmount": 200000.0,
+      "grossSalary": 7027500.0,
+      "netSalary": 6827500.0,
       "status": "DRAFT"
     }
   }
@@ -1621,6 +1718,7 @@ curl -X POST http://localhost:5001/api/payrolls/calculate \
 ```
 
 **Database Validation:**
+
 ```sql
 SELECT * FROM payrolls WHERE userId = 2 AND month = 12 AND year = 2025;
 -- Verify all fields match expected calculation
@@ -1631,11 +1729,13 @@ SELECT COUNT(*) FROM payrolls WHERE userId = 2 AND month = 12 AND year = 2025;
 ```
 
 **Edge Case: Non-Doctor User (No Commission)**
+
 ```sql
 -- Calculate for receptionist
 ```
 
 **Expected:**
+
 ```
 roleSalary = 2,500,000 * 1.2 = 3,000,000
 commission = 0 (not a doctor)
@@ -1652,12 +1752,14 @@ experienceBonus = yearsOfService * 250,000
 **Endpoint:** `PUT /api/payrolls/:id/approve`
 
 **Request:**
+
 ```bash
 curl -X PUT http://localhost:5001/api/payrolls/1/approve \
   -H "Authorization: Bearer ADMIN_TOKEN"
 ```
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -1674,6 +1776,7 @@ curl -X PUT http://localhost:5001/api/payrolls/1/approve \
 ```
 
 **Database Validation:**
+
 ```sql
 SELECT status, approvedBy, approvedAt FROM payrolls WHERE id = 1;
 -- Expected: APPROVED, 1 (admin ID), timestamp
@@ -1688,12 +1791,14 @@ SELECT status, approvedBy, approvedAt FROM payrolls WHERE id = 1;
 **Endpoint:** `PUT /api/payrolls/:id/pay`
 
 **Request:**
+
 ```bash
 curl -X PUT http://localhost:5001/api/payrolls/1/pay \
   -H "Authorization: Bearer ADMIN_TOKEN"
 ```
 
 **Expected Response (200):**
+
 ```json
 {
   "success": true,
@@ -1709,6 +1814,7 @@ curl -X PUT http://localhost:5001/api/payrolls/1/pay \
 ```
 
 **Database Validation:**
+
 ```sql
 SELECT status, paidAt FROM payrolls WHERE id = 1;
 -- Expected: PAID, timestamp
@@ -1725,6 +1831,7 @@ SELECT status, paidAt FROM payrolls WHERE id = 1;
 **Objective:** Verify cascading deletes and restrictions
 
 **Test 1: Cannot delete user with invoices (RESTRICT)**
+
 ```sql
 -- Try to delete user who created invoices
 DELETE FROM users WHERE id = 3;
@@ -1732,6 +1839,7 @@ DELETE FROM users WHERE id = 3;
 ```
 
 **Test 2: Cascade delete patient profiles**
+
 ```sql
 -- Delete patient
 DELETE FROM patients WHERE id = 1;
@@ -1742,6 +1850,7 @@ SELECT COUNT(*) FROM patient_profiles WHERE patientId = 1;
 ```
 
 **Test 3: SET NULL on optional FK**
+
 ```sql
 -- Delete disease category
 DELETE FROM disease_categories WHERE id = 1;
@@ -1840,6 +1949,7 @@ curl -X GET "http://localhost:5001/api/patients/1 OR 1=1" \
 ```
 
 **Verify Sequelize ORM prevents SQL injection:**
+
 - All queries use parameterized statements
 - User input is escaped
 - No raw SQL with string concatenation
@@ -1947,6 +2057,7 @@ curl -X POST http://localhost:5001/api/patients/setup \
 ```
 
 **Database check:**
+
 ```sql
 SELECT fullName FROM patients WHERE id = LAST_INSERT_ID();
 -- Expected: Escaped or sanitized (not executable script)
@@ -1971,6 +2082,7 @@ ab -n 50 -c 10 -T 'application/json' \
 ```
 
 **Verification:**
+
 ```sql
 -- Check for slot conflicts
 SELECT slotNumber, COUNT(*)
@@ -2008,6 +2120,7 @@ wait
 ```
 
 **Verification:**
+
 ```sql
 -- Check medicine quantity
 SELECT quantity FROM medicines WHERE id = 1;
@@ -2042,6 +2155,7 @@ time curl "http://localhost:5001/api/patients?page=100&limit=50" \
 ```
 
 **Database indexing check:**
+
 ```sql
 EXPLAIN SELECT * FROM patients
 ORDER BY createdAt DESC
@@ -2057,6 +2171,7 @@ LIMIT 50 OFFSET 5000;
 ### Test Case EDGE-001: Boundary Values
 
 **Test 1: CCCD validation**
+
 ```bash
 # Too short (11 digits)
 curl -X POST http://localhost:5001/api/patients/setup \
@@ -2075,6 +2190,7 @@ curl -X POST http://localhost:5001/api/patients/setup \
 ```
 
 **Test 2: Appointment limit (40/day)**
+
 ```sql
 -- Create 39 appointments
 -- Next appointment should succeed (total 40)
@@ -2082,6 +2198,7 @@ curl -X POST http://localhost:5001/api/patients/setup \
 ```
 
 **Test 3: Pagination limits**
+
 ```bash
 # Page 0 (invalid)
 curl "http://localhost:5001/api/patients?page=0&limit=10"
@@ -2131,41 +2248,39 @@ curl -X POST http://localhost:5001/api/medicines \
 ### Jest + Supertest Setup
 
 **Install dependencies:**
+
 ```bash
 npm install --save-dev jest supertest @types/jest @types/supertest ts-jest
 ```
 
 **Configure `jest.config.js`:**
+
 ```javascript
 module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  roots: ['<rootDir>/src'],
-  testMatch: ['**/__tests__/**/*.test.ts'],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/types/**'
-  ],
+  preset: "ts-jest",
+  testEnvironment: "node",
+  roots: ["<rootDir>/src"],
+  testMatch: ["**/__tests__/**/*.test.ts"],
+  collectCoverageFrom: ["src/**/*.ts", "!src/**/*.d.ts", "!src/types/**"],
   coverageThreshold: {
     global: {
       branches: 70,
       functions: 70,
       lines: 70,
-      statements: 70
-    }
-  }
+      statements: 70,
+    },
+  },
 };
 ```
 
 **Sample test file: `__tests__/auth.test.ts`**
 
 ```typescript
-import request from 'supertest';
-import app from '../app';
-import { sequelize } from '../models';
+import request from "supertest";
+import app from "../app";
+import { sequelize } from "../models";
 
-describe('Authentication API', () => {
+describe("Authentication API", () => {
   beforeAll(async () => {
     await sequelize.sync({ force: true });
     // Seed test data
@@ -2175,60 +2290,67 @@ describe('Authentication API', () => {
     await sequelize.close();
   });
 
-  describe('POST /api/auth/register', () => {
-    it('should register new user successfully', async () => {
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send({
-          email: 'test@example.com',
-          password: 'Password123!',
-          fullName: 'Test User',
-          roleId: 4
-        });
+  describe("POST /api/auth/register", () => {
+    it("should register new user successfully", async () => {
+      const res = await request(app).post("/api/auth/register").send({
+        email: "test@example.com",
+        password: "Password123!",
+        fullName: "Test User",
+        roleId: 4,
+      });
 
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
-      expect(res.body.data.user.email).toBe('test@example.com');
+      expect(res.body.data.user.email).toBe("test@example.com");
     });
 
-    it('should reject duplicate email', async () => {
+    it("should reject duplicate email", async () => {
       // First registration
-      await request(app)
-        .post('/api/auth/register')
-        .send({ email: 'duplicate@test.com', password: 'Pass123!', fullName: 'User 1', roleId: 4 });
+      await request(app).post("/api/auth/register").send({
+        email: "duplicate@test.com",
+        password: "Pass123!",
+        fullName: "User 1",
+        roleId: 4,
+      });
 
       // Duplicate
-      const res = await request(app)
-        .post('/api/auth/register')
-        .send({ email: 'duplicate@test.com', password: 'Pass123!', fullName: 'User 2', roleId: 4 });
+      const res = await request(app).post("/api/auth/register").send({
+        email: "duplicate@test.com",
+        password: "Pass123!",
+        fullName: "User 2",
+        roleId: 4,
+      });
 
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
     });
   });
 
-  describe('POST /api/auth/login', () => {
-    it('should login and return JWT token', async () => {
+  describe("POST /api/auth/login", () => {
+    it("should login and return JWT token", async () => {
       // Register first
-      await request(app)
-        .post('/api/auth/register')
-        .send({ email: 'login@test.com', password: 'Pass123!', fullName: 'Login User', roleId: 4 });
+      await request(app).post("/api/auth/register").send({
+        email: "login@test.com",
+        password: "Pass123!",
+        fullName: "Login User",
+        roleId: 4,
+      });
 
       // Login
       const res = await request(app)
-        .post('/api/auth/login')
-        .send({ email: 'login@test.com', password: 'Pass123!' });
+        .post("/api/auth/login")
+        .send({ email: "login@test.com", password: "Pass123!" });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.accessToken).toBeDefined();
-      expect(typeof res.body.data.accessToken).toBe('string');
+      expect(typeof res.body.data.accessToken).toBe("string");
     });
 
-    it('should reject wrong password', async () => {
+    it("should reject wrong password", async () => {
       const res = await request(app)
-        .post('/api/auth/login')
-        .send({ email: 'login@test.com', password: 'WrongPass123!' });
+        .post("/api/auth/login")
+        .send({ email: "login@test.com", password: "WrongPass123!" });
 
       expect(res.status).toBe(401);
       expect(res.body.success).toBe(false);
@@ -2238,6 +2360,7 @@ describe('Authentication API', () => {
 ```
 
 **Run tests:**
+
 ```bash
 npm test                    # Run all tests
 npm test -- --coverage      # With coverage report
@@ -2332,14 +2455,14 @@ Healthcare Management API/
 
 ```javascript
 // Auto-refresh token if expired
-const token = pm.environment.get('admin_token');
+const token = pm.environment.get("admin_token");
 if (token) {
-  const payload = JSON.parse(atob(token.split('.')[1]));
+  const payload = JSON.parse(atob(token.split(".")[1]));
   const exp = payload.exp * 1000; // Convert to ms
   const now = Date.now();
 
   if (exp < now) {
-    console.log('Token expired, refreshing...');
+    console.log("Token expired, refreshing...");
     // Trigger refresh token request
   }
 }
@@ -2358,26 +2481,26 @@ if (pm.response.code === 200) {
 
   // Save to appropriate variable based on role
   if (user.roleId === 1) {
-    pm.environment.set('admin_token', token);
+    pm.environment.set("admin_token", token);
   } else if (user.roleId === 2) {
-    pm.environment.set('doctor_token', token);
+    pm.environment.set("doctor_token", token);
   } else if (user.roleId === 3) {
-    pm.environment.set('receptionist_token', token);
+    pm.environment.set("receptionist_token", token);
   } else if (user.roleId === 4) {
-    pm.environment.set('patient_token', token);
+    pm.environment.set("patient_token", token);
   }
 
   console.log(`Saved ${user.email} token for roleId ${user.roleId}`);
 }
 
 // Test assertions
-pm.test('Status code is 200', function() {
+pm.test("Status code is 200", function () {
   pm.response.to.have.status(200);
 });
 
-pm.test('Response has accessToken', function() {
+pm.test("Response has accessToken", function () {
   const jsonData = pm.response.json();
-  pm.expect(jsonData.data.accessToken).to.be.a('string');
+  pm.expect(jsonData.data.accessToken).to.be.a("string");
 });
 ```
 
@@ -2387,15 +2510,18 @@ pm.test('Response has accessToken', function() {
 // Save appointment ID for later use
 if (pm.response.code === 201) {
   const responseJson = pm.response.json();
-  pm.environment.set('current_appointment_id', responseJson.data.appointment.id);
+  pm.environment.set(
+    "current_appointment_id",
+    responseJson.data.appointment.id
+  );
 }
 
 // Assertions
-pm.test('Appointment created successfully', function() {
+pm.test("Appointment created successfully", function () {
   pm.response.to.have.status(201);
   const jsonData = pm.response.json();
-  pm.expect(jsonData.data.appointment.status).to.equal('WAITING');
-  pm.expect(jsonData.data.appointment.slotNumber).to.be.a('number');
+  pm.expect(jsonData.data.appointment.status).to.equal("WAITING");
+  pm.expect(jsonData.data.appointment.slotNumber).to.be.a("number");
 });
 ```
 
@@ -2483,7 +2609,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: '18'
+          node-version: "18"
 
       - name: Install dependencies
         run: npm ci
@@ -2527,13 +2653,13 @@ jobs:
 
 ## 📊 Test Coverage Goals
 
-| Test Type | Target | Current | Priority |
-|-----------|--------|---------|----------|
-| Unit Tests (Services) | 80% | - | High |
-| Integration Tests (API) | 100% | - | Critical |
-| E2E Tests (Flows) | 90% | - | High |
-| Security Tests | 100% | - | Critical |
-| Performance Tests | Key endpoints | - | Medium |
+| Test Type               | Target        | Current | Priority |
+| ----------------------- | ------------- | ------- | -------- |
+| Unit Tests (Services)   | 80%           | -       | High     |
+| Integration Tests (API) | 100%          | -       | Critical |
+| E2E Tests (Flows)       | 90%           | -       | High     |
+| Security Tests          | 100%          | -       | Critical |
+| Performance Tests       | Key endpoints | -       | Medium   |
 
 ---
 
@@ -2542,22 +2668,26 @@ jobs:
 ### Priority 1: Critical Business Flows
 
 1. **Complete Patient Journey**
+
    - Register → Setup profile → Book appointment → Check-in → Visit → Prescription → Invoice → Payment
    - All steps must succeed sequentially
    - Database consistency verified at each step
 
 2. **Prescription & Inventory**
+
    - Create prescription → Stock deducted
    - Edit prescription → Old stock restored, new stock deducted
    - Cancel prescription → Stock fully restored
    - Concurrent prescriptions → No overselling (pessimistic locking)
 
 3. **Doctor Shift Reschedule**
+
    - Doctor cancels → System finds replacement (same specialty)
    - All appointments automatically moved
    - All patients notified via email and in-app
 
 4. **Invoice & Payment**
+
    - Visit complete → Invoice auto-created
    - Partial payments → Status transitions (UNPAID → PARTIALLY_PAID → PAID)
    - Payment total = invoice total
@@ -2570,12 +2700,14 @@ jobs:
 ### Priority 2: Security & Authorization
 
 1. **Authentication**
+
    - Login → JWT token issued
    - Token verification → Access granted
    - Logout → Token blacklisted in Redis
    - Blacklisted token → Access denied
 
 2. **Role-Based Access**
+
    - ADMIN access to admin endpoints ✅
    - DOCTOR access to doctor endpoints ✅
    - PATIENT access to patient endpoints ✅
@@ -2589,11 +2721,13 @@ jobs:
 ### Priority 3: Data Integrity
 
 1. **Foreign Key Constraints**
+
    - Cannot delete user with active invoices
    - Cascading deletes (patient → profiles)
    - SET NULL on optional FKs
 
 2. **Unique Constraints**
+
    - No duplicate emails, CCCD, appointment slots
    - Unique codes (patient, doctor, medicine, prescription, invoice, payroll)
 
@@ -2607,6 +2741,7 @@ jobs:
 ## 📝 Test Execution Checklist
 
 ### Before Testing
+
 - [ ] Test database created and migrated
 - [ ] Test data seeded (users, doctors, patients, medicines)
 - [ ] Test server running on port 5001
@@ -2615,6 +2750,7 @@ jobs:
 - [ ] Environment variables configured
 
 ### During Testing
+
 - [ ] Authentication tests passed (login, logout, token verification)
 - [ ] Patient management tests passed (setup, update, CCCD validation)
 - [ ] Appointment tests passed (booking, cancellation, concurrency)
@@ -2627,6 +2763,7 @@ jobs:
 - [ ] Performance tests passed (concurrency, pagination)
 
 ### After Testing
+
 - [ ] All test results documented
 - [ ] Bugs logged in issue tracker
 - [ ] Coverage report generated
@@ -2640,18 +2777,22 @@ jobs:
 ### Current Limitations
 
 1. **Email Testing**
+
    - Requires SMTP configuration
    - Use Mailhog/Mailtrap for testing in development
 
 2. **Redis Dependency**
+
    - Token blacklist requires Redis
    - System works without Redis (warning logged)
 
 3. **Scheduled Jobs**
+
    - Medicine expiry check runs daily at 00:00
    - Cannot manually trigger (except via direct function call)
 
 4. **File Upload**
+
    - Avatar upload only (no prescription/invoice file attachments)
    - Max size: 10MB (configurable)
 
@@ -2701,6 +2842,7 @@ SELECT invoiceCode, totalAmount, paymentStatus FROM invoices;
 ```
 
 **If any data is incorrect, re-run seeders:**
+
 ```bash
 # Reset and re-seed
 npx sequelize-cli db:seed:undo:all
