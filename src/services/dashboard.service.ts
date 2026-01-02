@@ -1,5 +1,4 @@
 import { Op, fn, col, literal } from "sequelize";
-import sequelize from "../config/database";
 import Invoice from "../models/Invoice";
 import Visit from "../models/Visit";
 import Appointment from "../models/Appointment";
@@ -52,7 +51,7 @@ export const getDashboardDataService = async () => {
   // Số bệnh nhân hôm nay (visits)
   const todayPatients = await Visit.count({
     where: {
-      visitDate: {
+      checkInTime: {
         [Op.gte]: today,
         [Op.lt]: tomorrow,
       },
@@ -62,7 +61,7 @@ export const getDashboardDataService = async () => {
   // Số bệnh nhân hôm qua
   const yesterdayPatients = await Visit.count({
     where: {
-      visitDate: {
+      checkInTime: {
         [Op.gte]: yesterday,
         [Op.lt]: today,
       },
@@ -115,7 +114,7 @@ export const getDashboardDataService = async () => {
         model: Visit,
         as: "visits",
         where: {
-          visitDate: {
+          checkInTime: {
             [Op.gte]: today,
             [Op.lt]: tomorrow,
           },
@@ -139,7 +138,7 @@ export const getDashboardDataService = async () => {
       [fn("COUNT", col("Visit.id")), "count"],
     ],
     where: {
-      visitDate: {
+      checkInTime: {
         [Op.gte]: weekAgo,
       },
       diseaseCategoryId: {
@@ -525,9 +524,9 @@ export const getQuickStatsService = async () => {
   const topDoctors = await Appointment.findAll({
     attributes: [
       "doctorId",
-      [fn("COUNT", col("id")), "appointmentCount"],
+      [fn("COUNT", col("Appointment.id")), "appointmentCount"],
     ],
-    group: ["doctorId"],
+    group: ["doctorId", "doctor.id", "doctor->user.id", "doctor->specialty.id"],
     include: [
       {
         model: Doctor,
@@ -546,7 +545,7 @@ export const getQuickStatsService = async () => {
         ],
       },
     ],
-    order: [[fn("COUNT", col("id")), "DESC"]],
+    order: [[fn("COUNT", col("Appointment.id")), "DESC"]],
     limit: 5,
     raw: false,
   });
@@ -555,21 +554,21 @@ export const getQuickStatsService = async () => {
   const topDiseases = await Visit.findAll({
     attributes: [
       "diseaseCategoryId",
-      [fn("COUNT", col("id")), "visitCount"],
+      [fn("COUNT", col("Visit.id")), "visitCount"],
     ],
     where: {
       diseaseCategoryId: {
         [Op.ne]: null,
       },
     },
-    group: ["diseaseCategoryId"],
+    group: ["diseaseCategoryId", "DiseaseCategory.id"],
     include: [
       {
         model: DiseaseCategory,
         attributes: ["name", "code"],
       },
     ],
-    order: [[fn("COUNT", col("id")), "DESC"]],
+    order: [[fn("COUNT", col("Visit.id")), "DESC"]],
     limit: 5,
     raw: false,
   });

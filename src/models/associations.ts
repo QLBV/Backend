@@ -46,7 +46,10 @@ export const setupAssociations = () => {
   PrescriptionDetail.belongsTo(Prescription, {
     foreignKey: "prescriptionId",
   });
-  PrescriptionDetail.belongsTo(Medicine, { foreignKey: "medicineId" });
+  PrescriptionDetail.belongsTo(Medicine, {
+    foreignKey: "medicineId",
+    as: "Medicine"
+  });
 
   // Visit associations (additional to existing ones)
   Visit.belongsTo(DiseaseCategory, { foreignKey: "diseaseCategoryId" });
@@ -95,6 +98,11 @@ export const setupAssociations = () => {
   Appointment.belongsTo(Patient, { foreignKey: "patientId", as: "patient" });
   Appointment.belongsTo(Doctor, { foreignKey: "doctorId", as: "doctor" });
   Appointment.belongsTo(Shift, { foreignKey: "shiftId", as: "shift" });
+
+  // Reverse associations for Appointment
+  Patient.hasMany(Appointment, { foreignKey: "patientId", as: "appointments" });
+  Doctor.hasMany(Appointment, { foreignKey: "doctorId", as: "appointments" });
+  Shift.hasMany(Appointment, { foreignKey: "shiftId", as: "appointments" });
 
   // MedicineImport associations
   MedicineImport.belongsTo(Medicine, {
@@ -146,6 +154,10 @@ export const setupAssociations = () => {
   Doctor.belongsTo(User, { foreignKey: "userId", as: "user" });
   Doctor.belongsTo(Specialty, { foreignKey: "specialtyId", as: "specialty" });
 
+  // Reverse associations for Doctor
+  User.hasOne(Doctor, { foreignKey: "userId", as: "doctor" });
+  Specialty.hasMany(Doctor, { foreignKey: "specialtyId", as: "doctors" });
+
   // DoctorShift associations
   DoctorShift.belongsTo(Doctor, { foreignKey: "doctorId", as: "doctor" });
   DoctorShift.belongsTo(Shift, { foreignKey: "shiftId", as: "shift" });
@@ -158,6 +170,11 @@ export const setupAssociations = () => {
   Visit.belongsTo(Appointment, { foreignKey: "appointmentId", as: "appointment" });
   Visit.belongsTo(Patient, { foreignKey: "patientId", as: "patient" });
   Visit.belongsTo(Doctor, { foreignKey: "doctorId", as: "doctor" });
+
+  // Reverse associations for Visit
+  Patient.hasMany(Visit, { foreignKey: "patientId", as: "visits" });
+  Doctor.hasMany(Visit, { foreignKey: "doctorId", as: "visits" });
+  Appointment.hasOne(Visit, { foreignKey: "appointmentId", as: "visit" });
 
   // AuditLog associations
   AuditLog.belongsTo(User, { foreignKey: "userId", as: "user" });
