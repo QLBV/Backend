@@ -21,6 +21,7 @@ import oauthRoutes from "./routes/oauth.routes";
 import permissionRoutes from "./routes/permission.routes";
 import { corsOptions } from "./config/cors.config";
 import passport from "./config/oauth.config";
+import auditLogRoutes from "./routes/auditLog.routes";
 
 const app: Application = express();
 // Morgan logging
@@ -94,6 +95,7 @@ app.use("/api/payrolls", payrollRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/permissions", permissionRoutes);
+app.use("/api/audit-logs", auditLogRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {

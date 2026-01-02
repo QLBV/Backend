@@ -100,24 +100,24 @@ module.exports = {
     const hashedPassword = await bcrypt.hash('123456', 10);
     await queryInterface.bulkInsert('users', [
       // ADMIN
-      { id: 1, email: 'admin@healthcare.com', password: hashedPassword, fullName: 'Quản Trị Viên', roleId: 1, isActive: 1, userCode: 'ADM001', avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
+      { id: 1, email: 'admin@healthcare.com', password: hashedPassword, fullName: 'Quản Trị Viên', roleId: 1, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
 
       // DOCTORS
-      { id: 2, email: 'nguyen.van.a@healthcare.com', password: hashedPassword, fullName: 'BS. Nguyễn Văn A', roleId: 2, isActive: 1, userCode: 'DOC001', avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
-      { id: 3, email: 'tran.thi.b@healthcare.com', password: hashedPassword, fullName: 'BS. Trần Thị B', roleId: 2, isActive: 1, userCode: 'DOC002', avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
-      { id: 4, email: 'le.van.c@healthcare.com', password: hashedPassword, fullName: 'BS. Lê Văn C', roleId: 2, isActive: 1, userCode: 'DOC003', avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
-      { id: 5, email: 'pham.thi.d@healthcare.com', password: hashedPassword, fullName: 'BS. Phạm Thị D', roleId: 2, isActive: 1, userCode: 'DOC004', avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
+      { id: 2, email: 'nguyen.van.a@healthcare.com', password: hashedPassword, fullName: 'BS. Nguyễn Văn A', roleId: 2, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
+      { id: 3, email: 'tran.thi.b@healthcare.com', password: hashedPassword, fullName: 'BS. Trần Thị B', roleId: 2, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
+      { id: 4, email: 'le.van.c@healthcare.com', password: hashedPassword, fullName: 'BS. Lê Văn C', roleId: 2, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
+      { id: 5, email: 'pham.thi.d@healthcare.com', password: hashedPassword, fullName: 'BS. Phạm Thị D', roleId: 2, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
 
       // PATIENTS
-      { id: 6, email: 'patient1@gmail.com', password: hashedPassword, fullName: 'Ngô Văn K', roleId: 3, isActive: 1, userCode: 'PAT001', avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
-      { id: 7, email: 'patient2@gmail.com', password: hashedPassword, fullName: 'Đỗ Thị L', roleId: 3, isActive: 1, userCode: 'PAT002', avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
-      { id: 8, email: 'patient3@gmail.com', password: hashedPassword, fullName: 'Bùi Văn M', roleId: 3, isActive: 1, userCode: 'PAT003', avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
-      { id: 9, email: 'patient4@gmail.com', password: hashedPassword, fullName: 'Vũ Thị N', roleId: 3, isActive: 1, userCode: 'PAT004', avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
-      { id: 10, email: 'patient5@gmail.com', password: hashedPassword, fullName: 'Đặng Văn O', roleId: 3, isActive: 1, userCode: 'PAT005', avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
+      { id: 6, email: 'patient1@gmail.com', password: hashedPassword, fullName: 'Ngô Văn K', roleId: 3, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
+      { id: 7, email: 'patient2@gmail.com', password: hashedPassword, fullName: 'Đỗ Thị L', roleId: 3, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
+      { id: 8, email: 'patient3@gmail.com', password: hashedPassword, fullName: 'Bùi Văn M', roleId: 3, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
+      { id: 9, email: 'patient4@gmail.com', password: hashedPassword, fullName: 'Vũ Thị N', roleId: 3, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
+      { id: 10, email: 'patient5@gmail.com', password: hashedPassword, fullName: 'Đặng Văn O', roleId: 3, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
 
       // RECEPTIONISTS
-      { id: 11, email: 'receptionist1@healthcare.com', password: hashedPassword, fullName: 'Nguyễn Thị E', roleId: 4, isActive: 1, userCode: 'REC001', avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
-      { id: 12, email: 'receptionist2@healthcare.com', password: hashedPassword, fullName: 'Trần Văn F', roleId: 4, isActive: 1, userCode: 'REC002', avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
+      { id: 11, email: 'receptionist1@healthcare.com', password: hashedPassword, fullName: 'Nguyễn Thị E', roleId: 4, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
+      { id: 12, email: 'receptionist2@healthcare.com', password: hashedPassword, fullName: 'Trần Văn F', roleId: 4, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
     ], {});
 
     console.log('🌱 [5/23] Seeding specialties...');

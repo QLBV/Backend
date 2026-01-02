@@ -13,7 +13,14 @@ import {
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
 import { RoleCode } from "../constant/role";
-import { validateNumericId, validatePagination } from "../middlewares/validators/common.validators";
+import {
+  validateNumericId,
+  validatePagination,
+} from "../middlewares/validators/common.validators";
+import {
+  validateCreateInvoice,
+  validateUpdateInvoice,
+} from "../middlewares/validators/invoice.validators";
 
 const router = Router();
 
@@ -21,11 +28,7 @@ const router = Router();
 router.use(verifyToken);
 
 // Statistics route (must be before /:id to avoid route conflict)
-router.get(
-  "/statistics",
-  requireRole(RoleCode.ADMIN),
-  getInvoiceStatistics
-);
+router.get("/statistics", requireRole(RoleCode.ADMIN), getInvoiceStatistics);
 
 // Patient-specific invoices
 router.get(
@@ -38,6 +41,7 @@ router.get(
 router.post(
   "/",
   requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST),
+  validateCreateInvoice,
   createInvoice
 );
 
@@ -58,6 +62,7 @@ router.put(
   "/:id",
   validateNumericId("id"),
   requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST),
+  validateUpdateInvoice,
   updateInvoice
 );
 

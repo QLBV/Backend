@@ -10,7 +10,7 @@ import { bookingRateLimit } from "../middlewares/rateLimit.middlewares";
 import {
   createAppointmentValidator,
   getAppointmentsValidator,
-} from "@/middlewares/validators/appointment.validators";
+} from "../middlewares/validators/appointment.validators";
 import { validateNumericId } from "../middlewares/validators/common.validators";
 
 const router = Router();

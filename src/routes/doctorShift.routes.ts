@@ -12,6 +12,10 @@ import {
 import { requireRole } from "../middlewares/roleCheck.middlewares";
 import { RoleCode } from "../constant/role";
 import { verifyToken } from "../middlewares/auth.middlewares";
+import {
+  validateAssignDoctorShift,
+  validateRescheduleShift,
+} from "../middlewares/validators/doctorShift.validators";
 
 const router = Router();
 
@@ -22,7 +26,12 @@ router.get("/on-duty", getDoctorsOnDuty);
 router.use(verifyToken);
 
 // Assign doctor to shift (Admin only)
-router.post("/", requireRole(RoleCode.ADMIN), assignDoctorToShift);
+router.post(
+  "/",
+  requireRole(RoleCode.ADMIN),
+  validateAssignDoctorShift,
+  assignDoctorToShift
+);
 
 // Unassign doctor from shift (Admin only)
 router.delete("/:id", requireRole(RoleCode.ADMIN), unassignDoctorFromShift);
@@ -38,6 +47,7 @@ router.get(
 router.post(
   "/:id/cancel-and-reschedule",
   requireRole(RoleCode.ADMIN),
+  validateRescheduleShift,
   cancelShiftAndReschedule
 );
 

@@ -239,6 +239,7 @@ export const getInvoiceByIdService = async (invoiceId: number) => {
 
 /**
  * Cập nhật hóa đơn (discount, note)
+ * Updated with transaction safety
  */
 export const updateInvoiceService = async (
   invoiceId: number,
@@ -247,31 +248,61 @@ export const updateInvoiceService = async (
     note?: string;
   }
 ) => {
-  const invoice = await Invoice.findByPk(invoiceId);
+  const t = await sequelize.transaction();
 
-  if (!invoice) {
-    throw new Error("Invoice not found");
+  try {
+    const invoice = await Invoice.findByPk(invoiceId, {
+      transaction: t,
+      lock: t.LOCK.UPDATE, // Pessimistic lock
+    });
+
+    if (!invoice) {
+      throw new Error("Invoice not found");
+    }
+
+    // Chỉ cho phép update nếu chưa thanh toán đủ
+    if (invoice.paymentStatus === PaymentStatus.PAID) {
+      throw new Error("Cannot update paid invoice");
+    }
+
+    if (updates.discount !== undefined) {
+      // Validate discount
+      if (updates.discount < 0) {
+        throw new Error("Discount cannot be negative");
+      }
+
+      const totalBeforeDiscount =
+        invoice.examinationFee + invoice.medicineTotalAmount;
+
+      if (updates.discount > totalBeforeDiscount) {
+        throw new Error("Discount cannot exceed total amount");
+      }
+
+      invoice.discount = updates.discount;
+      // Recalculate totalAmount
+      invoice.totalAmount = totalBeforeDiscount - invoice.discount;
+
+      // Validate paidAmount doesn't exceed new totalAmount
+      if (invoice.paidAmount > invoice.totalAmount) {
+        throw new Error(
+          "Cannot set discount: Paid amount exceeds new total amount"
+        );
+      }
+    }
+
+    if (updates.note !== undefined) {
+      invoice.note = updates.note;
+    }
+
+    await invoice.save({ transaction: t });
+
+    await t.commit();
+
+    return await getInvoiceByIdService(invoiceId);
+  } catch (error) {
+    await t.rollback();
+    throw error;
   }
-
-  // Chỉ cho phép update nếu chưa thanh toán đủ
-  if (invoice.paymentStatus === PaymentStatus.PAID) {
-    throw new Error("Cannot update paid invoice");
-  }
-
-  if (updates.discount !== undefined) {
-    invoice.discount = updates.discount;
-    // Recalculate totalAmount
-    invoice.totalAmount =
-      invoice.examinationFee + invoice.medicineTotalAmount - invoice.discount;
-  }
-
-  if (updates.note !== undefined) {
-    invoice.note = updates.note;
-  }
-
-  await invoice.save();
-
-  return await getInvoiceByIdService(invoiceId);
 };
 
 /**

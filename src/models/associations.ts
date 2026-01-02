@@ -23,6 +23,9 @@ import RolePermission from "./RolePermission";
 import PatientProfile from "./PatientProfile";
 import Specialty from "./Specialty";
 import DoctorShift from "./DoctorShift";
+import AuditLog from "./AuditLog";
+import Diagnosis from "./Diagnosis";
+import Refund from "./Refund";
 
 /**
  * Setup all model associations
@@ -150,4 +153,28 @@ export const setupAssociations = () => {
   Visit.belongsTo(Appointment, { foreignKey: "appointmentId", as: "appointment" });
   Visit.belongsTo(Patient, { foreignKey: "patientId", as: "patient" });
   Visit.belongsTo(Doctor, { foreignKey: "doctorId", as: "doctor" });
+
+  // AuditLog associations
+  AuditLog.belongsTo(User, { foreignKey: "userId", as: "user" });
+  User.hasMany(AuditLog, { foreignKey: "userId", as: "auditLogs" });
+
+  // Diagnosis associations
+  Diagnosis.belongsTo(Visit, { foreignKey: "visitId", as: "visit" });
+  Diagnosis.belongsTo(DiseaseCategory, {
+    foreignKey: "diseaseCategoryId",
+    as: "diseaseCategory",
+  });
+  Visit.hasMany(Diagnosis, { foreignKey: "visitId", as: "diagnoses" });
+  DiseaseCategory.hasMany(Diagnosis, {
+    foreignKey: "diseaseCategoryId",
+    as: "diagnoses",
+  });
+
+  // Refund associations
+  Refund.belongsTo(Invoice, { foreignKey: "invoiceId", as: "invoice" });
+  Refund.belongsTo(User, { foreignKey: "requestedBy", as: "requester" });
+  Refund.belongsTo(User, { foreignKey: "approvedBy", as: "approver" });
+  Invoice.hasMany(Refund, { foreignKey: "invoiceId", as: "refunds" });
+  User.hasMany(Refund, { foreignKey: "requestedBy", as: "requestedRefunds" });
+  User.hasMany(Refund, { foreignKey: "approvedBy", as: "approvedRefunds" });
 };

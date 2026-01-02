@@ -199,3 +199,72 @@ export const logout = async (req: Request, res: Response) => {
     });
   }
 };
+import crypto from "crypto";
+import bcrypt from "bcryptjs";
+import { sendEmail } from "../utils/email"; // đã tồn tại trong project
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  const user = await User.findOne({ where: { email } });
+  if (!user) {
+    return res.json({
+      message: "Nếu email tồn tại, link reset đã được gửi",
+    });
+  }
+
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  user.passwordResetToken = hashedToken;
+  user.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 phút
+  await user.save();
+
+  const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
+
+  await sendEmail({
+    to: user.email,
+    subject: "Reset mật khẩu",
+    html: `
+      <p>Bạn đã yêu cầu đặt lại mật khẩu.</p>
+      <p>Link chỉ có hiệu lực trong 15 phút:</p>
+      <a href="${resetLink}">${resetLink}</a>
+    `,
+  });
+
+  return res.json({
+    message: "Nếu email tồn tại, link reset đã được gửi",
+  });
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  const { token, newPassword } = req.body;
+
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await User.findOne({
+    where: {
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: new Date() },
+    },
+  });
+
+  if (!user) {
+    return res.status(400).json({
+      message: "Token không hợp lệ hoặc đã hết hạn",
+    });
+  }
+
+  user.password = await bcrypt.hash(newPassword, 10);
+  user.passwordResetToken = null;
+  user.passwordResetExpires = null;
+
+  await user.save();
+
+  return res.json({
+    message: "Đặt lại mật khẩu thành công",
+  });
+};

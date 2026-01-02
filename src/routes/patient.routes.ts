@@ -17,7 +17,7 @@ import { requireSelfPatient } from "../middlewares/requireSelfPatient.middleware
 import {
   setupPatientValidator,
   updatePatientValidator,
-} from "@/middlewares/validators/patient.validators";
+} from "../middlewares/validators/patient.validators";
 import {
   validateNumericId,
   validatePagination,

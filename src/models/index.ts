@@ -33,6 +33,10 @@ import Attendance from "./Attendance";
 
 import Notification from "./Notification";
 
+import AuditLog from "./AuditLog";
+import Diagnosis from "./Diagnosis";
+import Refund from "./Refund";
+
 // Setup associations after all models are loaded
 import { setupAssociations } from "./associations";
 setupAssociations();
@@ -63,4 +67,7 @@ export {
   Payroll,
   Attendance,
   Notification,
+  AuditLog,
+  Diagnosis,
+  Refund,
 };

@@ -4,7 +4,6 @@ import bcrypt from "bcrypt";
 import User from "../models/User";
 import Patient from "../models/Patient";
 import { RoleCode } from "../constant/role";
-import { generateUserCode } from "../utils/codeGenerator";
 
 /**
  * OAuth Configuration
@@ -48,7 +47,6 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
               fullName,
               password: hashedPassword, // Hashed random password (OAuth users won't use it)
               roleId: RoleCode.PATIENT, // Default role
-              userCode: await generateUserCode(RoleCode.PATIENT),
               isActive: true,
               oauth2Provider: "GOOGLE",
               oauth2Id: profile.id,
@@ -56,13 +54,14 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
             // Create patient profile for PATIENT role
             if (user.roleId === RoleCode.PATIENT) {
-              await Patient.create({
+              const patient = await Patient.create({
                 userId: user.id,
                 fullName: user.fullName,
-                patientCode: user.userCode,
                 gender: "OTHER",
                 dateOfBirth: new Date(),
               });
+              const patientCode = `BN${String(patient.id).padStart(6, "0")}`;
+              await patient.update({ patientCode });
             }
           } else {
             // Update OAuth info if user exists but wasn't OAuth before

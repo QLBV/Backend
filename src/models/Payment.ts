@@ -65,6 +65,12 @@ Payment.init(
     amount: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
+      validate: {
+        min: {
+          args: [0.01],
+          msg: "Payment amount must be greater than 0",
+        },
+      },
     },
     paymentMethod: {
       type: DataTypes.ENUM(...Object.values(PaymentMethod)),

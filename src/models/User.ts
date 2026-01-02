@@ -10,11 +10,12 @@ interface UserAttributes {
   roleId: number;
   isActive: boolean;
   avatar?: string;
-  userCode?: string;
   oauth2Provider?: "GOOGLE";
   oauth2Id?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  passwordResetToken?: string | null;
+  passwordResetExpires?: Date | null;
 }
 
 interface UserCreationAttributes
@@ -31,10 +32,12 @@ class User
   public roleId!: number;
   public isActive!: boolean;
   public avatar?: string;
-  public userCode?: string;
   public oauth2Provider?: "GOOGLE";
   public oauth2Id?: string;
 
+  public passwordResetToken?: string | null;
+  public passwordResetExpires?: Date | null;
+  
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
@@ -74,11 +77,6 @@ User.init(
     avatar: {
       type: DataTypes.STRING(255),
       allowNull: true,
-    },
-    userCode: {
-      type: DataTypes.STRING(50),
-      allowNull: true,
-      unique: true,
     },
     oauth2Provider: {
       type: DataTypes.ENUM("GOOGLE"),

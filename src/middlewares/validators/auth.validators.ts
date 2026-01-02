@@ -25,3 +25,23 @@ export const loginValidator = [
 
   validate,
 ];
+
+export const forgotPasswordValidator = [
+  body("email").isEmail().withMessage("Email không hợp lệ"),
+  validate,
+];
+
+export const resetPasswordValidator = [
+  body("token").notEmpty().withMessage("Reset token là bắt buộc"),
+
+  body("newPassword")
+    .isLength({ min: 6 })
+    .withMessage("Mật khẩu phải ≥ 6 ký tự")
+    .matches(/[A-Z]/)
+    .withMessage("Mật khẩu phải có chữ hoa")
+    .matches(/[a-z]/)
+    .withMessage("Mật khẩu phải có chữ thường")
+    .matches(/[0-9]/)
+    .withMessage("Mật khẩu phải có số"),
+  validate,
+];
