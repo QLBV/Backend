@@ -7,7 +7,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
   try {
     const users = await User.findAll({
       attributes: { exclude: ["password"] },
-      include: [{ model: Role, attributes: ["name"] }],
+      include: [{ model: Role, as: "role", attributes: ["name"] }],
     });
 
     return res.json({
@@ -30,7 +30,7 @@ export const getUserById = async (req: Request, res: Response) => {
 
     const user = await User.findByPk(id, {
       attributes: { exclude: ["password"] },
-      include: [{ model: Role, attributes: ["name"] }],
+      include: [{ model: Role, as: "role", attributes: ["name"] }],
     });
 
     if (!user) {
