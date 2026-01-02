@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+﻿import { Request, Response } from "express";
 import User from "../models/User";
 import Role from "../models/Role";
 import Patient from "../models/Patient";
@@ -11,7 +11,7 @@ import bcrypt from "bcrypt";
  */
 export const getMyProfile = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user!.userId;
 
     const user = await User.findByPk(userId, {
       attributes: { exclude: ["password"] },
@@ -76,7 +76,7 @@ export const getMyProfile = async (req: Request, res: Response) => {
  */
 export const updateMyProfile = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user!.userId;
     const { fullName, avatar } = req.body;
 
     const user = await User.findByPk(userId);
@@ -118,7 +118,7 @@ export const updateMyProfile = async (req: Request, res: Response) => {
  */
 export const changePassword = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user!.userId;
     const { currentPassword, newPassword } = req.body;
 
     const user = await User.findByPk(userId);
@@ -171,7 +171,7 @@ export const changePassword = async (req: Request, res: Response) => {
  */
 export const uploadMyAvatar = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user!.userId;
 
     if (!req.file) {
       return res.status(400).json({

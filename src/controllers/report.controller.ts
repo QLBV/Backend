@@ -6,6 +6,8 @@ import {
   getMedicineAlertsReportService,
   getPatientsByGenderReportService,
   getProfitReportService,
+  getAppointmentReportService,
+  getPatientStatisticsService,
 } from "../services/report.service";
 import {
   generateRevenueReportPDF,
@@ -394,6 +396,67 @@ export const getPatientsByGenderReportPDF = async (req: Request, res: Response) 
     return res.status(500).json({
       success: false,
       message: error?.message || "Failed to generate patients by gender report PDF",
+    });
+  }
+};
+
+/**
+ * Get appointment report
+ * GET /api/reports/appointments?year=2025&month=12
+ * Role: ADMIN
+ */
+export const getAppointmentReport = async (req: Request, res: Response) => {
+  try {
+    const year = parseInt(req.query.year as string);
+    const month = req.query.month ? parseInt(req.query.month as string) : undefined;
+
+    if (!year || isNaN(year)) {
+      return res.status(400).json({
+        success: false,
+        message: "Year is required and must be a valid number",
+      });
+    }
+
+    if (month !== undefined && (isNaN(month) || month < 1 || month > 12)) {
+      return res.status(400).json({
+        success: false,
+        message: "Month must be between 1 and 12",
+      });
+    }
+
+    const report = await getAppointmentReportService({ year, month });
+
+    return res.json({
+      success: true,
+      message: "Appointment report retrieved successfully",
+      data: report,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get appointment report",
+    });
+  }
+};
+
+/**
+ * Get patient statistics report
+ * GET /api/reports/patient-statistics
+ * Role: ADMIN
+ */
+export const getPatientStatistics = async (req: Request, res: Response) => {
+  try {
+    const report = await getPatientStatisticsService();
+
+    return res.json({
+      success: true,
+      message: "Patient statistics retrieved successfully",
+      data: report,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get patient statistics",
     });
   }
 };

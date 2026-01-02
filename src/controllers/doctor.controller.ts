@@ -121,3 +121,59 @@ export const getAllSpecialties = async (req: Request, res: Response) => {
       .json({ success: false, message: "Get specialties failed", error });
   }
 };
+
+/**
+ * Get doctors by specialty ID
+ * GET /api/specialties/:id/doctors
+ * Role: PUBLIC
+ */
+export const getDoctorsBySpecialty = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Check if specialty exists
+    const specialty = await Specialty.findByPk(id);
+    if (!specialty) {
+      return res.status(404).json({
+        success: false,
+        message: "Specialty not found",
+      });
+    }
+
+    // Get all doctors with this specialty
+    const doctors = await Doctor.findAll({
+      where: { specialtyId: Number(id) },
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "fullName", "email", "phoneNumber", "avatar"],
+        },
+        {
+          model: Specialty,
+          as: "specialty",
+          attributes: ["id", "name"],
+        },
+      ],
+    });
+
+    return res.json({
+      success: true,
+      message: "Doctors retrieved successfully",
+      data: {
+        specialty: {
+          id: specialty.id,
+          name: specialty.name,
+        },
+        doctors,
+        count: doctors.length,
+      },
+    });
+  } catch (error) {
+    console.error("Get doctors by specialty error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to get doctors by specialty",
+    });
+  }
+};

@@ -140,3 +140,233 @@ export const getAppointments = async (req: Request, res: Response) => {
     return res.status(400).json({ success: false, message: e.message });
   }
 };
+
+export const getAppointmentById = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const Appointment = (await import("../models/Appointment")).default;
+    const Patient = (await import("../models/Patient")).default;
+    const Doctor = (await import("../models/Doctor")).default;
+    const Shift = (await import("../models/Shift")).default;
+    const User = (await import("../models/User")).default;
+
+    const appointment = await Appointment.findByPk(id, {
+      include: [
+        {
+          model: Patient,
+          as: "patient",
+          include: [{ model: User, as: "user", attributes: ["fullName", "email"] }],
+        },
+        {
+          model: Doctor,
+          as: "doctor",
+          include: [{ model: User, as: "user", attributes: ["fullName", "email"] }],
+        },
+        { model: Shift, as: "shift" },
+      ],
+    });
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: "APPOINTMENT_NOT_FOUND",
+      });
+    }
+
+    // Check permission: patient can only view their own, doctor can view theirs, admin/receptionist can view all
+    const role = req.user!.roleId;
+    if (role === RoleCode.PATIENT) {
+      if (appointment.patientId !== req.user!.patientId) {
+        return res.status(403).json({
+          success: false,
+          message: "FORBIDDEN",
+        });
+      }
+    } else if (role === RoleCode.DOCTOR) {
+      if (appointment.doctorId !== req.user!.doctorId) {
+        return res.status(403).json({
+          success: false,
+          message: "FORBIDDEN",
+        });
+      }
+    }
+
+    return res.json({ success: true, data: appointment });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+export const updateAppointment = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const { doctorId, shiftId, date, symptomInitial } = req.body;
+
+    const Appointment = (await import("../models/Appointment")).default;
+    const appointment = await Appointment.findByPk(id);
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: "APPOINTMENT_NOT_FOUND",
+      });
+    }
+
+    // Only allow update if status is WAITING
+    if (appointment.status !== "WAITING") {
+      return res.status(400).json({
+        success: false,
+        message: "CAN_ONLY_UPDATE_WAITING_APPOINTMENTS",
+      });
+    }
+
+    // Check permission
+    const role = req.user!.roleId;
+    if (role === RoleCode.PATIENT) {
+      if (appointment.patientId !== req.user!.patientId) {
+        return res.status(403).json({
+          success: false,
+          message: "FORBIDDEN",
+        });
+      }
+    }
+
+    // Update fields
+    if (doctorId !== undefined) appointment.doctorId = Number(doctorId);
+    if (shiftId !== undefined) appointment.shiftId = Number(shiftId);
+    if (date !== undefined) appointment.date = new Date(date);
+    if (symptomInitial !== undefined) appointment.symptomInitial = symptomInitial;
+
+    await appointment.save();
+
+    return res.json({
+      success: true,
+      message: "APPOINTMENT_UPDATED",
+      data: appointment,
+    });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+export const getMyAppointments = async (req: Request, res: Response) => {
+  try {
+    const role = req.user!.roleId;
+    let filter: any = {};
+
+    if (role === RoleCode.PATIENT) {
+      if (!req.user!.patientId) {
+        return res.status(400).json({
+          success: false,
+          message: "PATIENT_NOT_SETUP",
+        });
+      }
+      filter.patientId = req.user!.patientId;
+    } else if (role === RoleCode.DOCTOR) {
+      if (!req.user!.doctorId) {
+        return res.status(400).json({
+          success: false,
+          message: "DOCTOR_NOT_SETUP",
+        });
+      }
+      filter.doctorId = req.user!.doctorId;
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "ONLY_PATIENT_OR_DOCTOR",
+      });
+    }
+
+    const data = await getAppointmentsService(filter);
+
+    return res.json({ success: true, data });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+export const getUpcomingAppointments = async (req: Request, res: Response) => {
+  try {
+    const role = req.user!.roleId;
+    const Appointment = (await import("../models/Appointment")).default;
+    const { Op } = await import("sequelize");
+
+    let filter: any = {
+      status: "WAITING",
+      date: {
+        [Op.gte]: new Date().toISOString().split("T")[0], // Today or future
+      },
+    };
+
+    if (role === RoleCode.PATIENT) {
+      if (!req.user!.patientId) {
+        return res.status(400).json({
+          success: false,
+          message: "PATIENT_NOT_SETUP",
+        });
+      }
+      filter.patientId = req.user!.patientId;
+    } else if (role === RoleCode.DOCTOR) {
+      if (!req.user!.doctorId) {
+        return res.status(400).json({
+          success: false,
+          message: "DOCTOR_NOT_SETUP",
+        });
+      }
+      filter.doctorId = req.user!.doctorId;
+    }
+
+    const appointments = await Appointment.findAll({
+      where: filter,
+      order: [["date", "ASC"], ["shiftId", "ASC"]],
+    });
+
+    return res.json({ success: true, data: appointments });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+export const markNoShow = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const Appointment = (await import("../models/Appointment")).default;
+
+    const appointment = await Appointment.findByPk(id);
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: "APPOINTMENT_NOT_FOUND",
+      });
+    }
+
+    // Only admin and receptionist can mark no-show
+    const role = req.user!.roleId;
+    if (role !== RoleCode.ADMIN && role !== RoleCode.RECEPTIONIST) {
+      return res.status(403).json({
+        success: false,
+        message: "ONLY_ADMIN_OR_RECEPTIONIST",
+      });
+    }
+
+    // Can only mark no-show if status is WAITING
+    if (appointment.status !== "WAITING") {
+      return res.status(400).json({
+        success: false,
+        message: "CAN_ONLY_MARK_WAITING_APPOINTMENTS",
+      });
+    }
+
+    appointment.status = "NO_SHOW";
+    await appointment.save();
+
+    return res.json({
+      success: true,
+      message: "APPOINTMENT_MARKED_NO_SHOW",
+      data: appointment,
+    });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+};

@@ -32,6 +32,7 @@ import Payroll from "./Payroll";
 import Attendance from "./Attendance";
 
 import Notification from "./Notification";
+import NotificationSetting from "./NotificationSetting";
 
 import AuditLog from "./AuditLog";
 import Diagnosis from "./Diagnosis";
@@ -67,6 +68,7 @@ export {
   Payroll,
   Attendance,
   Notification,
+  NotificationSetting,
   AuditLog,
   Diagnosis,
   Refund,

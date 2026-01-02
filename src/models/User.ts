@@ -86,6 +86,14 @@ User.init(
       type: DataTypes.STRING(255),
       allowNull: true,
     },
+    passwordResetToken: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    passwordResetExpires: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   },
   {
     sequelize,

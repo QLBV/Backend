@@ -14,7 +14,7 @@ export default class Appointment extends Model {
   declare bookingType: "ONLINE" | "OFFLINE";
   declare bookedBy: "PATIENT" | "RECEPTIONIST";
   declare symptomInitial?: string;
-  declare status: "WAITING" | "CANCELLED" | "CHECKED_IN";
+  declare status: "WAITING" | "CANCELLED" | "CHECKED_IN" | "NO_SHOW";
 }
 
 Appointment.init(
@@ -35,7 +35,7 @@ Appointment.init(
     },
     symptomInitial: { type: DataTypes.TEXT },
     status: {
-      type: DataTypes.ENUM("WAITING", "CANCELLED", "CHECKED_IN"),
+      type: DataTypes.ENUM("WAITING", "CANCELLED", "CHECKED_IN", "NO_SHOW"),
       defaultValue: "WAITING",
     },
   },

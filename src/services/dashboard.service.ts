@@ -338,3 +338,390 @@ export const getDashboardStatsService = async () => {
     },
   };
 };
+
+/**
+ * Dashboard Overview Service
+ * GET /api/dashboard/overview
+ */
+export const getDashboardOverviewService = async () => {
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+  // Tổng số bệnh nhân
+  const totalPatients = await Patient.count();
+
+  // Lịch hẹn hôm nay
+  const todayAppointments = await Appointment.count({
+    where: {
+      date: {
+        [Op.gte]: startOfToday,
+        [Op.lt]: endOfToday,
+      },
+    },
+  });
+
+  // Lịch hẹn đang chờ (PENDING)
+  const pendingAppointments = await Appointment.count({
+    where: {
+      status: "PENDING",
+    },
+  });
+
+  // Doanh thu tháng này
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthlyRevenue = await Invoice.sum("totalAmount", {
+    where: {
+      createdAt: {
+        [Op.gte]: startOfMonth,
+      },
+      paymentStatus: "PAID",
+    },
+  });
+
+  // Hóa đơn chưa thanh toán
+  const unpaidInvoices = await Invoice.count({
+    where: {
+      paymentStatus: "UNPAID",
+    },
+  });
+
+  // Bác sĩ đang hoạt động
+  const activeDoctors = await Doctor.count({
+    include: [
+      {
+        model: User,
+        as: "user",
+        where: { isActive: true },
+        attributes: [],
+      },
+    ],
+  });
+
+  return {
+    patients: {
+      total: totalPatients,
+    },
+    appointments: {
+      today: todayAppointments,
+      pending: pendingAppointments,
+    },
+    revenue: {
+      thisMonth: monthlyRevenue || 0,
+    },
+    invoices: {
+      unpaid: unpaidInvoices,
+    },
+    doctors: {
+      active: activeDoctors,
+    },
+  };
+};
+
+/**
+ * Recent Activities Service
+ * GET /api/dashboard/recent-activities
+ */
+export const getRecentActivitiesService = async (limit: number = 10) => {
+  // Lịch hẹn gần đây
+  const recentAppointments = await Appointment.findAll({
+    limit,
+    order: [["createdAt", "DESC"]],
+    include: [
+      {
+        model: Patient,
+        as: "patient",
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["fullName"],
+          },
+        ],
+      },
+      {
+        model: Doctor,
+        as: "doctor",
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["fullName"],
+          },
+        ],
+      },
+    ],
+  });
+
+  // Hóa đơn gần đây
+  const recentInvoices = await Invoice.findAll({
+    limit,
+    order: [["createdAt", "DESC"]],
+    include: [
+      {
+        model: Patient,
+        as: "patient",
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["fullName"],
+          },
+        ],
+      },
+    ],
+  });
+
+  // Bệnh nhân mới
+  const recentPatients = await Patient.findAll({
+    limit,
+    order: [["id", "DESC"]],
+    include: [
+      {
+        model: User,
+        as: "user",
+        attributes: ["fullName", "email", "createdAt"],
+      },
+    ],
+  });
+
+  return {
+    appointments: recentAppointments.map((apt: any) => ({
+      id: apt.id,
+      appointmentCode: apt.appointmentCode,
+      date: apt.date,
+      status: apt.status,
+      patientName: apt.patient?.user?.fullName || "N/A",
+      doctorName: apt.doctor?.user?.fullName || "N/A",
+      createdAt: apt.createdAt,
+    })),
+    invoices: recentInvoices.map((inv: any) => ({
+      id: inv.id,
+      invoiceCode: inv.invoiceCode,
+      totalAmount: inv.totalAmount,
+      paymentStatus: inv.paymentStatus,
+      patientName: inv.patient?.user?.fullName || "N/A",
+      createdAt: inv.createdAt,
+    })),
+    patients: recentPatients.map((pat: any) => ({
+      id: pat.id,
+      patientCode: pat.patientCode,
+      fullName: pat.user?.fullName || "N/A",
+      email: pat.user?.email || "N/A",
+      createdAt: pat.user?.createdAt,
+    })),
+  };
+};
+
+/**
+ * Quick Statistics Service
+ * GET /api/dashboard/quick-stats
+ */
+export const getQuickStatsService = async () => {
+  const Specialty = (await import("../models/Specialty")).default;
+  const DiseaseCategory = (await import("../models/DiseaseCategory")).default;
+
+  // Top 5 bác sĩ có nhiều lịch hẹn nhất
+  const topDoctors = await Appointment.findAll({
+    attributes: [
+      "doctorId",
+      [fn("COUNT", col("id")), "appointmentCount"],
+    ],
+    group: ["doctorId"],
+    include: [
+      {
+        model: Doctor,
+        as: "doctor",
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["fullName"],
+          },
+          {
+            model: Specialty,
+            as: "specialty",
+            attributes: ["name"],
+          },
+        ],
+      },
+    ],
+    order: [[fn("COUNT", col("id")), "DESC"]],
+    limit: 5,
+    raw: false,
+  });
+
+  // Top 5 bệnh phổ biến
+  const topDiseases = await Visit.findAll({
+    attributes: [
+      "diseaseCategoryId",
+      [fn("COUNT", col("id")), "visitCount"],
+    ],
+    where: {
+      diseaseCategoryId: {
+        [Op.ne]: null,
+      },
+    },
+    group: ["diseaseCategoryId"],
+    include: [
+      {
+        model: DiseaseCategory,
+        attributes: ["name", "code"],
+      },
+    ],
+    order: [[fn("COUNT", col("id")), "DESC"]],
+    limit: 5,
+    raw: false,
+  });
+
+  // Tỷ lệ hoàn thành lịch hẹn (7 ngày qua)
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const totalRecentAppointments = await Appointment.count({
+    where: {
+      createdAt: {
+        [Op.gte]: sevenDaysAgo,
+      },
+    },
+  });
+
+  const completedRecentAppointments = await Appointment.count({
+    where: {
+      createdAt: {
+        [Op.gte]: sevenDaysAgo,
+      },
+      status: "COMPLETED",
+    },
+  });
+
+  const completionRate =
+    totalRecentAppointments > 0
+      ? (completedRecentAppointments / totalRecentAppointments) * 100
+      : 0;
+
+  return {
+    topDoctors: topDoctors.map((item: any) => ({
+      doctorId: item.doctorId,
+      doctorName: item.doctor?.user?.fullName || "N/A",
+      specialty: item.doctor?.specialty?.name || "N/A",
+      appointmentCount: parseInt(item.getDataValue("appointmentCount")),
+    })),
+    topDiseases: topDiseases.map((item: any) => ({
+      diseaseCategoryId: item.diseaseCategoryId,
+      diseaseName: item.DiseaseCategory?.name || "N/A",
+      diseaseCode: item.DiseaseCategory?.code || "N/A",
+      visitCount: parseInt(item.getDataValue("visitCount")),
+    })),
+    appointmentStats: {
+      last7Days: {
+        total: totalRecentAppointments,
+        completed: completedRecentAppointments,
+        completionRate: parseFloat(completionRate.toFixed(2)),
+      },
+    },
+  };
+};
+
+/**
+ * System Alerts Service
+ * GET /api/dashboard/alerts
+ */
+export const getSystemAlertsService = async () => {
+  const Medicine = (await import("../models/Medicine")).default;
+  const DoctorShift = (await import("../models/DoctorShift")).default;
+  const Shift = (await import("../models/Shift")).default;
+
+  const today = new Date();
+
+  // Thuốc sắp hết hạn (30 ngày)
+  const expiryDate = new Date(today);
+  expiryDate.setDate(expiryDate.getDate() + 30);
+
+  const expiringMedicines = await Medicine.count({
+    where: {
+      expiryDate: {
+        [Op.gte]: today,
+        [Op.lte]: expiryDate,
+      },
+    },
+  });
+
+  // Thuốc đã hết hạn
+  const expiredMedicines = await Medicine.count({
+    where: {
+      expiryDate: {
+        [Op.lt]: today,
+      },
+    },
+  });
+
+  // Thuốc sắp hết tồn kho (dưới 10)
+  const lowStockMedicines = await Medicine.count({
+    where: {
+      quantity: {
+        [Op.lte]: 10,
+      },
+      expiryDate: {
+        [Op.gte]: today,
+      },
+    },
+  });
+
+  // Lịch trực thiếu người (7 ngày tới)
+  const nextWeek = new Date(today);
+  nextWeek.setDate(nextWeek.getDate() + 7);
+
+  // Get all shifts
+  const allShifts = await Shift.count();
+
+  // Get assigned shifts
+  const assignedShifts = await DoctorShift.count({
+    where: {
+      workDate: {
+        [Op.gte]: today.toISOString().split("T")[0],
+        [Op.lte]: nextWeek.toISOString().split("T")[0],
+      },
+    },
+  });
+
+  // Số ngày trong 7 ngày tới
+  const daysInPeriod = 7;
+  const totalSlotsNeeded = allShifts * daysInPeriod;
+  const unassignedSlots = totalSlotsNeeded - assignedShifts;
+
+  // Hóa đơn quá hạn (chưa thanh toán quá 30 ngày)
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const overdueInvoices = await Invoice.count({
+    where: {
+      paymentStatus: "UNPAID",
+      createdAt: {
+        [Op.lte]: thirtyDaysAgo,
+      },
+    },
+  });
+
+  return {
+    medicine: {
+      expiring: expiringMedicines,
+      expired: expiredMedicines,
+      lowStock: lowStockMedicines,
+    },
+    shifts: {
+      unassignedSlots,
+      totalSlotsNeeded,
+      assignedSlots: assignedShifts,
+    },
+    invoices: {
+      overdue: overdueInvoices,
+    },
+    totalAlerts:
+      expiringMedicines +
+      expiredMedicines +
+      lowStockMedicines +
+      (unassignedSlots > 0 ? 1 : 0) +
+      overdueInvoices,
+  };
+};

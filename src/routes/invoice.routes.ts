@@ -9,6 +9,7 @@ import {
   exportInvoicePDF,
   getInvoicesByPatient,
   getInvoiceStatistics,
+  getUnpaidInvoices,
 } from "../controllers/invoice.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
@@ -29,6 +30,13 @@ router.use(verifyToken);
 
 // Statistics route (must be before /:id to avoid route conflict)
 router.get("/statistics", requireRole(RoleCode.ADMIN), getInvoiceStatistics);
+
+// Unpaid invoices
+router.get(
+  "/unpaid",
+  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST),
+  getUnpaidInvoices
+);
 
 // Patient-specific invoices
 router.get(

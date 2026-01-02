@@ -22,9 +22,9 @@ export const getAppointmentsService = async (q: {
   return Appointment.findAll({
     where,
     include: [
-      { model: Patient },
-      { model: Doctor },
-      { model: Shift },
+      { model: Patient, as: "patient" },
+      { model: Doctor, as: "doctor" },
+      { model: Shift, as: "shift" },
     ],
     order: [["date", "ASC"], ["shiftId", "ASC"], ["slotNumber", "ASC"]],
   });

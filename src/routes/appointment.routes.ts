@@ -1,11 +1,18 @@
 import { Router } from "express";
-import { createAppointment } from "../controllers/appointment.controller";
+import {
+  createAppointment,
+  cancelAppointment,
+  getAppointments,
+  getAppointmentById,
+  updateAppointment,
+  getMyAppointments,
+  getUpcomingAppointments,
+  markNoShow,
+} from "../controllers/appointment.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
 import { RoleCode } from "../constant/role";
 import { requirePatientContext } from "../middlewares/requireContext.middlewares";
-import { cancelAppointment } from "../controllers/appointment.controller";
-import { getAppointments } from "../controllers/appointment.controller";
 import { bookingRateLimit } from "../middlewares/rateLimit.middlewares";
 import {
   createAppointmentValidator,
@@ -49,6 +56,44 @@ router.get(
   requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR, RoleCode.PATIENT),
   getAppointmentsValidator,
   getAppointments
+);
+
+// Get my appointments (patient or doctor)
+router.get(
+  "/my",
+  requireRole(RoleCode.PATIENT, RoleCode.DOCTOR),
+  getMyAppointments
+);
+
+// Get upcoming appointments
+router.get(
+  "/upcoming",
+  requireRole(RoleCode.PATIENT, RoleCode.DOCTOR, RoleCode.ADMIN, RoleCode.RECEPTIONIST),
+  getUpcomingAppointments
+);
+
+// Get appointment by ID
+router.get(
+  "/:id",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR, RoleCode.PATIENT),
+  getAppointmentById
+);
+
+// Update appointment (reschedule)
+router.put(
+  "/:id",
+  validateNumericId("id"),
+  requireRole(RoleCode.PATIENT, RoleCode.RECEPTIONIST, RoleCode.ADMIN),
+  updateAppointment
+);
+
+// Mark appointment as no-show
+router.put(
+  "/:id/no-show",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST),
+  markNoShow
 );
 
 export default router;

@@ -19,6 +19,9 @@ import dashboardRoutes from "./routes/dashboard.routes";
 import reportRoutes from "./routes/report.routes";
 import oauthRoutes from "./routes/oauth.routes";
 import permissionRoutes from "./routes/permission.routes";
+import profileRoutes from "./routes/profile.routes";
+import attendanceRoutes from "./routes/attendance.routes";
+import searchRoutes from "./routes/search.routes";
 import { corsOptions } from "./config/cors.config";
 import passport from "./config/oauth.config";
 import auditLogRoutes from "./routes/auditLog.routes";
@@ -79,6 +82,7 @@ app.get("/", (req: Request, res: Response) => {
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/auth/oauth", oauthRoutes);
+app.use("/api/profile", profileRoutes);
 app.use("/api/patients", patientRoutes); // Placeholder, replace with actual patientRoutes
 app.use("/api/users", userRoutes);
 app.use("/api/appointments", appointmentRoutes);
@@ -96,6 +100,8 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/permissions", permissionRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/search", searchRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {

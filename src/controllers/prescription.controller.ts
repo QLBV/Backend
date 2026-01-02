@@ -8,7 +8,7 @@ import {
   getPrescriptionByVisitService,
 } from "../services/prescription.service";
 import { generatePrescriptionPDF } from "../utils/pdfGenerator";
-import Prescription from "../models/Prescription";
+import Prescription, { PrescriptionStatus } from "../models/Prescription";
 import PrescriptionDetail from "../models/PrescriptionDetail";
 import Patient from "../models/Patient";
 import Doctor from "../models/Doctor";
@@ -260,6 +260,58 @@ export const getPrescriptionByVisit = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: error?.message || "Failed to get prescription",
+    });
+  }
+};
+
+/**
+ * Dispense prescription (mark as dispensed)
+ * PUT /api/prescriptions/:id/dispense
+ * Role: RECEPTIONIST, ADMIN
+ */
+export const dispensePrescription = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { dispensedBy } = req.body;
+
+    const prescription = await Prescription.findByPk(Number(id));
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: "PRESCRIPTION_NOT_FOUND",
+      });
+    }
+
+    if (prescription.status === PrescriptionStatus.CANCELLED) {
+      return res.status(400).json({
+        success: false,
+        message: "CANNOT_DISPENSE_CANCELLED_PRESCRIPTION",
+      });
+    }
+
+    if (prescription.status === PrescriptionStatus.DISPENSED) {
+      return res.status(400).json({
+        success: false,
+        message: "PRESCRIPTION_ALREADY_DISPENSED",
+      });
+    }
+
+    // Update prescription status
+    prescription.status = PrescriptionStatus.DISPENSED;
+    prescription.dispensedAt = new Date();
+    prescription.dispensedBy = dispensedBy || req.user!.userId;
+    await prescription.save();
+
+    return res.json({
+      success: true,
+      message: "Prescription dispensed successfully",
+      data: prescription,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to dispense prescription",
     });
   }
 };

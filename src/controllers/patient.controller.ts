@@ -332,3 +332,127 @@ export const deletePatient = async (req: Request, res: Response) => {
     });
   }
 };
+
+/**
+ * Get patient's complete medical history
+ * GET /api/patients/:id/medical-history
+ * Role: DOCTOR, ADMIN, PATIENT (own only)
+ */
+export const getPatientMedicalHistory = async (req: Request, res: Response) => {
+  try {
+    const patientId = Number(req.params.id);
+    const Visit = (await import("../models/Visit")).default;
+    const Doctor = (await import("../models/Doctor")).default;
+    const User = (await import("../models/User")).default;
+    const Diagnosis = (await import("../models/Diagnosis")).default;
+    const Prescription = (await import("../models/Prescription")).default;
+    const { RoleCode } = await import("../constant/role");
+
+    // Permission check
+    const role = req.user!.roleId;
+    if (role === RoleCode.PATIENT) {
+      if (patientId !== req.user!.patientId) {
+        return res.status(403).json({
+          success: false,
+          message: "FORBIDDEN",
+        });
+      }
+    }
+
+    // Get all visits with related data
+    const visits = await Visit.findAll({
+      where: { patientId },
+      include: [
+        {
+          model: Doctor,
+          as: "doctor",
+          include: [{ model: User, as: "user", attributes: ["fullName", "email"] }],
+        },
+        { model: Diagnosis, as: "diagnoses" },
+      ],
+      order: [["checkInTime", "DESC"]],
+    });
+
+    // Get all prescriptions
+    const prescriptions = await Prescription.findAll({
+      where: { patientId },
+      include: [
+        {
+          model: Doctor,
+          include: [{ model: User, attributes: ["fullName"] }],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        visits,
+        prescriptions,
+        totalVisits: visits.length,
+        totalPrescriptions: prescriptions.length,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get medical history",
+    });
+  }
+};
+
+/**
+ * Get all patient's prescriptions
+ * GET /api/patients/:id/prescriptions
+ * Role: DOCTOR, ADMIN, PATIENT (own only)
+ */
+export const getPatientPrescriptions = async (req: Request, res: Response) => {
+  try {
+    const patientId = Number(req.params.id);
+    const Prescription = (await import("../models/Prescription")).default;
+    const PrescriptionDetail = (await import("../models/PrescriptionDetail")).default;
+    const Doctor = (await import("../models/Doctor")).default;
+    const User = (await import("../models/User")).default;
+    const Visit = (await import("../models/Visit")).default;
+    const { RoleCode } = await import("../constant/role");
+
+    // Permission check
+    const role = req.user!.roleId;
+    if (role === RoleCode.PATIENT) {
+      if (patientId !== req.user!.patientId) {
+        return res.status(403).json({
+          success: false,
+          message: "FORBIDDEN",
+        });
+      }
+    }
+
+    const prescriptions = await Prescription.findAll({
+      where: { patientId },
+      include: [
+        {
+          model: PrescriptionDetail,
+          as: "details",
+        },
+        {
+          model: Doctor,
+          include: [{ model: User, attributes: ["fullName", "email"] }],
+        },
+        { model: Visit },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    return res.json({
+      success: true,
+      data: prescriptions,
+      total: prescriptions.length,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get prescriptions",
+    });
+  }
+};

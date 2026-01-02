@@ -13,6 +13,7 @@ import Payment from "./Payment";
 import Payroll from "./Payroll";
 import Attendance from "./Attendance";
 import User from "./User";
+import NotificationSetting from "./NotificationSetting";
 import Appointment from "./Appointment";
 import Shift from "./Shift";
 import MedicineImport from "./MedicineImport";
@@ -82,6 +83,10 @@ export const setupAssociations = () => {
   User.hasMany(Payment, { foreignKey: "createdBy", as: "payments" });
   User.hasMany(Payroll, { foreignKey: "userId", as: "payrolls" });
   User.hasMany(Attendance, { foreignKey: "userId", as: "attendance" });
+  User.hasOne(NotificationSetting, {
+    foreignKey: "userId",
+    as: "notificationSettings",
+  });
 
   // Visit associations (reverse)
   Visit.hasOne(Invoice, { foreignKey: "visitId", as: "invoice" });
@@ -157,6 +162,12 @@ export const setupAssociations = () => {
   // AuditLog associations
   AuditLog.belongsTo(User, { foreignKey: "userId", as: "user" });
   User.hasMany(AuditLog, { foreignKey: "userId", as: "auditLogs" });
+
+  // Notification settings associations
+  NotificationSetting.belongsTo(User, {
+    foreignKey: "userId",
+    as: "user",
+  });
 
   // Diagnosis associations
   Diagnosis.belongsTo(Visit, { foreignKey: "visitId", as: "visit" });

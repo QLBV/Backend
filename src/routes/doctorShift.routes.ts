@@ -3,6 +3,8 @@ import {
   assignDoctorToShift,
   unassignDoctorFromShift,
   getDoctorsOnDuty,
+  getShiftsByDoctor,
+  getAvailableShifts,
 } from "../controllers/doctorShift.controller";
 import {
   cancelShiftAndReschedule,
@@ -22,6 +24,9 @@ const router = Router();
 // Public: lấy bác sĩ trực để đặt lịch
 router.get("/on-duty", getDoctorsOnDuty);
 
+// Public: get available shifts
+router.get("/available", getAvailableShifts);
+
 // Admin actions cần đăng nhập
 router.use(verifyToken);
 
@@ -32,6 +37,9 @@ router.post(
   validateAssignDoctorShift,
   assignDoctorToShift
 );
+
+// Get shifts by doctor
+router.get("/doctor/:doctorId", getShiftsByDoctor);
 
 // Unassign doctor from shift (Admin only)
 router.delete("/:id", requireRole(RoleCode.ADMIN), unassignDoctorFromShift);

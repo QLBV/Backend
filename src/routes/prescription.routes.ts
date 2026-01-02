@@ -7,6 +7,7 @@ import {
   getPrescriptionsByPatient,
   getPrescriptionByVisit,
   exportPrescriptionPDF,
+  dispensePrescription,
 } from "../controllers/prescription.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
@@ -43,6 +44,13 @@ router.post(
   validateNumericId("id"),
   requireRole(RoleCode.DOCTOR),
   cancelPrescription
+);
+// Dispense prescription
+router.put(
+  "/:id/dispense",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST),
+  dispensePrescription
 );
 // Get prescription by visit ID
 router.get(

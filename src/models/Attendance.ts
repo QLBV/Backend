@@ -12,6 +12,8 @@ interface AttendanceAttributes {
   id: number;
   userId: number;
   date: Date;
+  checkInTime?: Date;
+  checkOutTime?: Date;
   status: AttendanceStatus;
   note?: string;
   createdAt?: Date;
@@ -28,6 +30,8 @@ class Attendance
   public id!: number;
   public userId!: number;
   public date!: Date;
+  public checkInTime?: Date;
+  public checkOutTime?: Date;
   public status!: AttendanceStatus;
   public note?: string;
 
@@ -56,6 +60,14 @@ Attendance.init(
     date: {
       type: DataTypes.DATEONLY,
       allowNull: false,
+    },
+    checkInTime: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    checkOutTime: {
+      type: DataTypes.DATE,
+      allowNull: true,
     },
     status: {
       type: DataTypes.ENUM(...Object.values(AttendanceStatus)),

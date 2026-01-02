@@ -11,6 +11,8 @@ import {
   getProfitReportPDF,
   getTopMedicinesReportPDF,
   getPatientsByGenderReportPDF,
+  getAppointmentReport,
+  getPatientStatistics,
 } from "../controllers/report.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
@@ -24,6 +26,12 @@ const router = express.Router();
 
 // GET /api/reports/revenue?year=2025&month=12
 router.get("/revenue", verifyToken, requireRole(RoleCode.ADMIN), getRevenueReport);
+
+// GET /api/reports/appointments?year=2025&month=12
+router.get("/appointments", verifyToken, requireRole(RoleCode.ADMIN), getAppointmentReport);
+
+// GET /api/reports/patient-statistics
+router.get("/patient-statistics", verifyToken, requireRole(RoleCode.ADMIN), getPatientStatistics);
 
 // GET /api/reports/expense?year=2025&month=12
 router.get("/expense", verifyToken, requireRole(RoleCode.ADMIN), getExpenseReport);

@@ -9,6 +9,8 @@ import {
   getUserPayrollHistory,
   getPayrollStatistics,
   exportPayrollPDF,
+  getDoctorPayrolls,
+  getPayrollsByPeriod,
 } from "../controllers/payroll.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
@@ -38,6 +40,21 @@ router.get(
 router.get(
   "/my",
   getMyPayrolls
+);
+
+// Get payrolls by period - must be before /:id to avoid conflict
+router.get(
+  "/period",
+  requireRole(RoleCode.ADMIN),
+  getPayrollsByPeriod
+);
+
+// Get doctor payrolls - must be before /:id to avoid conflict
+router.get(
+  "/doctor/:doctorId",
+  validateNumericId("doctorId"),
+  requireRole(RoleCode.ADMIN),
+  getDoctorPayrolls
 );
 
 // User payroll history - must be before /:id to avoid conflict

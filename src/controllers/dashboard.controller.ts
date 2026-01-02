@@ -3,6 +3,10 @@ import {
   getDashboardDataService,
   getDashboardStatsService,
   getDashboardAppointmentsByDateService,
+  getDashboardOverviewService,
+  getRecentActivitiesService,
+  getQuickStatsService,
+  getSystemAlertsService,
 } from "../services/dashboard.service";
 
 /**
@@ -81,6 +85,98 @@ export const getDashboardAppointmentsByDate = async (req: Request, res: Response
     return res.status(500).json({
       success: false,
       message: error?.message || "Failed to get appointments",
+    });
+  }
+};
+
+/**
+ * Dashboard overview (quick summary cards)
+ * GET /api/dashboard/overview
+ * Role: ADMIN
+ */
+export const getDashboardOverview = async (req: Request, res: Response) => {
+  try {
+    const data = await getDashboardOverviewService();
+
+    return res.json({
+      success: true,
+      message: "Dashboard overview retrieved successfully",
+      data,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get dashboard overview",
+    });
+  }
+};
+
+/**
+ * Recent activities for dashboard feed
+ * GET /api/dashboard/recent-activities
+ * Role: ADMIN
+ */
+export const getRecentActivities = async (req: Request, res: Response) => {
+  try {
+    const limitParam = req.query.limit as string | undefined;
+    const parsedLimit = limitParam ? parseInt(limitParam, 10) : undefined;
+    const limit = Number.isFinite(parsedLimit) && parsedLimit! > 0 ? parsedLimit : 10;
+
+    const data = await getRecentActivitiesService(limit);
+
+    return res.json({
+      success: true,
+      message: "Recent activities retrieved successfully",
+      data,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get recent activities",
+    });
+  }
+};
+
+/**
+ * Quick stats for dashboard
+ * GET /api/dashboard/quick-stats
+ * Role: ADMIN
+ */
+export const getQuickStats = async (req: Request, res: Response) => {
+  try {
+    const data = await getQuickStatsService();
+
+    return res.json({
+      success: true,
+      message: "Quick stats retrieved successfully",
+      data,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get quick stats",
+    });
+  }
+};
+
+/**
+ * System alerts for dashboard
+ * GET /api/dashboard/alerts
+ * Role: ADMIN
+ */
+export const getSystemAlerts = async (req: Request, res: Response) => {
+  try {
+    const data = await getSystemAlertsService();
+
+    return res.json({
+      success: true,
+      message: "System alerts retrieved successfully",
+      data,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get system alerts",
     });
   }
 };

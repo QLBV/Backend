@@ -5,6 +5,8 @@ import Payroll from "../models/Payroll";
 import Medicine from "../models/Medicine";
 import Patient from "../models/Patient";
 import PrescriptionDetail from "../models/PrescriptionDetail";
+import Appointment from "../models/Appointment";
+import Visit from "../models/Visit";
 
 interface RevenueReportFilters {
   year: number;
@@ -487,5 +489,242 @@ export const getProfitReportService = async (filters: { year: number; month?: nu
       revenue: revenueData.summary,
       expense: expenseData.summary,
     },
+  };
+};
+
+/**
+ * Báo cáo lịch hẹn
+ * GET /api/reports/appointments
+ */
+export const getAppointmentReportService = async (filters: { year: number; month?: number }) => {
+  const { year, month } = filters;
+
+  let startDate: Date;
+  let endDate: Date;
+
+  if (month) {
+    startDate = new Date(year, month - 1, 1);
+    endDate = new Date(year, month, 1);
+  } else {
+    startDate = new Date(year, 0, 1);
+    endDate = new Date(year + 1, 0, 1);
+  }
+
+  // Tổng số lịch hẹn
+  const totalAppointments = await Appointment.count({
+    where: {
+      createdAt: {
+        [Op.gte]: startDate,
+        [Op.lt]: endDate,
+      },
+    },
+  });
+
+  // Lịch hẹn theo trạng thái
+  const appointmentsByStatus = await Appointment.findAll({
+    attributes: [
+      "status",
+      [fn("COUNT", col("id")), "count"],
+    ],
+    where: {
+      createdAt: {
+        [Op.gte]: startDate,
+        [Op.lt]: endDate,
+      },
+    },
+    group: ["status"],
+    raw: true,
+  });
+
+  // Lịch hẹn theo ca
+  const appointmentsByShift = await Appointment.findAll({
+    attributes: [
+      "shiftId",
+      [fn("COUNT", col("id")), "count"],
+    ],
+    where: {
+      createdAt: {
+        [Op.gte]: startDate,
+        [Op.lt]: endDate,
+      },
+    },
+    include: [
+      {
+        model: require("../models/Shift").default,
+        as: "shift",
+        attributes: ["name", "startTime", "endTime"],
+      },
+    ],
+    group: ["shiftId", "shift.id", "shift.name", "shift.startTime", "shift.endTime"],
+    raw: false,
+  });
+
+  // Tỷ lệ hoàn thành
+  const completedCount = await Appointment.count({
+    where: {
+      createdAt: {
+        [Op.gte]: startDate,
+        [Op.lt]: endDate,
+      },
+      status: "COMPLETED",
+    },
+  });
+
+  const cancelledCount = await Appointment.count({
+    where: {
+      createdAt: {
+        [Op.gte]: startDate,
+        [Op.lt]: endDate,
+      },
+      status: "CANCELLED",
+    },
+  });
+
+  const noShowCount = await Appointment.count({
+    where: {
+      createdAt: {
+        [Op.gte]: startDate,
+        [Op.lt]: endDate,
+      },
+      status: "NO_SHOW",
+    },
+  });
+
+  return {
+    summary: {
+      total: totalAppointments,
+      completed: completedCount,
+      cancelled: cancelledCount,
+      noShow: noShowCount,
+      completionRate: totalAppointments > 0 ? (completedCount / totalAppointments) * 100 : 0,
+      cancellationRate: totalAppointments > 0 ? (cancelledCount / totalAppointments) * 100 : 0,
+      noShowRate: totalAppointments > 0 ? (noShowCount / totalAppointments) * 100 : 0,
+    },
+    byStatus: appointmentsByStatus.map((item: any) => ({
+      status: item.status,
+      count: parseInt(item.count),
+      percentage: totalAppointments > 0 ? (parseInt(item.count) / totalAppointments) * 100 : 0,
+    })),
+    byShift: appointmentsByShift.map((item: any) => ({
+      shiftId: item.shiftId,
+      shiftName: item.shift?.name || "Unknown",
+      shiftTime: item.shift ? `${item.shift.startTime} - ${item.shift.endTime}` : "N/A",
+      count: parseInt(item.getDataValue("count")),
+    })),
+  };
+};
+
+/**
+ * Báo cáo thống kê bệnh nhân
+ * GET /api/reports/patient-statistics
+ */
+export const getPatientStatisticsService = async () => {
+  // Tổng số bệnh nhân
+  const totalPatients = await Patient.count();
+
+  // Thống kê theo giới tính
+  const genderStats = await Patient.findAll({
+    attributes: [
+      "gender",
+      [fn("COUNT", col("id")), "count"],
+    ],
+    group: ["gender"],
+    raw: true,
+  });
+
+  // Thống kê theo độ tuổi
+  const ageGroups = [
+    { name: "0-18", min: 0, max: 18 },
+    { name: "19-30", min: 19, max: 30 },
+    { name: "31-45", min: 31, max: 45 },
+    { name: "46-60", min: 46, max: 60 },
+    { name: "61+", min: 61, max: 150 },
+  ];
+
+  const ageStats = await Promise.all(
+    ageGroups.map(async (group) => {
+      const currentYear = new Date().getFullYear();
+      const maxBirthYear = currentYear - group.min;
+      const minBirthYear = currentYear - group.max;
+
+      const count = await Patient.count({
+        where: {
+          dateOfBirth: {
+            [Op.gte]: new Date(minBirthYear, 0, 1),
+            [Op.lte]: new Date(maxBirthYear, 11, 31),
+          },
+        },
+      });
+
+      return {
+        ageGroup: group.name,
+        count,
+        percentage: totalPatients > 0 ? (count / totalPatients) * 100 : 0,
+      };
+    })
+  );
+
+  // Bệnh nhân mới trong 30 ngày qua
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const newPatientsLast30Days = await Patient.count({
+    include: [
+      {
+        model: require("../models/User").default,
+        as: "user",
+        attributes: [],
+        where: {
+          createdAt: {
+            [Op.gte]: thirtyDaysAgo,
+          },
+        },
+      },
+    ],
+  });
+
+  // Top bệnh nhân có nhiều lượt khám nhất
+  const topPatientsByVisits = await Visit.findAll({
+    attributes: [
+      "patientId",
+      [fn("COUNT", col("id")), "visitCount"],
+    ],
+    group: ["patientId"],
+    include: [
+      {
+        model: Patient,
+        as: "patient",
+        attributes: ["id"],
+        include: [
+          {
+            model: require("../models/User").default,
+            as: "user",
+            attributes: ["fullName", "email"],
+          },
+        ],
+      },
+    ],
+    order: [[literal("visitCount"), "DESC"]],
+    limit: 10,
+    raw: false,
+  });
+
+  return {
+    summary: {
+      total: totalPatients,
+      newLast30Days: newPatientsLast30Days,
+    },
+    byGender: genderStats.map((item: any) => ({
+      gender: item.gender || "UNKNOWN",
+      count: parseInt(item.count),
+      percentage: totalPatients > 0 ? (parseInt(item.count) / totalPatients) * 100 : 0,
+    })),
+    byAge: ageStats,
+    topPatients: topPatientsByVisits.map((item: any) => ({
+      patientId: item.patientId,
+      patientName: item.patient?.user?.fullName || "N/A",
+      patientEmail: item.patient?.user?.email || "N/A",
+      visitCount: parseInt(item.getDataValue("visitCount")),
+    })),
   };
 };

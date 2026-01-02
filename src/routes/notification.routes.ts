@@ -4,6 +4,7 @@ import {
   getNotificationUnreadCount,
   markAsRead,
   markAllAsRead,
+  deleteNotificationController,
 } from "../controllers/notification.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 
@@ -18,10 +19,13 @@ router.get("/", getNotifications);
 // GET /api/notifications/unread-count - Đếm số chưa đọc
 router.get("/unread-count", getNotificationUnreadCount);
 
-// PUT /api/notifications/mark-all-read - Đánh dấu tất cả đã đọc
-router.put("/mark-all-read", markAllAsRead);
+// PUT /api/notifications/read-all - Đánh dấu tất cả đã đọc
+router.put("/read-all", markAllAsRead);
 
-// PUT /api/notifications/:id/mark-read - Đánh dấu 1 cái đã đọc
-router.put("/:id/mark-read", markAsRead);
+// PUT /api/notifications/:id/read - Đánh dấu 1 cái đã đọc
+router.put("/:id/read", markAsRead);
+
+// DELETE /api/notifications/:id - Xóa thông báo
+router.delete("/:id", deleteNotificationController);
 
 export default router;

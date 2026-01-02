@@ -2,6 +2,10 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User";
 import Role from "../models/Role";
+import {
+  getNotificationSettingsService,
+  updateNotificationSettingsService,
+} from "../services/notificationSettings.service";
 
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
@@ -255,6 +259,266 @@ export const uploadAvatar = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: "Failed to upload avatar",
+    });
+  }
+};
+
+/**
+ * Activate user account
+ * PUT /api/users/:id/activate
+ * Role: ADMIN
+ */
+export const activateUser = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "User is already active",
+      });
+    }
+
+    await user.update({ isActive: true });
+
+    return res.json({
+      success: true,
+      message: "User activated successfully",
+      data: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        isActive: user.isActive,
+      },
+    });
+  } catch (error) {
+    console.error("Activate user error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to activate user",
+    });
+  }
+};
+
+/**
+ * Deactivate user account
+ * PUT /api/users/:id/deactivate
+ * Role: ADMIN
+ */
+export const deactivateUser = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "User is already inactive",
+      });
+    }
+
+    await user.update({ isActive: false });
+
+    return res.json({
+      success: true,
+      message: "User deactivated successfully",
+      data: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        isActive: user.isActive,
+      },
+    });
+  } catch (error) {
+    console.error("Deactivate user error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to deactivate user",
+    });
+  }
+};
+
+/**
+ * Change user role
+ * PUT /api/users/:id/role
+ * Role: ADMIN
+ */
+export const changeUserRole = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { roleId } = req.body;
+
+    if (!roleId) {
+      return res.status(400).json({
+        success: false,
+        message: "roleId is required",
+      });
+    }
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Verify role exists
+    const role = await Role.findByPk(roleId);
+    if (!role) {
+      return res.status(404).json({
+        success: false,
+        message: "Role not found",
+      });
+    }
+
+    if (user.roleId === roleId) {
+      return res.status(400).json({
+        success: false,
+        message: "User already has this role",
+      });
+    }
+
+    await user.update({ roleId });
+
+    // Reload with role information
+    await user.reload({
+      include: [{ model: Role, as: "role", attributes: ["id", "roleName"] }],
+    });
+
+    return res.json({
+      success: true,
+      message: "User role changed successfully",
+      data: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        roleId: user.roleId,
+        role: user.get("role"),
+      },
+    });
+  } catch (error) {
+    console.error("Change user role error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to change user role",
+    });
+  }
+};
+
+/**
+ * Get my notification settings
+ * GET /api/users/me/notification-settings
+ */
+export const getMyNotificationSettings = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const settings = await getNotificationSettingsService(userId);
+
+    return res.json({
+      success: true,
+      message: "Notification settings retrieved successfully",
+      data: settings,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to retrieve notification settings",
+    });
+  }
+};
+
+/**
+ * Update my notification settings
+ * PUT /api/users/me/notification-settings
+ */
+export const updateMyNotificationSettings = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const userId = req.user!.userId;
+    const { emailEnabled, smsEnabled, pushEnabled, inAppEnabled } = req.body || {};
+
+    const parseBoolean = (value: any) => {
+      if (value === undefined) return undefined;
+      if (typeof value === "boolean") return value;
+      if (value === "true") return true;
+      if (value === "false") return false;
+      return null;
+    };
+
+    const updates: any = {};
+
+    const parsedEmail = parseBoolean(emailEnabled);
+    if (parsedEmail === null) {
+      return res.status(400).json({
+        success: false,
+        message: "emailEnabled must be a boolean",
+      });
+    }
+    if (parsedEmail !== undefined) updates.emailEnabled = parsedEmail;
+
+    const parsedSms = parseBoolean(smsEnabled);
+    if (parsedSms === null) {
+      return res.status(400).json({
+        success: false,
+        message: "smsEnabled must be a boolean",
+      });
+    }
+    if (parsedSms !== undefined) updates.smsEnabled = parsedSms;
+
+    const parsedPush = parseBoolean(pushEnabled);
+    if (parsedPush === null) {
+      return res.status(400).json({
+        success: false,
+        message: "pushEnabled must be a boolean",
+      });
+    }
+    if (parsedPush !== undefined) updates.pushEnabled = parsedPush;
+
+    const parsedInApp = parseBoolean(inAppEnabled);
+    if (parsedInApp === null) {
+      return res.status(400).json({
+        success: false,
+        message: "inAppEnabled must be a boolean",
+      });
+    }
+    if (parsedInApp !== undefined) updates.inAppEnabled = parsedInApp;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid settings provided",
+      });
+    }
+
+    const settings = await updateNotificationSettingsService(userId, updates);
+
+    return res.json({
+      success: true,
+      message: "Notification settings updated successfully",
+      data: settings,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to update notification settings",
     });
   }
 };

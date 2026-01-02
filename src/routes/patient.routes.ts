@@ -6,6 +6,8 @@ import {
   deletePatient,
   uploadPatientAvatar,
   setupPatientProfile,
+  getPatientMedicalHistory,
+  getPatientPrescriptions,
 } from "../controllers/patient.controller";
 
 import { verifyToken } from "../middlewares/auth.middlewares";
@@ -38,6 +40,22 @@ router.get(
   requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
   validatePagination,
   getPatients
+);
+
+// Get patient's medical history
+router.get(
+  "/:id/medical-history",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.PATIENT),
+  getPatientMedicalHistory
+);
+
+// Get patient's prescriptions
+router.get(
+  "/:id/prescriptions",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.PATIENT),
+  getPatientPrescriptions
 );
 
 router.get(

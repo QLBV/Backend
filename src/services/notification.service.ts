@@ -48,16 +48,18 @@ export async function sendAppointmentConfirmation(
       include: [
         {
           model: Patient,
+          as: "patient",
           include: [{ model: User, as: "user" }],
         },
         {
           model: Doctor,
+          as: "doctor",
           include: [
             { model: User, as: "user" },
             { model: Specialty, as: "specialty" },
           ],
         },
-        { model: Shift },
+        { model: Shift, as: "shift" },
       ],
     });
 
@@ -66,9 +68,9 @@ export async function sendAppointmentConfirmation(
       return;
     }
 
-    const patient = appointment.get("Patient") as any;
-    const doctor = appointment.get("Doctor") as any;
-    const shift = appointment.get("Shift") as any;
+    const patient = appointment.get("patient") as any;
+    const doctor = appointment.get("doctor") as any;
+    const shift = appointment.get("shift") as any;
 
     if (!patient || !doctor || !shift) {
       console.error("Missing related data for appointment", appointmentId);
@@ -132,13 +134,15 @@ export async function sendAppointmentCancellation(
       include: [
         {
           model: Patient,
+          as: "patient",
           include: [{ model: User, as: "user" }],
         },
         {
           model: Doctor,
+          as: "doctor",
           include: [{ model: User, as: "user" }],
         },
-        { model: Shift },
+        { model: Shift, as: "shift" },
       ],
     });
 
@@ -147,9 +151,9 @@ export async function sendAppointmentCancellation(
       return;
     }
 
-    const patient = appointment.get("Patient") as any;
-    const doctor = appointment.get("Doctor") as any;
-    const shift = appointment.get("Shift") as any;
+    const patient = appointment.get("patient") as any;
+    const doctor = appointment.get("doctor") as any;
+    const shift = appointment.get("shift") as any;
 
     if (!patient || !doctor || !shift) {
       console.error("Missing related data for appointment", appointmentId);
@@ -215,16 +219,18 @@ export async function sendDoctorChangeNotification(
       include: [
         {
           model: Patient,
+          as: "patient",
           include: [{ model: User, as: "user" }],
         },
         {
           model: Doctor,
+          as: "doctor",
           include: [
             { model: User, as: "user" },
             { model: Specialty, as: "specialty" },
           ],
         },
-        { model: Shift },
+        { model: Shift, as: "shift" },
       ],
     });
 
@@ -243,9 +249,9 @@ export async function sendDoctorChangeNotification(
       return;
     }
 
-    const patient = appointment.get("Patient") as any;
-    const newDoctor = appointment.get("Doctor") as any;
-    const shift = appointment.get("Shift") as any;
+    const patient = appointment.get("patient") as any;
+    const newDoctor = appointment.get("doctor") as any;
+    const shift = appointment.get("shift") as any;
 
     if (!patient || !newDoctor || !shift) {
       console.error("Missing related data for appointment", appointmentId);
@@ -385,4 +391,28 @@ export async function getUnreadCount(userId: number): Promise<number> {
   return Notification.count({
     where: { userId, isRead: false },
   });
+}
+
+/**
+ * Xóa notification
+ */
+export async function deleteNotification(
+  notificationId: number,
+  userId: number
+): Promise<boolean> {
+  try {
+    const notification = await Notification.findOne({
+      where: { id: notificationId, userId },
+    });
+
+    if (!notification) {
+      return false;
+    }
+
+    await notification.destroy();
+    return true;
+  } catch (error) {
+    console.error("Error in deleteNotification:", error);
+    return false;
+  }
 }

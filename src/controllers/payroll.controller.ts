@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+﻿import { Request, Response } from "express";
 import {
   calculatePayrollService,
   calculatePayrollForAllService,
@@ -29,7 +29,7 @@ import {
 export const calculatePayroll = async (req: Request, res: Response) => {
   try {
     const { userId, month, year, calculateAll } = req.body;
-    const adminId = (req as any).user.id;
+    const adminId = req.user!.userId;
 
     if (!month || !year) {
       return res.status(400).json({
@@ -73,7 +73,7 @@ export const calculatePayroll = async (req: Request, res: Response) => {
 };
 
 /**
- * Lấy danh sách tất cả payrolls
+ * Lấy danh sách tất cả phiếu lương
  * GET /api/payrolls
  * Role: ADMIN
  */
@@ -113,7 +113,7 @@ export const getPayrolls = async (req: Request, res: Response) => {
  */
 export const getMyPayrolls = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
+    const userId = req.user!.userId;
 
     const payrolls = await getMyPayrollsService(userId);
 
@@ -141,9 +141,9 @@ export const getPayrollById = async (req: Request, res: Response) => {
 
     const payroll = await getPayrollByIdService(payrollId);
 
-    // Authorization check - Non-admin chỉ xem được payroll của mình
+    // Authorization check
     const user = (req as any).user;
-    if (user.roleId !== 1 && payroll.userId !== user.id) {
+    if (user.roleId !== 1 && payroll.userId !== user.userId) {
       // Not ADMIN and not owner
       return res.status(403).json({
         success: false,
@@ -172,7 +172,7 @@ export const getPayrollById = async (req: Request, res: Response) => {
 export const approvePayroll = async (req: Request, res: Response) => {
   try {
     const payrollId = parseInt(req.params.id);
-    const adminId = (req as any).user.id;
+    const adminId = req.user!.userId;
 
     const payroll = await approvePayrollService(payrollId, adminId);
 
@@ -197,7 +197,7 @@ export const approvePayroll = async (req: Request, res: Response) => {
 export const payPayroll = async (req: Request, res: Response) => {
   try {
     const payrollId = parseInt(req.params.id);
-    const adminId = (req as any).user.id;
+    const adminId = req.user!.userId;
 
     const payroll = await payPayrollService(payrollId, adminId);
 
@@ -249,7 +249,77 @@ export const getUserPayrollHistory = async (req: Request, res: Response) => {
 };
 
 /**
- * Thống kê lương
+ * Lấy lương của bác sĩ theo doctorId
+ * GET /api/payrolls/doctor/:doctorId
+ * Role: ADMIN
+ */
+export const getDoctorPayrolls = async (req: Request, res: Response) => {
+  try {
+    const Doctor = (await import("../models/Doctor")).default;
+    const doctorId = parseInt(req.params.doctorId);
+
+    // Find doctor and get userId
+    const doctor = await Doctor.findByPk(doctorId);
+
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    const payrolls = await getUserPayrollHistoryService(doctor.userId);
+
+    return res.json({
+      success: true,
+      message: "Doctor payrolls retrieved successfully",
+      data: payrolls,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to retrieve doctor payrolls",
+    });
+  }
+};
+
+/**
+ * Lấy lương theo period (month/year)
+ * GET /api/payrolls/period?month=X&year=Y
+ * Role: ADMIN
+ */
+export const getPayrollsByPeriod = async (req: Request, res: Response) => {
+  try {
+    const month = req.query.month ? parseInt(req.query.month as string) : undefined;
+    const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+
+    if (!month || !year) {
+      return res.status(400).json({
+        success: false,
+        message: "Both month and year are required",
+      });
+    }
+
+    const result = await getPayrollsService({
+      month,
+      year,
+    });
+
+    return res.json({
+      success: true,
+      message: "Payrolls for period retrieved successfully",
+      data: result.payrolls,
+      pagination: result.pagination,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to retrieve payrolls by period",
+    });
+  }
+};
+
+/**
  * GET /api/payrolls/statistics
  * Role: ADMIN
  */
@@ -278,7 +348,6 @@ export const getPayrollStatistics = async (req: Request, res: Response) => {
 };
 
 /**
- * Xuất PDF phiếu lương
  * GET /api/payrolls/:id/pdf
  * Role: ADMIN, OWNER
  */
@@ -289,7 +358,7 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
 
     // Authorization check
     const user = (req as any).user;
-    if (user.roleId !== 1 && payroll.userId !== user.id) {
+    if (user.roleId !== 1 && payroll.userId !== user.userId) {
       return res.status(403).json({
         success: false,
         message: "You can only export your own payroll",
@@ -303,12 +372,13 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
     // Header
     addPDFHeader(doc, "PHIẾU LƯƠNG NHÂN VIÊN");
 
-    // Thông tin phiếu lương
     doc.fontSize(11).font("Helvetica");
     doc.text(`Mã phiếu lương: ${payroll.payrollCode}`, 50, doc.y, {
       continued: true,
     });
-    doc.text(`Kỳ lương: ${payroll.month}/${payroll.year}`, { align: "right" });
+    doc.text(`Ký lương: ${payroll.month}/${payroll.year}`, {
+      align: "right",
+    });
 
     doc.moveDown(0.5);
     doc.fontSize(10).text(`Trạng thái: `, 50, doc.y, { continued: true });
@@ -340,37 +410,27 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
     doc.moveDown(0.5);
 
     doc.fontSize(10).font("Helvetica");
-    doc.text(
-      `Họ tên: ${(payroll as any).user?.fullName || "N/A"}`,
-      50,
-      doc.y
-    );
+    doc.text(`Họ tên: ${(payroll as any).user?.fullName || "N/A"}`, 50, doc.y);
     doc.text(`Email: ${(payroll as any).user?.email || "N/A"}`);
-    doc.text(
-      `Chức vụ: ${(payroll as any).user?.role?.roleName || "N/A"}`
-    );
+    doc.text(`Chức vụ: ${(payroll as any).user?.role?.roleName || "N/A"}`);
     doc.text(`Số năm kinh nghiệm: ${payroll.yearsOfService || 0} năm`);
 
     doc.moveDown(1.5);
 
-    // Chi tiết lương
-    doc
-      .fontSize(12)
-      .font("Helvetica-Bold")
-      .text("CHI TIẾT LƯƠNG", 50, doc.y);
+    doc.fontSize(12).font("Helvetica-Bold").text("CHI TIẾT LƯƠNG", 50, doc.y);
     doc.moveDown(0.5);
 
     // Lương cơ bản
     const headers = ["Hạng mục", "Giá trị"];
     const rows: string[][] = [
-      ["Lương cơ sở", formatCurrency(payroll.baseSalary || 0)],
+      ["Lương cơ bản", formatCurrency(payroll.baseSalary || 0)],
       [
         `Hệ số chức vụ (${payroll.roleCoefficient})`,
         formatCurrency(payroll.roleSalary || 0),
       ],
     ];
 
-    // Phụ cấp kinh nghiệm
+    // Phá»¥ cáº¥p kinh nghiá»‡m
     if (payroll.experienceBonus && payroll.experienceBonus > 0) {
       rows.push([
         `Phụ cấp kinh nghiệm (${payroll.yearsOfService} năm)`,
@@ -389,10 +449,7 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
     }
 
     // Lương gốc
-    rows.push([
-      "TỔNG LƯƠNG GỐC",
-      formatCurrency(payroll.grossSalary || 0),
-    ]);
+    rows.push(["TỔNG LƯƠNG GỐC", formatCurrency(payroll.grossSalary || 0)]);
 
     // Phạt nghỉ
     if (payroll.penaltyAmount && payroll.penaltyAmount > 0) {
@@ -403,17 +460,14 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
     }
 
     // Lương thực nhận
-    rows.push([
-      "LƯƠNG THỰC NHẬN",
-      formatCurrency(payroll.netSalary || 0),
-    ]);
+    rows.push(["LƯƠNG THỰC NHẬN", formatCurrency(payroll.netSalary || 0)]);
 
     // Draw table
     const tableY = drawTable(doc, headers, rows, [350, 150], doc.y);
 
     doc.y = tableY + 20;
 
-    // Thông tin chấm công
+    // ThÃ´ng tin cháº¥m cÃ´ng
     doc
       .fontSize(12)
       .font("Helvetica-Bold")
@@ -436,7 +490,7 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
 
     doc.moveDown(2);
 
-    // Phần tổng kết
+    // Pháº§n tá»•ng káº¿t
     doc
       .fontSize(14)
       .font("Helvetica-Bold")

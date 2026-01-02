@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+﻿import { Request, Response } from "express";
 import {
   createInvoiceFromVisit,
   getInvoicesService,
@@ -29,7 +29,7 @@ import {
 export const createInvoice = async (req: Request, res: Response) => {
   try {
     const { visitId, examinationFee } = req.body;
-    const createdBy = (req as any).user.id;
+    const createdBy = req.user!.userId;
 
     if (!visitId || !examinationFee) {
       return res.status(400).json({
@@ -116,7 +116,7 @@ export const getInvoiceById = async (req: Request, res: Response) => {
     if (user.roleId === 3) {
       // PATIENT role
       const patient = await (req as any).models.Patient.findOne({
-        where: { userId: user.id },
+        where: { userId: user.userId },
       });
 
       if (patient && invoice.patientId !== patient.id) {
@@ -174,7 +174,7 @@ export const addPayment = async (req: Request, res: Response) => {
   try {
     const invoiceId = parseInt(req.params.id);
     const { amount, paymentMethod, reference, note } = req.body;
-    const createdBy = (req as any).user.id;
+    const createdBy = req.user!.userId;
 
     if (!amount || !paymentMethod) {
       return res.status(400).json({
@@ -242,7 +242,7 @@ export const exportInvoicePDF = async (req: Request, res: Response) => {
     const user = (req as any).user;
     if (user.roleId === 3) {
       const patient = await (req as any).models.Patient.findOne({
-        where: { userId: user.id },
+        where: { userId: user.userId },
       });
 
       if (patient && invoice.patientId !== patient.id) {
@@ -258,17 +258,19 @@ export const exportInvoicePDF = async (req: Request, res: Response) => {
     const doc = setupPDFResponse(res, filename);
 
     // Header
-    addPDFHeader(doc, "HÓA ĐƠN THANH TOÁN");
+    addPDFHeader(doc, "HÃ“A ÄÆ N THANH TOÃN");
 
     // Thông tin hóa đơn
     doc.fontSize(11).font("Helvetica");
-    doc.text(`Mã hóa đơn: ${invoice.invoiceCode}`, 50, doc.y, { continued: true });
+    doc.text(`Mã hóa đơn: ${invoice.invoiceCode}`, 50, doc.y, {
+      continued: true,
+    });
     doc.text(`Ngày tạo: ${formatDate(invoice.createdAt)}`, { align: "right" });
 
     doc.moveDown(0.5);
-    doc
-      .fontSize(10)
-      .text(`Trạng thái: ${invoice.paymentStatus}`, 50, doc.y, { continued: true });
+    doc.fontSize(10).text(`Trạng thái: ${invoice.paymentStatus}`, 50, doc.y, {
+      continued: true,
+    });
 
     const statusColors: any = {
       PAID: "#27AE60",
@@ -282,11 +284,18 @@ export const exportInvoicePDF = async (req: Request, res: Response) => {
     doc.moveDown(1.5);
 
     // Thông tin bệnh nhân
-    doc.fontSize(12).font("Helvetica-Bold").text("THÔNG TIN BỆNH NHÂN", 50, doc.y);
+    doc
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .text("THÔNG TIN BỆNH NHÂN", 50, doc.y);
     doc.moveDown(0.5);
 
     doc.fontSize(10).font("Helvetica");
-    doc.text(`Họ tên: ${(invoice as any).patient?.fullName || "N/A"}`, 50, doc.y);
+    doc.text(
+      `Họ tên: ${(invoice as any).patient?.fullName || "N/A"}`,
+      50,
+      doc.y
+    );
     doc.text(`Mã BN: ${(invoice as any).patient?.patientCode || "N/A"}`);
     doc.text(`Điện thoại: ${(invoice as any).patient?.phoneNumber || "N/A"}`);
 
@@ -297,7 +306,11 @@ export const exportInvoicePDF = async (req: Request, res: Response) => {
     doc.moveDown(0.5);
 
     doc.fontSize(10).font("Helvetica");
-    doc.text(`Bác sĩ: ${(invoice as any).doctor?.fullName || "N/A"}`, 50, doc.y);
+    doc.text(
+      `Bác sĩ: ${(invoice as any).doctor?.fullName || "N/A"}`,
+      50,
+      doc.y
+    );
     doc.text(`Chuyên khoa: ${(invoice as any).doctor?.specialty || "N/A"}`);
 
     doc.moveDown(1.5);
@@ -317,7 +330,9 @@ export const exportInvoicePDF = async (req: Request, res: Response) => {
         if (item.itemType === "EXAMINATION") {
           description = item.description || "Khám bệnh";
         } else if (item.itemType === "MEDICINE") {
-          description = `${item.medicineName || "Thuốc"} (${item.medicineCode || ""})`;
+          description = `${item.medicineName || "Thuốc"} (${
+            item.medicineCode || ""
+          })`;
         }
 
         rows.push([
@@ -342,7 +357,9 @@ export const exportInvoicePDF = async (req: Request, res: Response) => {
     doc.text(formatCurrency(invoice.examinationFee || 0), { align: "right" });
 
     doc.text("Tổng tiền thuốc:", summaryX, doc.y, { continued: true });
-    doc.text(formatCurrency(invoice.medicineTotalAmount || 0), { align: "right" });
+    doc.text(formatCurrency(invoice.medicineTotalAmount || 0), {
+      align: "right",
+    });
 
     if (invoice.discount && invoice.discount > 0) {
       doc.text("Giảm giá:", summaryX, doc.y, { continued: true });
@@ -374,7 +391,10 @@ export const exportInvoicePDF = async (req: Request, res: Response) => {
     // Lịch sử thanh toán (nếu có)
     if ((invoice as any).payments && (invoice as any).payments.length > 0) {
       doc.moveDown(2);
-      doc.fontSize(12).font("Helvetica-Bold").text("LỊCH SỬ THANH TOÁN", 50, doc.y);
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text("LỊCH SỬ THANH TOÁN", 50, doc.y);
       doc.moveDown(0.5);
 
       const paymentHeaders = ["Ngày", "Phương thức", "Số tiền", "Mã GD"];
@@ -395,7 +415,7 @@ export const exportInvoicePDF = async (req: Request, res: Response) => {
     // Note
     if (invoice.note) {
       doc.moveDown(2);
-      doc.fontSize(10).font("Helvetica-Bold").text("Ghi chú:", 50, doc.y);
+      doc.fontSize(10).font("Helvetica-Bold").text("Ghi chÃº:", 50, doc.y);
       doc.font("Helvetica").text(invoice.note, 50, doc.y);
     }
 
@@ -426,7 +446,7 @@ export const getInvoicesByPatient = async (req: Request, res: Response) => {
     if (user.roleId === 3) {
       // PATIENT role
       const patient = await (req as any).models.Patient.findOne({
-        where: { userId: user.id },
+        where: { userId: user.userId },
       });
 
       if (!patient || patient.id !== patientId) {
@@ -448,6 +468,36 @@ export const getInvoicesByPatient = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: error?.message || "Failed to retrieve invoices",
+    });
+  }
+};
+
+/**
+ * Lấy danh sách hóa đơn chưa thanh toán
+ * GET /api/invoices/unpaid
+ * Role: ADMIN, RECEPTIONIST
+ */
+export const getUnpaidInvoices = async (req: Request, res: Response) => {
+  try {
+    const { limit } = req.query;
+
+    const filters: any = {
+      paymentStatus: "UNPAID" as PaymentStatus,
+      limit: limit ? parseInt(limit as string) : 50,
+    };
+
+    const result = await getInvoicesService(filters);
+
+    return res.json({
+      success: true,
+      message: "Unpaid invoices retrieved successfully",
+      data: result.invoices,
+      pagination: result.pagination,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to retrieve unpaid invoices",
     });
   }
 };

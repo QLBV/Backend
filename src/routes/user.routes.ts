@@ -5,6 +5,11 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  activateUser,
+  deactivateUser,
+  changeUserRole,
+  getMyNotificationSettings,
+  updateMyNotificationSettings,
 } from "../controllers/user.controller";
 
 import { verifyToken } from "../middlewares/auth.middlewares";
@@ -18,6 +23,11 @@ import {
 const router = Router();
 
 router.use(verifyToken);
+
+// ============ ME ============
+
+router.get("/me/notification-settings", getMyNotificationSettings);
+router.put("/me/notification-settings", updateMyNotificationSettings);
 
 // ============ ADMIN ONLY ============
 
@@ -37,6 +47,30 @@ router.put(
   validateNumericId("id"),
   requireRole(RoleCode.ADMIN),
   updateUser
+);
+
+// Activate user
+router.put(
+  "/:id/activate",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN),
+  activateUser
+);
+
+// Deactivate user
+router.put(
+  "/:id/deactivate",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN),
+  deactivateUser
+);
+
+// Change user role
+router.put(
+  "/:id/role",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN),
+  changeUserRole
 );
 
 router.delete(

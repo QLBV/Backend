@@ -149,3 +149,68 @@ export const getDoctorsOnDuty = async (req: Request, res: Response) => {
       .json({ success: false, message: "Get doctors on duty failed", error });
   }
 };
+
+export const getAvailableShifts = async (req: Request, res: Response) => {
+  try {
+    const { workDate, specialtyId } = req.query;
+
+    if (!workDate) {
+      return res.status(400).json({
+        success: false,
+        message: "workDate is required (YYYY-MM-DD)",
+      });
+    }
+
+    // Get all shifts
+    const allShifts = await Shift.findAll();
+
+    // Get doctor shifts for the specified date
+    const whereCondition: any = { workDate: String(workDate) };
+
+    const doctorShifts = await DoctorShift.findAll({
+      where: whereCondition,
+      include: [
+        {
+          model: Doctor,
+          as: "doctor",
+          where: specialtyId ? { specialtyId: Number(specialtyId) } : undefined,
+        },
+        { model: Shift, as: "shift" },
+      ],
+    });
+
+    // Group by shift and count doctors
+    const shiftMap = new Map<number, any>();
+
+    allShifts.forEach((shift: any) => {
+      shiftMap.set(shift.id, {
+        shift: shift.toJSON(),
+        doctorCount: 0,
+        doctors: [],
+      });
+    });
+
+    doctorShifts.forEach((ds: any) => {
+      const shiftData = shiftMap.get(ds.shiftId);
+      if (shiftData) {
+        shiftData.doctorCount += 1;
+        shiftData.doctors.push(ds.doctor);
+      }
+    });
+
+    // Convert map to array and filter available shifts (with doctors)
+    const availableShifts = Array.from(shiftMap.values()).filter(
+      (item) => item.doctorCount > 0
+    );
+
+    return res.json({
+      success: true,
+      data: availableShifts,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Get available shifts failed",
+    });
+  }
+};
