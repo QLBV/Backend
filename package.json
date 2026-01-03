@@ -7,7 +7,9 @@
     "dev": "nodemon",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:pdf": "ts-node src/tests/pdf.test.ts",
+    "test:invoice-pdf": "ts-node src/tests/invoice-pdf.test.ts"
   },
   "repository": {
     "type": "git",

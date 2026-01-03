@@ -185,149 +185,207 @@ export const setupPDFResponse = (
 };
 
 /**
- * Generate prescription PDF as buffer
+ * Generate prescription PDF as buffer (Medical Examination Form - No Prices)
  */
 export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({
-      size: "A4",
-      margin: 50,
-      info: {
-        Title: `Prescription ${pdfData.prescriptionCode}`,
-        Author: "Healthcare System",
-      },
-    });
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Import medical PDF template
+      const {
+        createMedicalPDF,
+        drawMedicalHeader,
+        drawMedicalFooter,
+        drawInfoBox,
+        drawSectionHeader,
+        drawNoteBox,
+        drawSignatureSection,
+        drawMetadataBox,
+        SPACING,
+      } = await import("./medicalPDFTemplate");
+      const { setFont } = await import("./pdfFontHelper");
 
-    const buffers: Buffer[] = [];
-    doc.on("data", buffers.push.bind(buffers));
-    doc.on("end", () => resolve(Buffer.concat(buffers)));
-    doc.on("error", reject);
+      // Create PDF with Vietnamese font support
+      const { doc, fonts } = createMedicalPDF("PHIẾU KHÁM BỆNH");
 
-    // Header
-    addPDFHeader(doc, "ĐƠN THUỐC");
+      const buffers: Buffer[] = [];
+      doc.on("data", buffers.push.bind(buffers));
+      doc.on("end", () => resolve(Buffer.concat(buffers)));
+      doc.on("error", reject);
 
-    // Prescription info
-    doc.fontSize(11).font("Helvetica");
-    doc.text(`Mã đơn thuốc: ${pdfData.prescriptionCode}`, 50, doc.y, {
-      continued: true,
-    });
-    doc.text(`Ngày kê: ${formatDate(pdfData.createdAt)}`, { align: "right" });
+      // Header
+      drawMedicalHeader(
+        doc,
+        fonts,
+        {
+          clinicName: "HỆ THỐNG QUẢN LÝ PHÒNG KHÁM",
+          address: "Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM",
+          phone: "(028) 1234 5678",
+          email: "info@clinic.com",
+        },
+        "PHIẾU KHÁM BỆNH"
+      );
 
-    doc.moveDown(1.5);
+      // Metadata (Prescription Code and Date)
+      drawMetadataBox(
+        doc,
+        fonts,
+        "Mã phiếu",
+        pdfData.prescriptionCode,
+        "Ngày khám",
+        formatDate(pdfData.createdAt)
+      );
 
-    // Patient info
-    doc.fontSize(12).font("Helvetica-Bold").text("THÔNG TIN BỆNH NHÂN", 50, doc.y);
-    doc.moveDown(0.5);
+      // Patient Info
+      const patientItems = [
+        { label: "Họ và tên", value: pdfData.patientName || "N/A" },
+        { label: "Số điện thoại", value: pdfData.patientPhone || "N/A" },
+      ];
 
-    doc.fontSize(10).font("Helvetica");
-    doc.text(`Họ tên: ${pdfData.patient.fullName}`, 50, doc.y);
-    doc.text(`Mã BN: ${pdfData.patient.patientCode}`);
-    if (pdfData.patient.dateOfBirth) {
-      doc.text(`Ngày sinh: ${formatDate(pdfData.patient.dateOfBirth)}`);
-    }
-    if (pdfData.patient.phoneNumber) {
-      doc.text(`Điện thoại: ${pdfData.patient.phoneNumber}`);
-    }
+      if (pdfData.patientAge) {
+        patientItems.push({ label: "Tuổi", value: `${pdfData.patientAge} tuổi` });
+      }
 
-    doc.moveDown(1);
+      drawInfoBox(doc, fonts, "THÔNG TIN BỆNH NHÂN", patientItems);
 
-    // Doctor info
-    doc.fontSize(12).font("Helvetica-Bold").text("BÁC SĨ KÊ ĐƠN", 50, doc.y);
-    doc.moveDown(0.5);
+      // Doctor Info
+      const doctorItems = [
+        { label: "Bác sĩ khám", value: pdfData.doctorName || "N/A" },
+        { label: "Chuyên khoa", value: pdfData.doctorSpecialty || "N/A" },
+      ];
 
-    doc.fontSize(10).font("Helvetica");
-    doc.text(`Bác sĩ: ${pdfData.doctor.fullName}`, 50, doc.y);
-    if (pdfData.doctor.specialty) {
-      doc.text(`Chuyên khoa: ${pdfData.doctor.specialty}`);
-    }
+      drawInfoBox(doc, fonts, "THÔNG TIN BÁC SĨ", doctorItems);
 
-    doc.moveDown(1);
+      // Diagnosis Section
+      if (pdfData.diagnosis || pdfData.symptoms) {
+        drawSectionHeader(doc, fonts, "CHẨN ĐOÁN VÀ TRIỆU CHỨNG", "📋");
 
-    // Diagnosis
-    if (pdfData.diagnosis) {
-      doc.fontSize(12).font("Helvetica-Bold").text("CHẨN ĐOÁN", 50, doc.y);
-      doc.moveDown(0.5);
-      doc.fontSize(10).font("Helvetica").text(pdfData.diagnosis, 50, doc.y);
-      doc.moveDown(1);
-    }
+        setFont(doc, fonts, false);
+        doc.fontSize(10);
 
-    // Medicine details
-    doc.fontSize(12).font("Helvetica-Bold").text("CHI TIẾT ĐƠN THUỐC", 50, doc.y);
-    doc.moveDown(0.5);
-
-    // Medicine table
-    if (pdfData.medicines && pdfData.medicines.length > 0) {
-      pdfData.medicines.forEach((medicine: any, index: number) => {
-        doc.fontSize(10).font("Helvetica-Bold");
-        doc.text(`${index + 1}. ${medicine.medicineName}`, 50, doc.y);
-
-        doc.fontSize(9).font("Helvetica");
-        doc.text(`   Số lượng: ${medicine.quantity} ${medicine.unit || "viên"}`, 60, doc.y);
-
-        if (medicine.dosageMorning || medicine.dosageAfternoon || medicine.dosageEvening) {
-          const dosage = [];
-          if (medicine.dosageMorning > 0) dosage.push(`Sáng: ${medicine.dosageMorning}`);
-          if (medicine.dosageAfternoon > 0) dosage.push(`Trưa: ${medicine.dosageAfternoon}`);
-          if (medicine.dosageEvening > 0) dosage.push(`Tối: ${medicine.dosageEvening}`);
-          doc.text(`   Liều dùng: ${dosage.join(", ")}`, 60, doc.y);
+        if (pdfData.symptoms) {
+          setFont(doc, fonts, true);
+          doc.text("Triệu chứng:", SPACING.pageMargin, doc.y);
+          setFont(doc, fonts, false);
+          doc.text(pdfData.symptoms, SPACING.pageMargin + 10, doc.y, {
+            width: 495,
+          });
+          doc.moveDown(0.5);
         }
 
-        if (medicine.instruction) {
-          doc.text(`   Hướng dẫn: ${medicine.instruction}`, 60, doc.y);
+        if (pdfData.diagnosis) {
+          setFont(doc, fonts, true);
+          doc.text("Chẩn đoán:", SPACING.pageMargin, doc.y);
+          setFont(doc, fonts, false);
+          doc.text(pdfData.diagnosis, SPACING.pageMargin + 10, doc.y, {
+            width: 495,
+          });
+          doc.moveDown(0.5);
         }
+
+        if (pdfData.diseaseCategory) {
+          setFont(doc, fonts, true);
+          doc.text("Nhóm bệnh:", SPACING.pageMargin, doc.y);
+          setFont(doc, fonts, false);
+          doc.text(pdfData.diseaseCategory, SPACING.pageMargin + 10, doc.y);
+        }
+
+        doc.moveDown(1);
+      }
+
+      // Medicine Prescription (WITHOUT PRICES)
+      if (pdfData.medicines && pdfData.medicines.length > 0) {
+        drawSectionHeader(doc, fonts, "ĐƠN THUỐC", "💊");
+
+        pdfData.medicines.forEach((medicine: any, index: number) => {
+          // Medicine name
+          setFont(doc, fonts, true);
+          doc.fontSize(11).text(
+            `${index + 1}. ${medicine.medicineName}`,
+            SPACING.pageMargin + 10,
+            doc.y
+          );
+
+          setFont(doc, fonts, false);
+          doc.fontSize(10);
+
+          // Quantity (NO PRICE)
+          doc.text(
+            `   Số lượng: ${medicine.quantity} ${medicine.unit || "viên"}`,
+            SPACING.pageMargin + 15,
+            doc.y
+          );
+
+          // Dosage
+          if (
+            medicine.dosageMorning ||
+            medicine.dosageNoon ||
+            medicine.dosageAfternoon ||
+            medicine.dosageEvening
+          ) {
+            const dosage = [];
+            if (medicine.dosageMorning > 0)
+              dosage.push(`Sáng: ${medicine.dosageMorning}`);
+            if (medicine.dosageNoon > 0)
+              dosage.push(`Trưa: ${medicine.dosageNoon}`);
+            if (medicine.dosageAfternoon > 0)
+              dosage.push(`Chiều: ${medicine.dosageAfternoon}`);
+            if (medicine.dosageEvening > 0)
+              dosage.push(`Tối: ${medicine.dosageEvening}`);
+
+            doc.text(
+              `   Liều dùng: ${dosage.join(", ")}`,
+              SPACING.pageMargin + 15,
+              doc.y
+            );
+          }
+
+          // Instructions
+          if (medicine.instruction) {
+            doc.text(
+              `   Hướng dẫn: ${medicine.instruction}`,
+              SPACING.pageMargin + 15,
+              doc.y,
+              { width: 470 }
+            );
+          }
+
+          doc.moveDown(0.7);
+        });
 
         doc.moveDown(0.5);
-      });
+      }
+
+      // Notes
+      if (pdfData.note) {
+        const notes = [pdfData.note];
+        drawNoteBox(doc, fonts, "LƯU Ý", notes, "⚠️");
+      }
+
+      // Standard medical notes
+      const standardNotes = [
+        "Uống thuốc đúng liều lượng, đúng giờ theo chỉ dẫn của bác sĩ",
+        "Bảo quản thuốc nơi khô ráo, tránh ánh nắng trực tiếp",
+        "Tái khám nếu có triệu chứng bất thường hoặc không đỡ sau 3-5 ngày",
+        "Liên hệ phòng khám ngay nếu có phản ứng phụ với thuốc",
+      ];
+      drawNoteBox(doc, fonts, "HƯỚNG DẪN SỬ DỤNG THUỐC", standardNotes, "ℹ️");
+
+      // Signature section
+      drawSignatureSection(
+        doc,
+        fonts,
+        "Bệnh nhân/Người nhà",
+        "Bác sĩ điều trị",
+        new Date(pdfData.createdAt)
+      );
+
+      // Footer
+      drawMedicalFooter(doc, fonts, 1, 1);
+
+      // Finalize
+      doc.end();
+    } catch (error) {
+      reject(error);
     }
-
-    doc.moveDown(1);
-
-    // Total amount
-    if (pdfData.totalAmount > 0) {
-      doc.fontSize(11).font("Helvetica-Bold");
-      doc.text(`TỔNG TIỀN: ${formatCurrency(pdfData.totalAmount)}`, 50, doc.y);
-      doc.moveDown(1);
-    }
-
-    // Note
-    if (pdfData.note) {
-      doc.fontSize(10).font("Helvetica-Bold").text("Ghi chú:", 50, doc.y);
-      doc.font("Helvetica").text(pdfData.note, 50, doc.y);
-      doc.moveDown(1);
-    }
-
-    doc.moveDown(2);
-
-    // Signature section
-    const signatureY = doc.y;
-    doc.fontSize(10).font("Helvetica");
-
-    doc.text("Bệnh nhân/Người nhà", 80, signatureY, {
-      align: "center",
-      width: 150,
-    });
-    doc.text("Bác sĩ kê đơn", 370, signatureY, {
-      align: "center",
-      width: 150,
-    });
-
-    doc.moveDown(3);
-
-    doc.fontSize(9).font("Helvetica-Oblique");
-    doc.text("(Ký và ghi rõ họ tên)", 80, doc.y, {
-      align: "center",
-      width: 150,
-    });
-
-    doc.text("(Ký và ghi rõ họ tên)", 370, doc.y - 10, {
-      align: "center",
-      width: 150,
-    });
-
-    // Footer
-    addPDFFooter(doc, 1);
-
-    // Finalize
-    doc.end();
   });
 };

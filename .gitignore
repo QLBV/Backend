@@ -32,4 +32,5 @@ coverage/
 *.tmp
 *.temp
 
-.CHECKLIST_REVIEW.md
+#docs
+.docs/future.md

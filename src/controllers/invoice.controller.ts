@@ -12,13 +12,9 @@ import {
 import { PaymentStatus } from "../models/Invoice";
 import { PaymentMethod } from "../models/Payment";
 import {
-  setupPDFResponse,
-  addPDFHeader,
-  addPDFFooter,
   formatCurrency,
   formatDate,
   formatDateTime,
-  drawTable,
 } from "../utils/pdfGenerator";
 
 /**
@@ -253,174 +249,16 @@ export const exportInvoicePDF = async (req: Request, res: Response) => {
       }
     }
 
-    // Setup PDF
-    const filename = `Invoice-${invoice.invoiceCode}.pdf`;
-    const doc = setupPDFResponse(res, filename);
-
-    // Header
-    addPDFHeader(doc, "HÃ“A ÄÆ N THANH TOÃN");
-
-    // Thông tin hóa đơn
-    doc.fontSize(11).font("Helvetica");
-    doc.text(`Mã hóa đơn: ${invoice.invoiceCode}`, 50, doc.y, {
-      continued: true,
-    });
-    doc.text(`Ngày tạo: ${formatDate(invoice.createdAt)}`, { align: "right" });
-
-    doc.moveDown(0.5);
-    doc.fontSize(10).text(`Trạng thái: ${invoice.paymentStatus}`, 50, doc.y, {
-      continued: true,
-    });
-
-    const statusColors: any = {
-      PAID: "#27AE60",
-      PARTIALLY_PAID: "#F39C12",
-      UNPAID: "#E74C3C",
-    };
-    doc.fillColor(statusColors[invoice.paymentStatus] || "#000000");
-    doc.text(`  ● ${invoice.paymentStatus}`, { continued: false });
-    doc.fillColor("#000000");
-
-    doc.moveDown(1.5);
-
-    // Thông tin bệnh nhân
-    doc
-      .fontSize(12)
-      .font("Helvetica-Bold")
-      .text("THÔNG TIN BỆNH NHÂN", 50, doc.y);
-    doc.moveDown(0.5);
-
-    doc.fontSize(10).font("Helvetica");
-    doc.text(
-      `Họ tên: ${(invoice as any).patient?.fullName || "N/A"}`,
-      50,
-      doc.y
+    // Setup response headers
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="HoaDon-${invoice.invoiceCode}.pdf"`
     );
-    doc.text(`Mã BN: ${(invoice as any).patient?.patientCode || "N/A"}`);
-    doc.text(`Điện thoại: ${(invoice as any).patient?.phoneNumber || "N/A"}`);
 
-    doc.moveDown(1);
-
-    // Thông tin bác sĩ
-    doc.fontSize(12).font("Helvetica-Bold").text("THÔNG TIN BÁC SĨ", 50, doc.y);
-    doc.moveDown(0.5);
-
-    doc.fontSize(10).font("Helvetica");
-    doc.text(
-      `Bác sĩ: ${(invoice as any).doctor?.fullName || "N/A"}`,
-      50,
-      doc.y
-    );
-    doc.text(`Chuyên khoa: ${(invoice as any).doctor?.specialty || "N/A"}`);
-
-    doc.moveDown(1.5);
-
-    // Chi tiết hóa đơn
-    doc.fontSize(12).font("Helvetica-Bold").text("CHI TIẾT HÓA ĐƠN", 50, doc.y);
-    doc.moveDown(0.5);
-
-    // Prepare table data
-    const headers = ["Mô tả", "SL", "Đơn giá", "Thành tiền"];
-    const rows: string[][] = [];
-
-    // Invoice items
-    if ((invoice as any).items && Array.isArray((invoice as any).items)) {
-      (invoice as any).items.forEach((item: any) => {
-        let description = "";
-        if (item.itemType === "EXAMINATION") {
-          description = item.description || "Khám bệnh";
-        } else if (item.itemType === "MEDICINE") {
-          description = `${item.medicineName || "Thuốc"} (${
-            item.medicineCode || ""
-          })`;
-        }
-
-        rows.push([
-          description,
-          item.quantity?.toString() || "1",
-          formatCurrency(item.unitPrice || 0),
-          formatCurrency(item.subtotal || 0),
-        ]);
-      });
-    }
-
-    // Draw table
-    const tableY = drawTable(doc, headers, rows, [250, 50, 100, 100], doc.y);
-
-    doc.y = tableY + 20;
-
-    // Tổng kết
-    const summaryX = 350;
-    doc.fontSize(10).font("Helvetica");
-
-    doc.text("Tổng tiền khám:", summaryX, doc.y, { continued: true });
-    doc.text(formatCurrency(invoice.examinationFee || 0), { align: "right" });
-
-    doc.text("Tổng tiền thuốc:", summaryX, doc.y, { continued: true });
-    doc.text(formatCurrency(invoice.medicineTotalAmount || 0), {
-      align: "right",
-    });
-
-    if (invoice.discount && invoice.discount > 0) {
-      doc.text("Giảm giá:", summaryX, doc.y, { continued: true });
-      doc.text(`-${formatCurrency(invoice.discount)}`, { align: "right" });
-    }
-
-    doc.moveDown(0.5);
-    doc
-      .moveTo(summaryX, doc.y)
-      .lineTo(doc.page.width - 50, doc.y)
-      .stroke();
-    doc.moveDown(0.5);
-
-    doc.fontSize(12).font("Helvetica-Bold");
-    doc.text("TỔNG CỘNG:", summaryX, doc.y, { continued: true });
-    doc.text(formatCurrency(invoice.totalAmount || 0), { align: "right" });
-
-    doc.fontSize(10).font("Helvetica");
-    doc.text("Đã thanh toán:", summaryX, doc.y, { continued: true });
-    doc.text(formatCurrency(invoice.paidAmount || 0), { align: "right" });
-
-    const remaining = (invoice.totalAmount || 0) - (invoice.paidAmount || 0);
-    doc.font("Helvetica-Bold");
-    doc.text("Còn lại:", summaryX, doc.y, { continued: true });
-    doc.fillColor(remaining > 0 ? "#E74C3C" : "#27AE60");
-    doc.text(formatCurrency(remaining), { align: "right" });
-    doc.fillColor("#000000");
-
-    // Lịch sử thanh toán (nếu có)
-    if ((invoice as any).payments && (invoice as any).payments.length > 0) {
-      doc.moveDown(2);
-      doc
-        .fontSize(12)
-        .font("Helvetica-Bold")
-        .text("LỊCH SỬ THANH TOÁN", 50, doc.y);
-      doc.moveDown(0.5);
-
-      const paymentHeaders = ["Ngày", "Phương thức", "Số tiền", "Mã GD"];
-      const paymentRows: string[][] = [];
-
-      (invoice as any).payments.forEach((payment: any) => {
-        paymentRows.push([
-          formatDateTime(payment.paymentDate),
-          payment.paymentMethod || "",
-          formatCurrency(payment.amount || 0),
-          payment.reference || "-",
-        ]);
-      });
-
-      drawTable(doc, paymentHeaders, paymentRows, [120, 100, 100, 180], doc.y);
-    }
-
-    // Note
-    if (invoice.note) {
-      doc.moveDown(2);
-      doc.fontSize(10).font("Helvetica-Bold").text("Ghi chÃº:", 50, doc.y);
-      doc.font("Helvetica").text(invoice.note, 50, doc.y);
-    }
-
-    // Footer
-    addPDFFooter(doc, 1);
+    // Generate PDF using new template
+    const { generateInvoicePDF } = await import("../utils/generateInvoicePDF");
+    const doc = await generateInvoicePDF(invoice);
 
     // Finalize PDF
     doc.end();
