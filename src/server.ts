@@ -11,6 +11,7 @@ if ((process.stderr as any)._handle) {
 
 import app from "./app";
 import { startAllMedicineJobs } from "./jobs/medicineExpiryCheck";
+import { setupScheduleGenerationCron } from "./jobs/scheduleGenerationCron";
 import { sequelize } from "./models";
 
 const PORT = process.env.PORT || 5000;
@@ -21,6 +22,7 @@ const PORT = process.env.PORT || 5000;
 
     // Start scheduled jobs after database connection
     startAllMedicineJobs();
+    setupScheduleGenerationCron();
   } catch (error) {
     console.error("❌ Database connection failed", error);
   }

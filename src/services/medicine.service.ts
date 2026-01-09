@@ -4,6 +4,7 @@ import Medicine, { MedicineStatus, MedicineUnit } from "../models/Medicine";
 import MedicineImport from "../models/MedicineImport";
 import MedicineExport from "../models/MedicineExport";
 import { generateMedicineCode } from "../utils/codeGenerator";
+import User from "../models/User";
 
 interface CreateMedicineInput {
   name: string;
@@ -38,6 +39,18 @@ interface ImportMedicineInput {
   quantity: number;
   importPrice: number;
   userId: number;
+  supplier?: string;
+  supplierInvoice?: string;
+  batchNumber?: string;
+  note?: string;
+}
+
+interface ExportMedicineInput {
+  medicineId: number;
+  quantity: number;
+  reason: string;
+  userId: number;
+  note?: string;
 }
 
 /**
@@ -98,6 +111,28 @@ export const importMedicineService = async (input: ImportMedicineInput) => {
       medicine.importPrice = input.importPrice;
       await medicine.save({ transaction: t });
 
+      // Generate import code
+      const today = new Date();
+      const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
+      const latestImport = await MedicineImport.findOne({
+        where: {
+          importCode: {
+            [Op.like]: `IMP-${dateStr}-%`,
+          },
+        },
+        order: [["importCode", "DESC"]],
+        transaction: t,
+      });
+
+      let sequence = 1;
+      if (latestImport && (latestImport as any).importCode) {
+        const lastCode = (latestImport as any).importCode;
+        const lastSequence = parseInt(lastCode.split("-")[2], 10);
+        sequence = lastSequence + 1;
+      }
+
+      const importCode = `IMP-${dateStr}-${sequence.toString().padStart(5, "0")}`;
+
       // Create import record
       const importRecord = await MedicineImport.create(
         {
@@ -106,7 +141,12 @@ export const importMedicineService = async (input: ImportMedicineInput) => {
           importPrice: input.importPrice,
           importDate: new Date(),
           userId: input.userId,
-        },
+          importCode,
+          supplier: input.supplier,
+          supplierInvoice: input.supplierInvoice,
+          batchNumber: input.batchNumber,
+          note: input.note,
+        } as any,
         { transaction: t }
       );
 
@@ -116,15 +156,20 @@ export const importMedicineService = async (input: ImportMedicineInput) => {
 };
 
 /**
- * Get all medicines with optional filters
+ * Get all medicines with optional filters and pagination
  */
 export const getAllMedicinesService = async (filters?: {
   status?: MedicineStatus;
   group?: string;
   lowStock?: boolean;
   search?: string;
+  page?: number;
+  limit?: number;
 }) => {
   const where: any = {};
+  const page = filters?.page || 1;
+  const limit = filters?.limit || 20;
+  const offset = (page - 1) * limit;
 
   if (filters?.status) {
     where.status = filters.status;
@@ -148,12 +193,20 @@ export const getAllMedicinesService = async (filters?: {
     ];
   }
 
-  const medicines = await Medicine.findAll({
+  const { rows: medicines, count: total } = await Medicine.findAndCountAll({
     where,
     order: [["name", "ASC"]],
+    limit,
+    offset,
   });
 
-  return medicines;
+  return {
+    medicines,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 };
 
 /**
@@ -170,17 +223,32 @@ export const getMedicineByIdService = async (medicineId: number) => {
 };
 
 /**
- * Get low stock medicines
+ * Get low stock medicines with pagination
  */
-export const getLowStockMedicinesService = async () => {
-  const medicines = await Medicine.findAll({
+export const getLowStockMedicinesService = async (params?: {
+  page?: number;
+  limit?: number;
+}) => {
+  const page = params?.page || 1;
+  const limit = params?.limit || 20;
+  const offset = (page - 1) * limit;
+
+  const { rows: medicines, count: total } = await Medicine.findAndCountAll({
     where: sequelize.literal(
       "`Medicine`.`quantity` <= `Medicine`.`minStockLevel`"
     ),
     order: [["quantity", "ASC"]],
+    limit,
+    offset,
   });
 
-  return medicines;
+  return {
+    medicines,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 };
 
 /**
@@ -244,11 +312,15 @@ export const removeMedicineService = async (medicineId: number) => {
 };
 
 /**
- * Get medicines expiring within specified days threshold
+ * Get medicines expiring within specified days threshold with pagination
  * Default: 30 days
  */
 export const getExpiringMedicinesService = async (
-  daysThreshold: number = 30
+  daysThreshold: number = 30,
+  params?: {
+    page?: number;
+    limit?: number;
+  }
 ) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Start of today
@@ -256,7 +328,11 @@ export const getExpiringMedicinesService = async (
   const thresholdDate = new Date(today);
   thresholdDate.setDate(thresholdDate.getDate() + daysThreshold);
 
-  const medicines = await Medicine.findAll({
+  const page = params?.page || 1;
+  const limit = params?.limit || 20;
+  const offset = (page - 1) * limit;
+
+  const { rows: medicines, count: total } = await Medicine.findAndCountAll({
     where: {
       status: MedicineStatus.ACTIVE,
       expiryDate: {
@@ -265,6 +341,8 @@ export const getExpiringMedicinesService = async (
       },
     },
     order: [["expiryDate", "ASC"]], // Soonest expiry first
+    limit,
+    offset,
   });
 
   // Calculate days until expiry for each medicine
@@ -279,7 +357,13 @@ export const getExpiringMedicinesService = async (
     };
   });
 
-  return medicinesWithDays;
+  return {
+    medicines: medicinesWithDays,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 };
 
 /**
@@ -310,5 +394,194 @@ export const autoMarkExpiredMedicinesService = async () => {
   return {
     markedCount,
     medicines: expiredMedicines,
+  };
+};
+
+/**
+ * Manual export medicine stock with transaction
+ * Used for manual exports (expired, damaged, transfer, etc.)
+ */
+export const exportMedicineService = async (input: ExportMedicineInput) => {
+  return await sequelize.transaction(
+    {
+      isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED,
+    },
+    async (t) => {
+      // Lock medicine row
+      const medicine = await Medicine.findByPk(input.medicineId, {
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+
+      if (!medicine) {
+        throw new Error("MEDICINE_NOT_FOUND");
+      }
+
+      if (medicine.status !== MedicineStatus.ACTIVE) {
+        throw new Error("MEDICINE_NOT_ACTIVE");
+      }
+
+      // Check stock availability
+      if (medicine.quantity < input.quantity) {
+        throw new Error(
+          `INSUFFICIENT_STOCK_Available:${medicine.quantity}_Requested:${input.quantity}`
+        );
+      }
+
+      // Generate export code
+      const today = new Date();
+      const dateStr = today.toISOString().slice(0, 10).replace(/-/g, "");
+      const latestExport = await MedicineExport.findOne({
+        where: {
+          exportCode: {
+            [Op.like]: `EXP-${dateStr}-%`,
+          },
+        },
+        order: [["exportCode", "DESC"]],
+        transaction: t,
+      });
+
+      let sequence = 1;
+      if (latestExport && (latestExport as any).exportCode) {
+        const lastCode = (latestExport as any).exportCode;
+        const lastSequence = parseInt(lastCode.split("-")[2], 10);
+        sequence = lastSequence + 1;
+      }
+
+      const exportCode = `EXP-${dateStr}-${sequence.toString().padStart(5, "0")}`;
+
+      // Update quantity
+      medicine.quantity -= input.quantity;
+      await medicine.save({ transaction: t });
+
+      // Create export record
+      const exportRecord = await MedicineExport.create(
+        {
+          medicineId: input.medicineId,
+          quantity: input.quantity,
+          exportDate: new Date(),
+          userId: input.userId,
+          reason: input.reason,
+          exportCode,
+          note: input.note,
+        } as any,
+        { transaction: t }
+      );
+
+      return { medicine, exportRecord };
+    }
+  );
+};
+
+/**
+ * Get all medicine imports with pagination and filters
+ */
+export const getAllMedicineImportsService = async (params?: {
+  page?: number;
+  limit?: number;
+  medicineId?: number;
+  startDate?: Date;
+  endDate?: Date;
+}) => {
+  const page = params?.page || 1;
+  const limit = params?.limit || 20;
+  const offset = (page - 1) * limit;
+
+  const where: any = {};
+
+  if (params?.medicineId) {
+    where.medicineId = params.medicineId;
+  }
+
+  if (params?.startDate || params?.endDate) {
+    where.importDate = {};
+    if (params.startDate) {
+      where.importDate[Op.gte] = params.startDate;
+    }
+    if (params.endDate) {
+      where.importDate[Op.lte] = params.endDate;
+    }
+  }
+
+  const { rows: imports, count: total } = await MedicineImport.findAndCountAll({
+    where,
+    include: [
+      {
+        model: Medicine,
+        as: "medicine",
+        attributes: ["id", "name", "medicineCode"],
+        required: false,
+      },
+    ],
+    order: [["importDate", "DESC"]],
+    limit,
+    offset,
+  });
+
+  return {
+    imports,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
+};
+
+/**
+ * Get all medicine exports with pagination and filters
+ */
+export const getAllMedicineExportsService = async (params?: {
+  page?: number;
+  limit?: number;
+  medicineId?: number;
+  reason?: string;
+  startDate?: Date;
+  endDate?: Date;
+}) => {
+  const page = params?.page || 1;
+  const limit = params?.limit || 20;
+  const offset = (page - 1) * limit;
+
+  const where: any = {};
+
+  if (params?.medicineId) {
+    where.medicineId = params.medicineId;
+  }
+
+  if (params?.reason) {
+    where.reason = params.reason;
+  }
+
+  if (params?.startDate || params?.endDate) {
+    where.exportDate = {};
+    if (params.startDate) {
+      where.exportDate[Op.gte] = params.startDate;
+    }
+    if (params.endDate) {
+      where.exportDate[Op.lte] = params.endDate;
+    }
+  }
+
+  const { rows: exports, count: total } = await MedicineExport.findAndCountAll({
+    where,
+    include: [
+      {
+        model: Medicine,
+        as: "medicine",
+        attributes: ["id", "name", "medicineCode"],
+        required: false,
+      },
+    ],
+    order: [["exportDate", "DESC"]],
+    limit,
+    offset,
+  });
+
+  return {
+    exports,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
   };
 };

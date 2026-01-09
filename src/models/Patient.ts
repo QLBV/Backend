@@ -13,6 +13,11 @@ interface PatientAttributes {
   cccd?: string;
   userId?: number;
   isActive: boolean;
+  bloodType?: string | null;
+  height?: number | null;
+  weight?: number | null;
+  chronicDiseases?: string[] | null;
+  allergies?: string[] | null;
 }
 
 interface PatientCreationAttributes
@@ -31,6 +36,9 @@ class Patient
   public cccd?: string | undefined;
   public userId?: number;
   public isActive!: boolean;
+  
+  // Association properties
+  declare profiles?: PatientProfile[];
 }
 
 Patient.init(
@@ -81,6 +89,34 @@ Patient.init(
       type: DataTypes.BOOLEAN,
       defaultValue: true,
       field: "isActive",
+    },
+    //Health info fields - uncomment after running migration 20250105000001-add-health-info-to-patients.js
+    bloodType: {
+      type: DataTypes.ENUM('A', 'B', 'AB', 'O', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'),
+      allowNull: true,
+      field: "bloodType",
+    },
+    height: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      field: "height",
+    },
+    weight: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      field: "weight",
+    },
+    chronicDiseases: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: [],
+      field: "chronicDiseases",
+    },
+    allergies: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: [],
+      field: "allergies",
     },
   },
   {

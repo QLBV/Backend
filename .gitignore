@@ -27,10 +27,12 @@ Thumbs.db
 .claude/
 # Testing
 coverage/
+test-output/
 
 # Misc
 *.tmp
 *.temp
 
-#docs
-.docs/future.md
+# Documentation
+docs/
+.docs/

@@ -6,6 +6,7 @@ import {
   getPrescriptionByIdService,
   getPrescriptionsByPatientService,
   getPrescriptionByVisitService,
+  getPrescriptionsService,
 } from "../services/prescription.service";
 import { generatePrescriptionPDF } from "../utils/pdfGenerator";
 import Prescription, { PrescriptionStatus } from "../models/Prescription";
@@ -17,6 +18,7 @@ import DiseaseCategory from "../models/DiseaseCategory";
 import User from "../models/User";
 import PatientProfile from "../models/PatientProfile";
 import Specialty from "../models/Specialty";
+import { RoleCode } from "../constant/role";
 
 /**
  * Create a new prescription
@@ -170,6 +172,54 @@ export const cancelPrescription = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: errorMessage,
+    });
+  }
+};
+
+/**
+ * Get all prescriptions with pagination and filtering
+ * GET /api/prescriptions
+ * Role: DOCTOR (own only), ADMIN (all)
+ */
+export const getPrescriptions = async (req: Request, res: Response) => {
+  try {
+    const { page, limit, status, patientId } = req.query;
+    const userRole = req.user!.roleId;
+    const userId = req.user!.userId;
+
+    // Build query parameters
+    const params: any = {
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      status: status as string,
+      patientId: patientId ? parseInt(patientId as string) : undefined,
+    };
+
+    // If user is a doctor, only show their own prescriptions
+    if (userRole === RoleCode.DOCTOR) {
+      // Find the doctor record to get doctorId
+      const doctor = await Doctor.findOne({ where: { userId } });
+      if (doctor) {
+        params.doctorId = doctor.id;
+      }
+    }
+
+    const result = await getPrescriptionsService(params);
+
+    return res.json({
+      success: true,
+      data: result.prescriptions,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get prescriptions",
     });
   }
 };
@@ -347,6 +397,7 @@ export const exportPrescriptionPDF = async (req: Request, res: Response) => {
         },
         {
           model: Doctor,
+          as: "Doctor",
           include: [
             {
               model: User,
@@ -385,7 +436,7 @@ export const exportPrescriptionPDF = async (req: Request, res: Response) => {
     const pdfData = {
       prescriptionCode: prescription.prescriptionCode,
       patientName: patient?.user?.fullName || "N/A",
-      patientPhone: patient?.user?.phoneNumber || "N/A",
+      patientPhone: undefined, // Phone number not available in User model
       patientAge: patient?.profile?.dateOfBirth
         ? new Date().getFullYear() -
           new Date(patient.profile.dateOfBirth).getFullYear()

@@ -24,6 +24,7 @@ import RolePermission from "./RolePermission";
 import PatientProfile from "./PatientProfile";
 import Specialty from "./Specialty";
 import DoctorShift from "./DoctorShift";
+import ShiftTemplate from "./ShiftTemplate";
 import AuditLog from "./AuditLog";
 import Diagnosis from "./Diagnosis";
 import Refund from "./Refund";
@@ -165,6 +166,14 @@ export const setupAssociations = () => {
     foreignKey: "replacedBy",
     as: "replacementDoctor",
   });
+
+  // ShiftTemplate associations
+  ShiftTemplate.belongsTo(Doctor, { foreignKey: "doctorId", as: "doctor" });
+  ShiftTemplate.belongsTo(Shift, { foreignKey: "shiftId", as: "shift" });
+
+  // Reverse associations for ShiftTemplate
+  Doctor.hasMany(ShiftTemplate, { foreignKey: "doctorId", as: "shiftTemplates" });
+  Shift.hasMany(ShiftTemplate, { foreignKey: "shiftId", as: "shiftTemplates" });
 
   // Appointment associations (additional)
   Visit.belongsTo(Appointment, { foreignKey: "appointmentId", as: "appointment" });

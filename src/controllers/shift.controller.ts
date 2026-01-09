@@ -4,10 +4,24 @@ import DoctorShift from "../models/DoctorShift";
 import Doctor from "../models/Doctor";
 import User from "../models/User";
 import Specialty from "../models/Specialty";
+import { CacheService, CacheKeys } from "../services/cache.service";
 
 export const getAllShifts = async (req: Request, res: Response) => {
   try {
-    const shifts = await Shift.findAll();
+    // Try to get from cache first
+    const cachedShifts = await CacheService.get(CacheKeys.SHIFTS);
+    if (cachedShifts) {
+      return res.json({ success: true, data: cachedShifts });
+    }
+
+    // If not cached, fetch from database
+    const shifts = await Shift.findAll({
+      order: [["id", "ASC"]],
+    });
+
+    // Cache for 1 hour (shifts rarely change)
+    await CacheService.set(CacheKeys.SHIFTS, shifts, 3600);
+
     return res.json({ success: true, data: shifts });
   } catch (error) {
     return res
@@ -36,6 +50,10 @@ export const createShift = async (req: Request, res: Response) => {
   try {
     const { name, startTime, endTime } = req.body;
     const shift = await Shift.create({ name, startTime, endTime });
+    
+    // Invalidate shifts cache
+    await CacheService.invalidate(CacheKeys.SHIFTS);
+    
     return res.status(201).json({ success: true, data: shift });
   } catch (error) {
     return res
@@ -54,6 +72,10 @@ export const updateShift = async (req: Request, res: Response) => {
         .status(404)
         .json({ success: false, message: "Shift not found" });
     await shift.update({ name, startTime, endTime });
+    
+    // Invalidate shifts cache
+    await CacheService.invalidate(CacheKeys.SHIFTS);
+    
     return res.json({ success: true, data: shift });
   } catch (error) {
     return res
@@ -71,6 +93,10 @@ export const deleteShift = async (req: Request, res: Response) => {
         .status(404)
         .json({ success: false, message: "Shift not found" });
     await shift.destroy();
+    
+    // Invalidate shifts cache
+    await CacheService.invalidate(CacheKeys.SHIFTS);
+    
     return res.json({ success: true, message: "Shift deleted" });
   } catch (error) {
     return res
@@ -127,7 +153,7 @@ export const getShiftSchedule = async (req: Request, res: Response) => {
             {
               model: User,
               as: "user",
-              attributes: ["id", "fullName", "email", "phoneNumber"],
+              attributes: ["id", "fullName", "email"],
             },
             {
               model: Specialty,

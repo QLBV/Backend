@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import Doctor from "../models/Doctor";
 import User from "../models/User";
 import Specialty from "../models/Specialty";
+import { CacheService, CacheKeys } from "../services/cache.service";
 import { createDoctor } from "../services/doctor.service";
 
 export const getAllDoctors = async (req: Request, res: Response) => {
@@ -113,7 +114,20 @@ export const deleteDoctor = async (req: Request, res: Response) => {
 
 export const getAllSpecialties = async (req: Request, res: Response) => {
   try {
-    const specialties = await Specialty.findAll();
+    // Try to get from cache first
+    const cachedSpecialties = await CacheService.get(CacheKeys.SPECIALTIES);
+    if (cachedSpecialties) {
+      return res.json({ success: true, data: cachedSpecialties });
+    }
+
+    // If not cached, fetch from database
+    const specialties = await Specialty.findAll({
+      order: [["name", "ASC"]],
+    });
+
+    // Cache for 1 hour (specialties rarely change)
+    await CacheService.set(CacheKeys.SPECIALTIES, specialties, 3600);
+
     return res.json({ success: true, data: specialties });
   } catch (error) {
     return res
@@ -147,7 +161,7 @@ export const getDoctorsBySpecialty = async (req: Request, res: Response) => {
         {
           model: User,
           as: "user",
-          attributes: ["id", "fullName", "email", "phoneNumber", "avatar"],
+          attributes: ["id", "fullName", "email", "avatar"],
         },
         {
           model: Specialty,

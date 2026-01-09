@@ -13,8 +13,14 @@ export const validateCompleteVisit = [
     .withMessage("Diagnosis must be between 10 and 1000 characters"),
 
   body("diseaseCategoryId")
+    .optional()
     .isInt({ min: 1 })
     .withMessage("Disease category ID must be a positive number"),
+
+  body("examinationFee")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Examination fee must be a positive number"),
 
   body("treatment")
     .optional()
@@ -22,11 +28,11 @@ export const validateCompleteVisit = [
     .isLength({ max: 2000 })
     .withMessage("Treatment must not exceed 2000 characters"),
 
-  body("notes")
+  body("note")
     .optional()
     .isString()
-    .isLength({ max: 1000 })
-    .withMessage("Notes must not exceed 1000 characters"),
+    .isLength({ max: 2000 })
+    .withMessage("Note must not exceed 2000 characters"),
 
   validate,
 ];

@@ -135,6 +135,19 @@ export const getAppointments = async (req: Request, res: Response) => {
       patientId: patientIdFilter,
     });
 
+    // Debug: Log first appointment structure
+    if (data.length > 0) {
+      const first = data[0];
+      console.log("🔍 Controller - First appointment:", {
+        id: first.id,
+        doctorId: first.doctorId,
+        hasDoctor: !!first.doctor,
+        doctorUserId: (first as any).doctor?.userId,
+        hasDoctorUser: !!(first as any).doctor?.user,
+        doctorUserName: (first as any).doctor?.user?.fullName,
+      });
+    }
+
     return res.json({ success: true, data });
   } catch (e: any) {
     return res.status(400).json({ success: false, message: e.message });
@@ -174,15 +187,29 @@ export const getAppointmentById = async (req: Request, res: Response) => {
     }
 
     // Check permission: patient can only view their own, doctor can view theirs, admin/receptionist can view all
-    const role = req.user!.roleId;
-    if (role === RoleCode.PATIENT) {
+    // Normalize roleId to handle string/number type mismatch
+    const roleId = req.user!.roleId;
+    const normalizedRole = typeof roleId === 'string' ? parseInt(roleId, 10) : roleId;
+    
+    // Admin and Receptionist can view all appointments
+    const isAdmin = normalizedRole === RoleCode.ADMIN;
+    const isReceptionist = normalizedRole === RoleCode.RECEPTIONIST;
+    
+    if (isAdmin || isReceptionist) {
+      return res.json({ success: true, data: appointment });
+    }
+    
+    // Patient can only view their own appointments
+    if (normalizedRole === RoleCode.PATIENT) {
       if (appointment.patientId !== req.user!.patientId) {
         return res.status(403).json({
           success: false,
           message: "FORBIDDEN",
         });
       }
-    } else if (role === RoleCode.DOCTOR) {
+    } 
+    // Doctor can only view their assigned appointments
+    else if (normalizedRole === RoleCode.DOCTOR) {
       if (appointment.doctorId !== req.user!.doctorId) {
         return res.status(403).json({
           success: false,
@@ -288,8 +315,8 @@ export const getMyAppointments = async (req: Request, res: Response) => {
 export const getUpcomingAppointments = async (req: Request, res: Response) => {
   try {
     const role = req.user!.roleId;
-    const Appointment = (await import("../models/Appointment")).default;
     const { Op } = await import("sequelize");
+    const limit = req.query.limit ? Number(req.query.limit) : 10;
 
     let filter: any = {
       status: "WAITING",
@@ -316,12 +343,20 @@ export const getUpcomingAppointments = async (req: Request, res: Response) => {
       filter.doctorId = req.user!.doctorId;
     }
 
-    const appointments = await Appointment.findAll({
-      where: filter,
-      order: [["date", "ASC"], ["shiftId", "ASC"]],
-    });
+    // Use getAppointmentsService to ensure all associations are included
+    const appointments = await getAppointmentsService(filter);
+    
+    // Apply limit and sort
+    const limitedAppointments = appointments
+      .sort((a: any, b: any) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        return (a.shiftId || 0) - (b.shiftId || 0);
+      })
+      .slice(0, limit);
 
-    return res.json({ success: true, data: appointments });
+    return res.json({ success: true, data: limitedAppointments });
   } catch (e: any) {
     return res.status(500).json({ success: false, message: e.message });
   }

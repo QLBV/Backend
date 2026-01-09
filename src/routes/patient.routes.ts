@@ -61,7 +61,8 @@ router.get(
 router.get(
   "/:id",
   validateNumericId("id"),
-  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST, RoleCode.PATIENT),
+  requireSelfPatient,
   validatePatient,
   getPatientById
 );

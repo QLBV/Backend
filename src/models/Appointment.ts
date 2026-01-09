@@ -6,6 +6,7 @@ import Shift from "./Shift";
 
 export default class Appointment extends Model {
   declare id: number;
+  declare appointmentCode: string;
   declare patientId: number;
   declare doctorId: number;
   declare shiftId: number;
@@ -20,6 +21,12 @@ export default class Appointment extends Model {
 Appointment.init(
   {
     id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+    appointmentCode: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      unique: true,
+      field: "appointmentCode",
+    },
     patientId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     doctorId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     shiftId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },

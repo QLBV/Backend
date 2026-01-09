@@ -11,6 +11,7 @@ import PatientProfile from "./PatientProfile";
 import Doctor from "./Doctor";
 import Specialty from "./Specialty";
 import Shift from "./Shift";
+import ShiftTemplate from "./ShiftTemplate";
 import DoctorShift from "./DoctorShift";
 import Appointment from "./Appointment";
 
@@ -53,6 +54,7 @@ export {
   Doctor,
   Specialty,
   Shift,
+  ShiftTemplate,
   DoctorShift,
   Appointment,
   Medicine,

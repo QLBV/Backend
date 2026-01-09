@@ -1,8 +1,10 @@
-﻿import { Op } from "sequelize";
+import { Op } from "sequelize";
 import Prescription from "../models/Prescription";
 import Medicine from "../models/Medicine";
 import Invoice from "../models/Invoice";
 import Payroll from "../models/Payroll";
+import Appointment from "../models/Appointment";
+import Visit from "../models/Visit";
 
 export const generatePrescriptionCode = async (): Promise<string> => {
   const today = new Date();
@@ -121,4 +123,66 @@ export const generatePayrollCode = async (
   // Format: PAY-YYYYMM-00001
   const sequenceStr = sequence.toString().padStart(5, "0");
   return `PAY-${yearMonth}-${sequenceStr}`;
+};
+
+/**
+ * Generate appointment code with format: APT-YYYYMMDD-00001
+ * Sequential counter resets daily
+ */
+export const generateAppointmentCode = async (): Promise<string> => {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
+
+  // Find the latest appointment code for today
+  const latestAppointment = await Appointment.findOne({
+    where: {
+      appointmentCode: {
+        [Op.like]: `APT-${dateStr}-%`,
+      },
+    },
+    order: [["appointmentCode", "DESC"]],
+  });
+
+  let sequence = 1;
+  if (latestAppointment) {
+    // Extract the sequence number from the last code
+    const lastCode = latestAppointment.appointmentCode;
+    const lastSequence = parseInt(lastCode.split("-")[2], 10);
+    sequence = lastSequence + 1;
+  }
+
+  // Format: APT-YYYYMMDD-00001
+  const sequenceStr = sequence.toString().padStart(5, "0");
+  return `APT-${dateStr}-${sequenceStr}`;
+};
+
+/**
+ * Generate visit code with format: VIS-YYYYMMDD-00001
+ * Sequential counter resets daily
+ */
+export const generateVisitCode = async (): Promise<string> => {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
+
+  // Find the latest visit code for today
+  const latestVisit = await Visit.findOne({
+    where: {
+      visitCode: {
+        [Op.like]: `VIS-${dateStr}-%`,
+      },
+    },
+    order: [["visitCode", "DESC"]],
+  });
+
+  let sequence = 1;
+  if (latestVisit) {
+    // Extract the sequence number from the last code
+    const lastCode = (latestVisit as any).visitCode;
+    const lastSequence = parseInt(lastCode.split("-")[2], 10);
+    sequence = lastSequence + 1;
+  }
+
+  // Format: VIS-YYYYMMDD-00001
+  const sequenceStr = sequence.toString().padStart(5, "0");
+  return `VIS-${dateStr}-${sequenceStr}`;
 };

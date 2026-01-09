@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import DoctorShift from "../models/DoctorShift";
 import Doctor from "../models/Doctor";
 import Shift from "../models/Shift";
+import User from "../models/User";
+import Specialty from "../models/Specialty";
 import { cancelDoctorShiftAndReschedule } from "../services/appointmentReschedule.service";
 
 export const assignDoctorToShift = async (req: Request, res: Response) => {
@@ -106,19 +108,107 @@ export const unassignDoctorFromShift = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * Get all doctor shifts (Admin only)
+ * GET /api/doctor-shifts
+ */
+export const getAllDoctorShifts = async (req: Request, res: Response) => {
+  try {
+    const { workDate, doctorId, shiftId } = req.query;
+    
+    const where: any = {};
+    if (workDate) where.workDate = String(workDate);
+    if (doctorId) where.doctorId = Number(doctorId);
+    if (shiftId) where.shiftId = Number(shiftId);
+    
+    const doctorShifts = await DoctorShift.findAll({
+      where,
+      include: [
+        {
+          model: Doctor,
+          as: "doctor",
+          include: [
+            {
+              model: User,
+              as: "user",
+              attributes: ["id", "fullName", "email", "avatar"],
+            },
+            {
+              model: Specialty,
+              as: "specialty",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+        {
+          model: Shift,
+          as: "shift",
+          attributes: ["id", "name", "startTime", "endTime"],
+        },
+      ],
+      order: [["workDate", "DESC"], ["shiftId", "ASC"]],
+    });
+    
+    return res.json({ success: true, data: doctorShifts });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: "Get all doctor shifts failed",
+      error: error?.message || error,
+    });
+  }
+};
+
 export const getShiftsByDoctor = async (req: Request, res: Response) => {
   try {
     const { doctorId } = req.params;
     const shifts = await DoctorShift.findAll({
-      where: { doctorId },
-      include: [{ model: Shift, as: "shift" }],
-      order: [["workDate", "DESC"]],
+      where: { doctorId: Number(doctorId) },
+      include: [
+        { 
+          model: Shift, 
+          as: "shift",
+          required: false,
+          attributes: ["id", "name", "startTime", "endTime"],
+        },
+        {
+          model: Doctor,
+          as: "doctor",
+          required: false,
+          include: [
+            {
+              model: User,
+              as: "user",
+              required: false,
+              attributes: ["id", "fullName", "email", "avatar"],
+            },
+          ],
+        },
+      ],
+      order: [["workDate", "DESC"], ["shiftId", "ASC"]],
     });
-    return res.json({ success: true, data: shifts });
-  } catch (error) {
+    
+    // Serialize shifts to ensure nested associations are properly included
+    const serializedShifts = shifts.map(shift => shift.toJSON ? shift.toJSON() : shift);
+    
+    // Debug: Log first shift to check data structure
+    if (serializedShifts.length > 0) {
+      console.log("🔍 First doctor shift data:", {
+        id: serializedShifts[0].id,
+        doctorId: serializedShifts[0].doctorId,
+        shiftId: serializedShifts[0].shiftId,
+        workDate: serializedShifts[0].workDate,
+        hasShift: !!serializedShifts[0].shift,
+        shiftName: serializedShifts[0].shift?.name,
+      });
+    }
+    
+    return res.json({ success: true, data: serializedShifts });
+  } catch (error: any) {
+    console.error("Error in getShiftsByDoctor:", error);
     return res
       .status(500)
-      .json({ success: false, message: "Get shifts by doctor failed", error });
+      .json({ success: false, message: "Get shifts by doctor failed", error: error.message });
   }
 };
 
@@ -211,6 +301,121 @@ export const getAvailableShifts = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: error?.message || "Get available shifts failed",
+    });
+  }
+};
+
+/**
+ * Get available doctors by date and specialty
+ * NEW ENDPOINT for booking flow: Choose Date -> Choose Doctor
+ */
+export const getAvailableDoctorsByDate = async (req: Request, res: Response) => {
+  try {
+    const { workDate, specialtyId } = req.query;
+
+    if (!workDate) {
+      return res.status(400).json({
+        success: false,
+        message: "workDate is required (YYYY-MM-DD)",
+      });
+    }
+
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(workDate))) {
+      return res.status(400).json({
+        success: false,
+        message: "workDate must be in YYYY-MM-DD format",
+      });
+    }
+
+    // Build where condition
+    const whereCondition: any = {
+      workDate: String(workDate),
+      status: "ACTIVE" // Only get active shifts
+    };
+
+    // Build doctor where condition
+    const doctorWhere: any = {};
+    if (specialtyId) {
+      doctorWhere.specialtyId = Number(specialtyId);
+    }
+
+    // Get doctor shifts for the specified date
+    const doctorShifts = await DoctorShift.findAll({
+      where: whereCondition,
+      include: [
+        {
+          model: Doctor,
+          as: "doctor",
+          where: Object.keys(doctorWhere).length > 0 ? doctorWhere : undefined,
+          include: [
+            {
+              model: User,
+              as: "user",
+              attributes: ["id", "fullName", "email", "avatar"],
+            },
+            {
+              model: Specialty,
+              as: "specialty",
+              attributes: ["id", "name", "description"],
+            },
+          ],
+        },
+        {
+          model: Shift,
+          as: "shift",
+          attributes: ["id", "name", "startTime", "endTime"],
+        },
+      ],
+    });
+
+    // Group by doctor to get all shifts for each doctor
+    const doctorMap = new Map<number, any>();
+
+    doctorShifts.forEach((ds: any) => {
+      const doctorId = ds.doctor.id;
+
+      if (!doctorMap.has(doctorId)) {
+        doctorMap.set(doctorId, {
+          doctor: {
+            id: ds.doctor.id,
+            userId: ds.doctor.userId,
+            specialtyId: ds.doctor.specialtyId,
+            licenseNumber: ds.doctor.licenseNumber,
+            yearsOfExperience: ds.doctor.yearsOfExperience,
+            biography: ds.doctor.biography,
+            user: ds.doctor.user,
+            specialty: ds.doctor.specialty,
+          },
+          shifts: [],
+          shiftCount: 0,
+        });
+      }
+
+      const doctorData = doctorMap.get(doctorId);
+      doctorData.shifts.push({
+        doctorShiftId: ds.id,
+        shift: ds.shift,
+        workDate: ds.workDate,
+        status: ds.status,
+      });
+      doctorData.shiftCount += 1;
+    });
+
+    // Convert map to array
+    const availableDoctors = Array.from(doctorMap.values());
+
+    return res.json({
+      success: true,
+      data: availableDoctors,
+      count: availableDoctors.length,
+      date: workDate,
+    });
+  } catch (error: any) {
+    console.error("Get available doctors by date error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Get available doctors by date failed",
     });
   }
 };

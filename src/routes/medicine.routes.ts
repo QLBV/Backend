@@ -12,6 +12,9 @@ import {
   removeMedicine,
   getExpiringMedicines,
   autoMarkExpired,
+  exportMedicine,
+  getAllMedicineImports,
+  getAllMedicineExports,
 } from "../controllers/medicine.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
@@ -21,6 +24,7 @@ import {
   validateUpdateMedicine,
   validateImportMedicine,
 } from "../middlewares/validateMedicine.middlewares";
+import { validateExportMedicine } from "../middlewares/validators/medicine.validators";
 import { validateNumericId, validatePagination } from "../middlewares/validators/common.validators";
 
 const router = Router();
@@ -48,6 +52,13 @@ router.post(
   requireRole(RoleCode.ADMIN),
   validateImportMedicine,
   importMedicine
+);
+router.post(
+  "/:id/export",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN),
+  validateExportMedicine,
+  exportMedicine
 );
 
 // Warning & Alert routes (must be before /:id routes to avoid route conflict)

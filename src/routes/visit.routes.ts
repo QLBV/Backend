@@ -18,7 +18,7 @@ router.use(verifyToken);
 router.post(
   "/checkin/:appointmentId",
   validateNumericId("appointmentId"),
-  requireRole(RoleCode.RECEPTIONIST),
+  requireRole(RoleCode.RECEPTIONIST, RoleCode.ADMIN),
   checkInAppointment
 );
 

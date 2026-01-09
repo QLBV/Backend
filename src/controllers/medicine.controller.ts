@@ -12,6 +12,9 @@ import {
   removeMedicineService,
   getExpiringMedicinesService,
   autoMarkExpiredMedicinesService,
+  exportMedicineService,
+  getAllMedicineImportsService,
+  getAllMedicineExportsService,
 } from "../services/medicine.service";
 
 /**
@@ -116,18 +119,26 @@ export const importMedicine = async (req: Request, res: Response) => {
  */
 export const getAllMedicines = async (req: Request, res: Response) => {
   try {
-    const { status, group, lowStock, search } = req.query;
+    const { status, group, lowStock, search, page, limit } = req.query;
 
-    const medicines = await getAllMedicinesService({
+    const result = await getAllMedicinesService({
       status: status as any,
       group: group as string,
       lowStock: lowStock === "true",
       search: search as string,
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
     });
 
     return res.json({
       success: true,
-      data: medicines,
+      data: result.medicines,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -323,6 +334,8 @@ export const removeMedicine = async (req: Request, res: Response) => {
 export const getExpiringMedicines = async (req: Request, res: Response) => {
   try {
     const days = req.query.days ? Number(req.query.days) : 30;
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
 
     // Validate days parameter
     if (isNaN(days) || days < 1 || days > 365) {
@@ -332,12 +345,18 @@ export const getExpiringMedicines = async (req: Request, res: Response) => {
       });
     }
 
-    const medicines = await getExpiringMedicinesService(days);
+    const result = await getExpiringMedicinesService(days, { page, limit });
 
     return res.json({
       success: true,
-      message: `Found ${medicines.length} medicine(s) expiring within ${days} day(s)`,
-      data: medicines,
+      message: `Found ${result.total} medicine(s) expiring within ${days} day(s)`,
+      data: result.medicines,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -368,6 +387,139 @@ export const autoMarkExpired = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: error?.message || "Failed to auto-mark expired medicines",
+    });
+  }
+};
+
+/**
+ * Manual export medicine stock
+ * POST /api/medicines/:id/export
+ * Role: ADMIN
+ */
+export const exportMedicine = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { quantity, reason, note } = req.body;
+    const userId = req.user!.userId;
+
+    if (!quantity || !reason) {
+      return res.status(400).json({
+        success: false,
+        message: "QUANTITY_AND_REASON_REQUIRED",
+      });
+    }
+
+    const result = await exportMedicineService({
+      medicineId: Number(id),
+      quantity,
+      reason,
+      userId,
+      note,
+    });
+
+    return res.json({
+      success: true,
+      message: "Medicine exported successfully",
+      data: result,
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message || "Failed to export medicine";
+
+    if (errorMessage === "MEDICINE_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Medicine not found",
+      });
+    }
+
+    if (errorMessage === "MEDICINE_NOT_ACTIVE") {
+      return res.status(400).json({
+        success: false,
+        message: "Medicine is not active",
+      });
+    }
+
+    if (errorMessage.includes("INSUFFICIENT_STOCK")) {
+      return res.status(400).json({
+        success: false,
+        message: errorMessage,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: errorMessage,
+    });
+  }
+};
+
+/**
+ * Get all medicine imports
+ * GET /api/medicine-imports
+ * Role: ADMIN
+ */
+export const getAllMedicineImports = async (req: Request, res: Response) => {
+  try {
+    const { page, limit, medicineId, startDate, endDate } = req.query;
+
+    const result = await getAllMedicineImportsService({
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      medicineId: medicineId ? parseInt(medicineId as string) : undefined,
+      startDate: startDate ? new Date(startDate as string) : undefined,
+      endDate: endDate ? new Date(endDate as string) : undefined,
+    });
+
+    return res.json({
+      success: true,
+      data: result.imports,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get medicine imports",
+    });
+  }
+};
+
+/**
+ * Get all medicine exports
+ * GET /api/medicine-exports
+ * Role: ADMIN
+ */
+export const getAllMedicineExports = async (req: Request, res: Response) => {
+  try {
+    const { page, limit, medicineId, reason, startDate, endDate } = req.query;
+
+    const result = await getAllMedicineExportsService({
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      medicineId: medicineId ? parseInt(medicineId as string) : undefined,
+      reason: reason as string,
+      startDate: startDate ? new Date(startDate as string) : undefined,
+      endDate: endDate ? new Date(endDate as string) : undefined,
+    });
+
+    return res.json({
+      success: true,
+      data: result.exports,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get medicine exports",
     });
   }
 };

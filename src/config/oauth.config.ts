@@ -34,7 +34,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
             const fullName = profile.displayName;
 
             if (!email) {
-              return done(new Error("Email not provided by Google"), undefined);
+              return done(
+                new Error("EMAIL_NOT_PROVIDED: Google không cung cấp địa chỉ email"),
+                undefined
+              );
             }
 
             // Generate a random secure password for OAuth users

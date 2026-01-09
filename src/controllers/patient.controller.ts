@@ -25,20 +25,59 @@ const formatProfile = (p: any) => {
   };
 };
 
-const formatPatient = (patient: any) => ({
-  id: patient.id,
-  patientCode: patient.patientCode,
-  fullName: patient.fullName,
-  dateOfBirth: patient.dateOfBirth,
-  gender: patient.gender,
-  cccd: patient.cccd,
-  avatar: patient.avatar,
-  userId: patient.userId,
-  isActive: patient.isActive,
-  createdAt: patient.createdAt,
-  updatedAt: patient.updatedAt,
-  profiles: patient.profiles ? patient.profiles.map(formatProfile) : [],
-});
+const formatPatient = (patient: any) => {
+  // Extract phone, email, address from profiles for easier access
+  const profiles = patient.profiles ? patient.profiles.map(formatProfile) : [];
+  const phoneProfile = profiles.find((p: any) => p.type === "phone");
+  const emailProfile = profiles.find((p: any) => p.type === "email");
+  const addressProfile = profiles.find((p: any) => p.type === "address");
+  
+  // Format address string from address profile
+  let addressString = null;
+  if (addressProfile) {
+    const parts = [addressProfile.value];
+    if (addressProfile.ward) parts.push(addressProfile.ward);
+    if (addressProfile.city) parts.push(addressProfile.city);
+    addressString = parts.join(", ");
+  }
+  
+  return {
+    id: patient.id,
+    patientCode: patient.patientCode,
+    fullName: patient.fullName,
+    dateOfBirth: patient.dateOfBirth,
+    gender: patient.gender,
+    cccd: patient.cccd,
+    avatar: patient.avatar,
+    userId: patient.userId,
+    isActive: patient.isActive,
+    createdAt: patient.createdAt,
+    updatedAt: patient.updatedAt,
+    // Extract common fields from profiles for easier access
+    phone: phoneProfile?.value || null,
+    email: emailProfile?.value || null,
+    address: addressString,
+    profiles,
+    // Health information
+    bloodType: patient.bloodType || null,
+    height: patient.height ? parseFloat(patient.height.toString()) : null,
+    weight: patient.weight ? parseFloat(patient.weight.toString()) : null,
+    chronicDiseases: patient.chronicDiseases 
+      ? (typeof patient.chronicDiseases === 'string' 
+          ? JSON.parse(patient.chronicDiseases) 
+          : Array.isArray(patient.chronicDiseases) 
+            ? patient.chronicDiseases 
+            : [])
+      : [],
+    allergies: patient.allergies 
+      ? (typeof patient.allergies === 'string' 
+          ? JSON.parse(patient.allergies) 
+          : Array.isArray(patient.allergies) 
+            ? patient.allergies 
+            : [])
+      : [],
+  };
+};
 
 /* ================= SETUP Patient Profile (NEW) ================= */
 
@@ -46,6 +85,17 @@ export const setupPatientProfile = async (req: any, res: Response) => {
   try {
     const userId = req.user?.userId;
     const { fullName, gender, dateOfBirth, cccd, profiles } = req.body;
+
+    // Log để debug
+    console.log("📝 Setup patient profile request:", {
+      userId,
+      fullName,
+      gender,
+      dateOfBirth,
+      cccd,
+      profilesCount: profiles?.length || 0,
+      profiles,
+    });
 
     // Validate required fields
     if (!fullName || !gender || !dateOfBirth || !cccd) {
@@ -133,6 +183,20 @@ export const setupPatientProfile = async (req: any, res: Response) => {
       dateOfBirth,
       cccd,
       profiles,
+    });
+
+    if (!patient) {
+      console.error("❌ setupPatientProfileService returned null");
+      return res.status(500).json({
+        success: false,
+        message: "Failed to setup patient profile",
+      });
+    }
+
+    console.log("✅ Patient profile setup successfully:", {
+      patientId: patient.id,
+      patientCode: patient.patientCode,
+      profilesCount: (patient as any).profiles?.length || 0,
     });
 
     res.status(201).json({
@@ -238,7 +302,28 @@ export const updatePatient = async (req: Request, res: Response) => {
       });
     }
 
+    // Log incoming data for debugging
+    console.log("📝 Update patient request:", {
+      id,
+      body: req.body,
+      chronicDiseases: req.body.chronicDiseases,
+      allergies: req.body.allergies,
+    });
+
     const patient = await updatePatientService(id, req.body);
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        message: "Patient not found",
+      });
+    }
+
+    console.log("✅ Patient updated successfully:", {
+      id: patient.id,
+      chronicDiseases: (patient as any).chronicDiseases,
+      allergies: (patient as any).allergies,
+    });
 
     return res.json({
       success: true,
@@ -253,10 +338,11 @@ export const updatePatient = async (req: Request, res: Response) => {
       });
     }
 
-    console.error("Update patient error:", error);
+    console.error("❌ Update patient error:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to update patient",
+      message: error.message || "Failed to update patient",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 };
@@ -379,7 +465,8 @@ export const getPatientMedicalHistory = async (req: Request, res: Response) => {
       include: [
         {
           model: Doctor,
-          include: [{ model: User, attributes: ["fullName"] }],
+          as: "Doctor",
+          include: [{ model: User, as: "user", attributes: ["fullName"] }],
         },
       ],
       order: [["createdAt", "DESC"]],
@@ -437,7 +524,8 @@ export const getPatientPrescriptions = async (req: Request, res: Response) => {
         },
         {
           model: Doctor,
-          include: [{ model: User, attributes: ["fullName", "email"] }],
+          as: "Doctor",
+          include: [{ model: User, as: "user", attributes: ["fullName", "email"] }],
         },
         { model: Visit },
       ],

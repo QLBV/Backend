@@ -1,4 +1,4 @@
-﻿import { Request, Response } from "express";
+import { Request, Response } from "express";
 import User from "../models/User";
 import Role from "../models/Role";
 import Patient from "../models/Patient";
@@ -33,6 +33,8 @@ export const getMyProfile = async (req: Request, res: Response) => {
 
     // Get additional info based on role
     let additionalInfo: any = null;
+    let patientId: number | null = null;
+    let doctorId: number | null = null;
 
     if ((req as any).user.roleId === 3) {
       // PATIENT
@@ -40,6 +42,9 @@ export const getMyProfile = async (req: Request, res: Response) => {
         where: { userId },
         attributes: { exclude: ["createdAt", "updatedAt"] },
       });
+      if (additionalInfo) {
+        patientId = additionalInfo.id;
+      }
     } else if ((req as any).user.roleId === 4) {
       // DOCTOR
       additionalInfo = await Doctor.findOne({
@@ -53,12 +58,17 @@ export const getMyProfile = async (req: Request, res: Response) => {
           },
         ],
       });
+      if (additionalInfo) {
+        doctorId = additionalInfo.id;
+      }
     }
 
     return res.json({
       success: true,
       data: {
         ...user.toJSON(),
+        patientId,
+        doctorId,
         profileDetails: additionalInfo,
       },
     });

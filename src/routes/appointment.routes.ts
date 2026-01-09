@@ -17,6 +17,8 @@ import { bookingRateLimit } from "../middlewares/rateLimit.middlewares";
 import {
   createAppointmentValidator,
   getAppointmentsValidator,
+  validateUpdateAppointment,
+  validateCancelAppointment,
 } from "../middlewares/validators/appointment.validators";
 import { validateNumericId } from "../middlewares/validators/common.validators";
 
@@ -47,6 +49,7 @@ router.put(
   "/:id/cancel",
   validateNumericId("id"),
   requireRole(RoleCode.PATIENT, RoleCode.RECEPTIONIST),
+  validateCancelAppointment,
   cancelAppointment
 );
 
@@ -85,6 +88,7 @@ router.put(
   "/:id",
   validateNumericId("id"),
   requireRole(RoleCode.PATIENT, RoleCode.RECEPTIONIST, RoleCode.ADMIN),
+  validateUpdateAppointment,
   updateAppointment
 );
 

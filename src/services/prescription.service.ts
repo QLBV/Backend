@@ -1,10 +1,15 @@
-import { Transaction } from "sequelize";
+import { Transaction, Op } from "sequelize";
 import { sequelize } from "../models";
 import Prescription, { PrescriptionStatus } from "../models/Prescription";
 import PrescriptionDetail from "../models/PrescriptionDetail";
 import Medicine from "../models/Medicine";
 import MedicineExport from "../models/MedicineExport";
 import Visit from "../models/Visit";
+import Patient from "../models/Patient";
+import Doctor from "../models/Doctor";
+import User from "../models/User";
+import PatientProfile from "../models/PatientProfile";
+import Specialty from "../models/Specialty";
 import { generatePrescriptionCode } from "../utils/codeGenerator";
 
 interface MedicineInput {
@@ -453,4 +458,92 @@ export const getPrescriptionByVisitService = async (visitId: number) => {
   });
 
   return prescription;
+};
+
+/**
+ * Get all prescriptions with pagination and filtering
+ */
+export const getPrescriptionsService = async (params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  patientId?: number;
+  doctorId?: number;
+}) => {
+  const page = params?.page || 1;
+  const limit = params?.limit || 20;
+  const offset = (page - 1) * limit;
+
+  const where: any = {};
+
+  if (params?.status) {
+    where.status = params.status;
+  }
+
+  if (params?.patientId) {
+    where.patientId = params.patientId;
+  }
+
+  if (params?.doctorId) {
+    where.doctorId = params.doctorId;
+  }
+
+  const { rows: prescriptions, count: total } = await Prescription.findAndCountAll({
+    where,
+    include: [
+      {
+        model: PrescriptionDetail,
+        as: "details",
+        include: [
+          {
+            model: Medicine,
+            as: "Medicine",
+            attributes: ["id", "name", "medicineCode"],
+            required: false,
+          },
+        ],
+      },
+      {
+        model: Patient,
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "fullName", "email", "avatar"],
+          },
+        ],
+      },
+      {
+        model: Doctor,
+        as: "Doctor",
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "fullName", "email", "avatar"],
+          },
+          {
+            model: Specialty,
+            as: "specialty",
+            attributes: ["id", "name"],
+          },
+        ],
+      },
+      {
+        model: Visit,
+        attributes: ["id", "checkInTime", "diagnosis", "symptoms"],
+      },
+    ],
+    order: [["createdAt", "DESC"]],
+    limit,
+    offset,
+  });
+
+  return {
+    prescriptions,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 };

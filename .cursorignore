@@ -1,0 +1,8 @@
+# Documentation folder
+docs/
+
+# Test output
+test-output/
+
+# Cursor configuration
+.cursor/

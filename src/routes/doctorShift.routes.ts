@@ -5,6 +5,8 @@ import {
   getDoctorsOnDuty,
   getShiftsByDoctor,
   getAvailableShifts,
+  getAllDoctorShifts,
+  getAvailableDoctorsByDate,
 } from "../controllers/doctorShift.controller";
 import {
   cancelShiftAndReschedule,
@@ -27,8 +29,18 @@ router.get("/on-duty", getDoctorsOnDuty);
 // Public: get available shifts
 router.get("/available", getAvailableShifts);
 
+// Public: get available doctors by date (NEW - for booking flow: Date -> Doctor)
+router.get("/doctors-by-date", getAvailableDoctorsByDate);
+
 // Admin actions cần đăng nhập
 router.use(verifyToken);
+
+// Get all doctor shifts (Admin only) - Must be before /doctor/:doctorId
+router.get(
+  "/",
+  requireRole(RoleCode.ADMIN),
+  getAllDoctorShifts
+);
 
 // Assign doctor to shift (Admin only)
 router.post(

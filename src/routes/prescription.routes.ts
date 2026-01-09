@@ -8,6 +8,7 @@ import {
   getPrescriptionByVisit,
   exportPrescriptionPDF,
   dispensePrescription,
+  getPrescriptions,
 } from "../controllers/prescription.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
@@ -22,6 +23,9 @@ const router = Router();
 
 // All routes require authentication
 router.use(verifyToken);
+
+// Get all prescriptions with pagination (must be before /:id route)
+router.get("/", getPrescriptions);
 
 // Doctor-only routes
 router.post(

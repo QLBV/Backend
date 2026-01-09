@@ -13,10 +13,19 @@ export const validate = (req: Request, res: Response, next: NextFunction) => {
     // Type guard để check xem có phải FieldValidationError không
     const field = 'path' in firstError ? firstError.path : undefined;
 
+    // Log để debug
+    console.error("❌ Validation error:", {
+      field,
+      message: firstError.msg,
+      value: firstError.value,
+      allErrors: errors.array(),
+    });
+
     return res.status(400).json({
       success: false,
       message: firstError.msg,
-      field: field
+      field: field,
+      errors: errors.array(), // Thêm tất cả errors để debug
     });
   }
 

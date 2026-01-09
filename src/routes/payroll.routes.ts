@@ -16,6 +16,11 @@ import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
 import { RoleCode } from "../constant/role";
 import { validateNumericId, validatePagination } from "../middlewares/validators/common.validators";
+import {
+  validateCalculatePayroll,
+  validateGetPayrolls,
+  validateGetPayrollsByPeriod,
+} from "../middlewares/validators/payroll.validators";
 
 const router = Router();
 
@@ -26,6 +31,7 @@ router.use(verifyToken);
 router.post(
   "/calculate",
   requireRole(RoleCode.ADMIN),
+  validateCalculatePayroll,
   calculatePayroll
 );
 
@@ -46,6 +52,7 @@ router.get(
 router.get(
   "/period",
   requireRole(RoleCode.ADMIN),
+  validateGetPayrollsByPeriod,
   getPayrollsByPeriod
 );
 
@@ -68,7 +75,7 @@ router.get(
 router.get(
   "/",
   requireRole(RoleCode.ADMIN),
-  validatePagination,
+  validateGetPayrolls,
   getPayrolls
 );
 

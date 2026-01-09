@@ -5,10 +5,12 @@ import Appointment from "../models/Appointment";
 import Patient from "../models/Patient";
 import Doctor from "../models/Doctor";
 import User from "../models/User";
+import { CacheService, CacheKeys } from "./cache.service";
 
 /**
  * Dashboard realtime data
  * GET /api/dashboard
+ * Note: This is real-time data, so caching is not recommended
  */
 export const getDashboardDataService = async () => {
   const today = new Date();
@@ -218,8 +220,15 @@ export const getDashboardDataService = async () => {
 /**
  * Get appointments for a specific date (for calendar widget)
  * GET /api/dashboard/appointments/:date
+ * Cache: 2 minutes (appointments change frequently)
  */
 export const getDashboardAppointmentsByDateService = async (date: string) => {
+  // Try cache first
+  const cacheKey = CacheKeys.DASHBOARD_APPOINTMENTS(date);
+  const cached = await CacheService.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
   const selectedDate = new Date(date);
   selectedDate.setHours(0, 0, 0, 0);
 
@@ -237,7 +246,7 @@ export const getDashboardAppointmentsByDateService = async (date: string) => {
       {
         model: Patient,
         as: "patient",
-        attributes: ["id", "fullName", "patientCode", "phoneNumber"],
+        attributes: ["id", "fullName", "patientCode"],
       },
       {
         model: Doctor,
@@ -255,24 +264,36 @@ export const getDashboardAppointmentsByDateService = async (date: string) => {
     order: [["slotNumber", "ASC"]],
   });
 
-  return appointments.map((apt: any) => ({
+  const result = appointments.map((apt: any) => ({
     id: apt.id,
     patientName: apt.patient?.fullName,
     patientCode: apt.patient?.patientCode,
-    patientPhone: apt.patient?.phoneNumber,
+    patientPhone: undefined, // Phone number not available in Patient model
     doctorName: apt.doctor?.user?.fullName,
     slotNumber: apt.slotNumber,
     status: apt.status,
     symptomInitial: apt.symptomInitial,
     bookingType: apt.bookingType,
   }));
+
+  // Cache for 2 minutes (appointments change frequently)
+  await CacheService.set(cacheKey, result, 120);
+
+  return result;
 };
 
 /**
  * Dashboard stats overview
  * GET /api/dashboard/stats
+ * Cache: 5 minutes (stats change frequently)
  */
 export const getDashboardStatsService = async () => {
+  // Try cache first
+  const cached = await CacheService.get(CacheKeys.DASHBOARD_STATS);
+  if (cached) {
+    return cached;
+  }
+
   // Tổng số bệnh nhân
   const totalPatients = await Patient.count();
 
@@ -323,7 +344,7 @@ export const getDashboardStatsService = async () => {
       ? ((monthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
       : 0;
 
-  return {
+  const result = {
     overview: {
       totalPatients,
       totalDoctors,
@@ -336,13 +357,24 @@ export const getDashboardStatsService = async () => {
       changePercent: parseFloat(monthRevenueChange.toFixed(2)),
     },
   };
+
+  // Cache for 5 minutes
+  await CacheService.set(CacheKeys.DASHBOARD_STATS, result, 300);
+
+  return result;
 };
 
 /**
  * Dashboard Overview Service
  * GET /api/dashboard/overview
+ * Cache: 5 minutes
  */
 export const getDashboardOverviewService = async () => {
+  // Try cache first
+  const cached = await CacheService.get(CacheKeys.DASHBOARD_OVERVIEW);
+  if (cached) {
+    return cached;
+  }
   const today = new Date();
   const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
@@ -397,7 +429,7 @@ export const getDashboardOverviewService = async () => {
     ],
   });
 
-  return {
+  const result = {
     patients: {
       total: totalPatients,
     },
@@ -415,13 +447,25 @@ export const getDashboardOverviewService = async () => {
       active: activeDoctors,
     },
   };
+
+  // Cache for 5 minutes
+  await CacheService.set(CacheKeys.DASHBOARD_OVERVIEW, result, 300);
+
+  return result;
 };
 
 /**
  * Recent Activities Service
  * GET /api/dashboard/recent-activities
+ * Cache: 2 minutes (activities change frequently)
  */
 export const getRecentActivitiesService = async (limit: number = 10) => {
+  // Try cache first (cache key includes limit)
+  const cacheKey = `${CacheKeys.DASHBOARD_RECENT_ACTIVITIES}:${limit}`;
+  const cached = await CacheService.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
   // Lịch hẹn gần đây
   const recentAppointments = await Appointment.findAll({
     limit,
@@ -484,7 +528,7 @@ export const getRecentActivitiesService = async (limit: number = 10) => {
     ],
   });
 
-  return {
+  const result = {
     appointments: recentAppointments.map((apt: any) => ({
       id: apt.id,
       appointmentCode: apt.appointmentCode,
@@ -510,13 +554,24 @@ export const getRecentActivitiesService = async (limit: number = 10) => {
       createdAt: pat.user?.createdAt,
     })),
   };
+
+  // Cache for 2 minutes (activities change frequently)
+  await CacheService.set(cacheKey, result, 120);
+
+  return result;
 };
 
 /**
  * Quick Statistics Service
  * GET /api/dashboard/quick-stats
+ * Cache: 5 minutes
  */
 export const getQuickStatsService = async () => {
+  // Try cache first
+  const cached = await CacheService.get(CacheKeys.DASHBOARD_QUICK_STATS);
+  if (cached) {
+    return cached;
+  }
   const Specialty = (await import("../models/Specialty")).default;
   const DiseaseCategory = (await import("../models/DiseaseCategory")).default;
 
@@ -599,7 +654,7 @@ export const getQuickStatsService = async () => {
       ? (completedRecentAppointments / totalRecentAppointments) * 100
       : 0;
 
-  return {
+  const result = {
     topDoctors: topDoctors.map((item: any) => ({
       doctorId: item.doctorId,
       doctorName: item.doctor?.user?.fullName || "N/A",
@@ -620,13 +675,24 @@ export const getQuickStatsService = async () => {
       },
     },
   };
+
+  // Cache for 5 minutes
+  await CacheService.set(CacheKeys.DASHBOARD_QUICK_STATS, result, 300);
+
+  return result;
 };
 
 /**
  * System Alerts Service
  * GET /api/dashboard/alerts
+ * Cache: 5 minutes (alerts change frequently)
  */
 export const getSystemAlertsService = async () => {
+  // Try cache first
+  const cached = await CacheService.get(CacheKeys.DASHBOARD_ALERTS);
+  if (cached) {
+    return cached;
+  }
   const Medicine = (await import("../models/Medicine")).default;
   const DoctorShift = (await import("../models/DoctorShift")).default;
   const Shift = (await import("../models/Shift")).default;
@@ -702,7 +768,7 @@ export const getSystemAlertsService = async () => {
     },
   });
 
-  return {
+  const result = {
     medicine: {
       expiring: expiringMedicines,
       expired: expiredMedicines,
@@ -723,4 +789,9 @@ export const getSystemAlertsService = async () => {
       (unassignedSlots > 0 ? 1 : 0) +
       overdueInvoices,
   };
+
+  // Cache for 5 minutes
+  await CacheService.set(CacheKeys.DASHBOARD_ALERTS, result, 300);
+
+  return result;
 };

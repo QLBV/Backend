@@ -86,7 +86,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
     { label: "Mã BN", value: (invoice as any).patient?.patientCode || "N/A" },
     {
       label: "Điện thoại",
-      value: (invoice as any).patient?.phoneNumber || "N/A",
+      value: "N/A", // Phone number not available in Patient model
     },
   ];
 

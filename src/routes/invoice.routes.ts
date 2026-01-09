@@ -21,6 +21,8 @@ import {
 import {
   validateCreateInvoice,
   validateUpdateInvoice,
+  validateAddPayment,
+  validateGetInvoices,
 } from "../middlewares/validators/invoice.validators";
 
 const router = Router();
@@ -56,7 +58,7 @@ router.post(
 router.get(
   "/",
   requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST),
-  validatePagination,
+  validateGetInvoices,
   getInvoices
 );
 
@@ -79,6 +81,7 @@ router.post(
   "/:id/payments",
   validateNumericId("id"),
   requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST),
+  validateAddPayment,
   addPayment
 );
 
