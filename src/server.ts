@@ -13,7 +13,7 @@ import app from "./app";
 import { startAllMedicineJobs } from "./jobs/medicineExpiryCheck";
 import { sequelize } from "./models";
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 (async () => {
   try {
     await sequelize.authenticate();

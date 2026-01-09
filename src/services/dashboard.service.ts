@@ -52,7 +52,7 @@ export const getDashboardDataService = async () => {
   // Số bệnh nhân hôm nay (visits)
   const todayPatients = await Visit.count({
     where: {
-      visitDate: {
+      checkInTime: {
         [Op.gte]: today,
         [Op.lt]: tomorrow,
       },
@@ -62,7 +62,7 @@ export const getDashboardDataService = async () => {
   // Số bệnh nhân hôm qua
   const yesterdayPatients = await Visit.count({
     where: {
-      visitDate: {
+      checkInTime: {
         [Op.gte]: yesterday,
         [Op.lt]: today,
       },
@@ -78,7 +78,7 @@ export const getDashboardDataService = async () => {
   // Số lịch hẹn hôm nay
   const todayAppointments = await Appointment.count({
     where: {
-      appointmentDate: {
+      date: {
         [Op.gte]: today,
         [Op.lt]: tomorrow,
       },
@@ -91,7 +91,7 @@ export const getDashboardDataService = async () => {
   // Số lịch hẹn hôm qua
   const yesterdayAppointments = await Appointment.count({
     where: {
-      appointmentDate: {
+      date: {
         [Op.gte]: yesterday,
         [Op.lt]: today,
       },
@@ -109,13 +109,14 @@ export const getDashboardDataService = async () => {
       : 0;
 
   // Số bác sĩ đang trực (có lịch hẹn hoặc visit hôm nay)
+  /*
   const activeDoctors = await Doctor.count({
     include: [
       {
         model: Visit,
         as: "visits",
         where: {
-          visitDate: {
+          checkInTime: {
             [Op.gte]: today,
             [Op.lt]: tomorrow,
           },
@@ -124,6 +125,17 @@ export const getDashboardDataService = async () => {
       },
     ],
     distinct: true,
+  }); */
+
+  const activeDoctors = await Visit.count({
+    where: {
+      checkInTime: { // Đảm bảo bạn đã sửa visitDate thành checkInTime
+        [Op.gte]: today,
+        [Op.lt]: tomorrow,
+      },
+    },
+    distinct: true,
+    col: 'doctorId' // Đếm số lượng bác sĩ duy nhất có lượt khám
   });
 
   // Tổng số bác sĩ
@@ -135,23 +147,23 @@ export const getDashboardDataService = async () => {
 
   const topDiseases = await Visit.findAll({
     attributes: [
-      "diseaseCategoryId",
+      "DiseaseCategoryId",
       [fn("COUNT", col("Visit.id")), "count"],
     ],
     where: {
-      visitDate: {
+      checkInTime: {
         [Op.gte]: weekAgo,
       },
-      diseaseCategoryId: {
+      DiseaseCategoryId: {
         [Op.ne]: null,
       },
     },
-    group: ["diseaseCategoryId", "diseaseCategory.id", "diseaseCategory.categoryName"],
+    group: ["DiseaseCategoryId", "DiseaseCategory.id", "DiseaseCategory.name"],
     include: [
       {
         model: require("../models/DiseaseCategory").default,
-        as: "diseaseCategory",
-        attributes: ["categoryName"],
+        as: "DiseaseCategory",
+        attributes: ["name"],
       },
     ],
     order: [[literal("count"), "DESC"]],
@@ -209,7 +221,7 @@ export const getDashboardDataService = async () => {
     charts: {
       dailyRevenue,
       topDiseases: topDiseases.map((item: any) => ({
-        disease: item.diseaseCategory?.categoryName || "Unknown",
+        disease: item.DiseaseCategory?.name || "Unknown",
         count: parseInt(item.getDataValue("count")),
       })),
     },

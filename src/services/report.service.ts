@@ -222,7 +222,7 @@ export const getExpenseReportService = async (filters: ExpenseReportFilters) => 
   const salaryExpenseByRole = await Payroll.findAll({
     attributes: [
       [fn("SUM", col("netSalary")), "totalSalary"],
-      [fn("COUNT", col("id")), "count"],
+      [fn("COUNT", col("Payroll.id")), "count"],
     ],
     where: {
       year,
@@ -240,12 +240,12 @@ export const getExpenseReportService = async (filters: ExpenseReportFilters) => 
           {
             model: require("../models/Role").default,
             as: "role",
-            attributes: ["roleName"],
+            attributes: ["name"],
           },
         ],
       },
     ],
-    group: ["user.roleId", "user->role.id", "user->role.roleName"],
+    group: [col("user.roleId"), col("user->role.id"), col("user->role.name")],
     raw: false,
   });
 
@@ -259,7 +259,7 @@ export const getExpenseReportService = async (filters: ExpenseReportFilters) => 
     },
     medicineByMonth: medicineExpenseByMonth,
     salaryByRole: salaryExpenseByRole.map((item: any) => ({
-      role: item.user?.role?.roleName || "Unknown",
+      role: item.user?.role?.name || "Unknown",
       totalSalary: parseFloat(item.getDataValue("totalSalary")) || 0,
       count: parseInt(item.getDataValue("count")),
     })),
@@ -289,7 +289,7 @@ export const getTopMedicinesReportService = async (filters: { year: number; mont
     attributes: [
       "medicineId",
       [fn("SUM", col("quantity")), "totalQuantity"],
-      [fn("COUNT", col("id")), "prescriptionCount"],
+      [fn("COUNT", col("PrescriptionDetail.id")), "prescriptionCount"],
     ],
     where: {
       createdAt: {

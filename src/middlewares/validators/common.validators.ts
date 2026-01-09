@@ -78,12 +78,14 @@ export const validatePagination = (
   res: Response,
   next: NextFunction
 ) => {
+  console.log("Validation Query:", req.query);
   const { page, limit } = req.query;
 
   // Validate page
   if (page !== undefined) {
     const pageNum = Number(page);
     if (isNaN(pageNum) || pageNum < 1 || !Number.isInteger(pageNum)) {
+      console.log("Lỗi Page:", pageNum);
       return res.status(400).json({
         success: false,
         message: "INVALID_PAGINATION",

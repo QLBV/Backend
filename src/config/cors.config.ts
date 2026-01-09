@@ -39,7 +39,8 @@ export const corsOptions: CorsOptions = {
     if (!origin) {
       return callback(null, true);
     }
-
+    console.log(`🔍 Incoming Origin: ${origin}`);
+    
     // Check if origin is in whitelist
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
