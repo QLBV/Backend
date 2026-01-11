@@ -1,31 +1,34 @@
-/**
- * PDF Font Helper
- * Giúp tải và sử dụng font Unicode cho PDF tiếng Việt
- */
-
 import fs from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
 
+type FontCandidate = {
+  regular: string;
+  bold?: string;
+};
+
 /**
- * Kiểm tra và lấy đường dẫn font hệ thống Windows
+ * PDF Font Helper: hỗ trợ đăng ký font Unicode cho PDF tiếng Việt.
  */
-export function getSystemFont(): string | null {
-  // Các font phổ biến trên Windows hỗ trợ tiếng Việt
-  const possibleFonts = [
-    "C:\\Windows\\Fonts\\arial.ttf", // Arial
-    "C:\\Windows\\Fonts\\arialbd.ttf", // Arial Bold
-    "C:\\Windows\\Fonts\\times.ttf", // Times New Roman
-    "C:\\Windows\\Fonts\\timesbd.ttf", // Times Bold
-    "C:\\Windows\\Fonts\\calibri.ttf", // Calibri
-    "C:\\Windows\\Fonts\\calibrib.ttf", // Calibri Bold
-    "C:\\Windows\\Fonts\\tahoma.ttf", // Tahoma
-    "C:\\Windows\\Fonts\\tahomabd.ttf", // Tahoma Bold
+export function getSystemFont(): FontCandidate | null {
+  const possibleFonts: FontCandidate[] = [
+    // Windows
+    { regular: "C:\\Windows\\Fonts\\arial.ttf", bold: "C:\\Windows\\Fonts\\arialbd.ttf" },
+    { regular: "C:\\Windows\\Fonts\\times.ttf", bold: "C:\\Windows\\Fonts\\timesbd.ttf" },
+    { regular: "C:\\Windows\\Fonts\\calibri.ttf", bold: "C:\\Windows\\Fonts\\calibrib.ttf" },
+    { regular: "C:\\Windows\\Fonts\\tahoma.ttf", bold: "C:\\Windows\\Fonts\\tahomabd.ttf" },
+    // Linux
+    { regular: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", bold: "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" },
+    { regular: "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", bold: "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" },
+    { regular: "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf", bold: "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf" },
   ];
 
-  for (const fontPath of possibleFonts) {
-    if (fs.existsSync(fontPath)) {
-      return fontPath;
+  for (const font of possibleFonts) {
+    if (fs.existsSync(font.regular)) {
+      return {
+        regular: font.regular,
+        bold: font.bold && fs.existsSync(font.bold) ? font.bold : undefined,
+      };
     }
   }
 
@@ -33,45 +36,41 @@ export function getSystemFont(): string | null {
 }
 
 /**
- * Đăng ký font cho PDF document
+ * Đăng ký font tiếng Việt cho PDFKit.
  */
 export function registerVietnameseFont(
   doc: PDFKit.PDFDocument
 ): { regular: string; bold: string } | null {
   try {
-    const regularFont = getSystemFont();
+    const font = getSystemFont();
 
-    if (regularFont) {
-      // Tìm font bold tương ứng
-      const boldFont = regularFont.replace(".ttf", "bd.ttf");
-      const boldExists = fs.existsSync(boldFont);
+    if (font) {
+      const boldPath = font.bold && fs.existsSync(font.bold) ? font.bold : font.regular;
 
-      doc.registerFont("VietnameseFont", regularFont);
-      if (boldExists) {
-        doc.registerFont("VietnameseFontBold", boldFont);
-      }
+      doc.registerFont("VietnameseFont", font.regular);
+      doc.registerFont("VietnameseFontBold", boldPath);
 
-      console.log(`✓ Da dang ky font: ${path.basename(regularFont)}`);
-      if (boldExists) {
-        console.log(`✓ Da dang ky font bold: ${path.basename(boldFont)}`);
+      console.log(`Da dang ky font: ${path.basename(font.regular)}`);
+      if (boldPath !== font.regular) {
+        console.log(`Da dang ky font dam: ${path.basename(boldPath)}`);
       }
 
       return {
         regular: "VietnameseFont",
-        bold: boldExists ? "VietnameseFontBold" : "VietnameseFont",
+        bold: "VietnameseFontBold",
       };
     }
 
-    console.warn("⚠ Khong tim thay font he thong, su dung font mac dinh");
+    console.warn("Khong tim thay font ho tro Unicode, se dung Helvetica mac dinh (co the loi dau).");
     return null;
   } catch (error) {
-    console.error("❌ Loi khi dang ky font:", error);
+    console.error("Loi khi dang ky font:", error);
     return null;
   }
 }
 
 /**
- * Tạo PDF document với font tiếng Việt
+ * Tạo PDF document có sẵn font tiếng Việt.
  */
 export function createVietnamesePDF(options?: PDFKit.PDFDocumentOptions) {
   const doc = new PDFDocument({
@@ -81,14 +80,13 @@ export function createVietnamesePDF(options?: PDFKit.PDFDocumentOptions) {
     ...options,
   });
 
-  // Thử đăng ký font tiếng Việt
   const fonts = registerVietnameseFont(doc);
 
   return { doc, fonts };
 }
 
 /**
- * Helper: Set font an toàn cho document
+ * Helper: set font an toàn cho document.
  */
 export function setFont(
   doc: PDFKit.PDFDocument,
@@ -98,7 +96,6 @@ export function setFont(
   if (fonts) {
     doc.font(bold ? fonts.bold : fonts.regular);
   } else {
-    // Fallback to default fonts
     doc.font(bold ? "Helvetica-Bold" : "Helvetica");
   }
 }

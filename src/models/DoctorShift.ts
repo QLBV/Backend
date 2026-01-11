@@ -33,6 +33,10 @@ class DoctorShift
   public status!: DoctorShiftStatus;
   public replacedBy?: number | null;
   public cancelReason?: string | null;
+
+  // Associations
+  public shift?: Shift;
+  public doctor?: Doctor;
 }
 
 DoctorShift.init(

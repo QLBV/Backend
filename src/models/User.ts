@@ -99,6 +99,33 @@ User.init(
     sequelize,
     tableName: "users",
     timestamps: true,
+    hooks: {
+      afterUpdate: async (user: User, options: any) => {
+        if (options.syncing) return;
+        
+        const updates: any = {};
+        if (user.changed("avatar")) updates.avatar = user.avatar;
+        if (user.changed("isActive")) updates.isActive = user.isActive;
+
+        if (Object.keys(updates).length > 0) {
+          const Employee = sequelize.models.Employee;
+          if (Employee) {
+            await Employee.update(updates, { where: { userId: user.id }, hooks: false } as any);
+          }
+          const Patient = sequelize.models.Patient;
+          if (Patient) {
+            await Patient.update(updates, { where: { userId: user.id }, hooks: false } as any);
+          }
+          // Sync isActive to Doctor model as well
+          if (user.changed("isActive")) {
+            const Doctor = sequelize.models.Doctor;
+            if (Doctor) {
+              await Doctor.update({ isActive: user.isActive }, { where: { userId: user.id }, hooks: false } as any);
+            }
+          }
+        }
+      }
+    }
   }
 );
 

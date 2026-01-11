@@ -20,6 +20,7 @@ import {
   formatDateTime,
   drawTable,
 } from "../utils/pdfGenerator";
+import { setupExcelResponse, formatCurrencyExcel } from "../utils/excelGenerator";
 
 /**
  * Tính lương tháng
@@ -367,12 +368,15 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
 
     // Setup PDF
     const filename = `Payroll-${payroll.payrollCode}.pdf`;
-    const doc = setupPDFResponse(res, filename);
+    const { doc, fonts } = setupPDFResponse(res, filename);
+    const regularFont = fonts?.regular ?? "Helvetica";
+    const boldFont = fonts?.bold ?? "Helvetica-Bold";
+    doc.font(regularFont);
 
     // Header
-    addPDFHeader(doc, "PHIẾU LƯƠNG NHÂN VIÊN");
+    addPDFHeader(doc, "PHIẾU LƯƠNG NHÂN VIÊN", fonts);
 
-    doc.fontSize(11).font("Helvetica");
+    doc.fontSize(11).font(regularFont);
     doc.text(`Mã phiếu lương: ${payroll.payrollCode}`, 50, doc.y, {
       continued: true,
     });
@@ -381,7 +385,7 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
     });
 
     doc.moveDown(0.5);
-    doc.fontSize(10).text(`Trạng thái: `, 50, doc.y, { continued: true });
+    doc.fontSize(10).font(regularFont).text(`Trạng thái: `, 50, doc.y, { continued: true });
 
     const statusColors: any = {
       DRAFT: "#95A5A6",
@@ -405,11 +409,11 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
     // Thông tin nhân viên
     doc
       .fontSize(12)
-      .font("Helvetica-Bold")
+      .font(boldFont)
       .text("THÔNG TIN NHÂN VIÊN", 50, doc.y);
     doc.moveDown(0.5);
 
-    doc.fontSize(10).font("Helvetica");
+    doc.fontSize(10).font(regularFont);
     doc.text(`Họ tên: ${(payroll as any).user?.fullName || "N/A"}`, 50, doc.y);
     doc.text(`Email: ${(payroll as any).user?.email || "N/A"}`);
     doc.text(`Chức vụ: ${(payroll as any).user?.role?.roleName || "N/A"}`);
@@ -417,7 +421,7 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
 
     doc.moveDown(1.5);
 
-    doc.fontSize(12).font("Helvetica-Bold").text("CHI TIẾT LƯƠNG", 50, doc.y);
+    doc.fontSize(12).font(boldFont).text("CHI TIẾT LƯƠNG", 50, doc.y);
     doc.moveDown(0.5);
 
     // Lương cơ bản
@@ -463,18 +467,18 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
     rows.push(["LƯƠNG THỰC NHẬN", formatCurrency(payroll.netSalary || 0)]);
 
     // Draw table
-    const tableY = drawTable(doc, headers, rows, [350, 150], doc.y);
+    const tableY = drawTable(doc, headers, rows, [350, 150], doc.y, fonts);
 
     doc.y = tableY + 20;
 
     // ThÃ´ng tin cháº¥m cÃ´ng
     doc
       .fontSize(12)
-      .font("Helvetica-Bold")
+      .font(boldFont)
       .text("THÔNG TIN CHẤM CÔNG", 50, doc.y);
     doc.moveDown(0.5);
 
-    doc.fontSize(10).font("Helvetica");
+    doc.fontSize(10).font(regularFont);
     doc.text(`Số ngày nghỉ: ${payroll.daysOff || 0} ngày`, 50, doc.y);
     doc.text(`Số ngày được phép nghỉ: ${payroll.allowedDaysOff || 2} ngày`);
 
@@ -493,7 +497,7 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
     // Pháº§n tá»•ng káº¿t
     doc
       .fontSize(14)
-      .font("Helvetica-Bold")
+      .font(boldFont)
       .fillColor("#27AE60")
       .text(
         `TỔNG LƯƠNG: ${formatCurrency(payroll.netSalary || 0)}`,
@@ -511,11 +515,11 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
     if (payroll.status !== "DRAFT") {
       doc
         .fontSize(12)
-        .font("Helvetica-Bold")
+        .font(boldFont)
         .text("THÔNG TIN PHÊ DUYỆT", 50, doc.y);
       doc.moveDown(0.5);
 
-      doc.fontSize(10).font("Helvetica");
+      doc.fontSize(10).font(regularFont);
 
       if (payroll.approvedAt) {
         doc.text(
@@ -535,7 +539,7 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
 
     // Chữ ký
     const signatureY = doc.y;
-    doc.fontSize(10).font("Helvetica");
+    doc.fontSize(10).font(regularFont);
 
     doc.text("Nhân viên", 100, signatureY, { align: "center", width: 150 });
     doc.text("Người phê duyệt", 350, signatureY, {
@@ -547,7 +551,7 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
 
     doc
       .fontSize(9)
-      .font("Helvetica-Oblique")
+      .font(regularFont)
       .text("(Ký và ghi rõ họ tên)", 100, doc.y, {
         align: "center",
         width: 150,
@@ -559,9 +563,227 @@ export const exportPayrollPDF = async (req: Request, res: Response) => {
     });
 
     // Footer
-    addPDFFooter(doc, 1);
+    addPDFFooter(doc, 1, fonts);
 
     // Finalize PDF
+    doc.end();
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to export PDF",
+    });
+  }
+};
+/**
+ * Xuất danh sách payrolls ra Excel
+ * GET /api/payrolls/export/excel
+ */
+export const exportPayrollsExcel = async (req: Request, res: Response) => {
+  try {
+    const { month, year, status, userId } = req.query;
+
+    const filters: any = {
+      month: month ? parseInt(month as string) : undefined,
+      year: year ? parseInt(year as string) : undefined,
+      status: status as PayrollStatus,
+      userId: userId ? parseInt(userId as string) : undefined,
+      limit: 1000, // Export more rows
+    };
+
+    const result = await getPayrollsService(filters);
+    const payrolls = result.payrolls;
+
+    const workbook = setupExcelResponse(res, `BangThanhToanLuong-${month}-${year}.xlsx`);
+    const sheet = workbook.addWorksheet("Danh sách lương");
+    
+    // Role mapping constant
+    const roleMap: any = { 
+      DOCTOR: "Bác sĩ", 
+      RECEPTIONIST: "Lễ tân", 
+      ADMIN: "Quản trị viên"
+    };
+
+    // Administrative Header in Excel
+    sheet.mergeCells('A1:C1');
+    sheet.getCell('A1').value = "HỆ THỐNG QUẢN LÝ PHÒNG KHÁM";
+    sheet.getCell('A1').font = { bold: true };
+    
+    sheet.mergeCells('J1:N1');
+    sheet.getCell('J1').value = "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM";
+    sheet.getCell('J1').font = { bold: true };
+    sheet.getCell('J1').alignment = { horizontal: 'center' };
+    
+    sheet.mergeCells('J2:N2');
+    sheet.getCell('J2').value = "Độc lập - Tự do - Hạnh phúc";
+    sheet.getCell('J2').font = { bold: true };
+    sheet.getCell('J2').alignment = { horizontal: 'center' };
+
+    sheet.mergeCells('A4:N4');
+    sheet.getCell('A4').value = `BẢNG THANH TOÁN TIỀN LƯƠNG THÁNG ${month}/${year}`;
+    sheet.getCell('A4').font = { bold: true, size: 14 };
+    sheet.getCell('A4').alignment = { horizontal: 'center' };
+
+    // Header styling - Start from Row 6
+    sheet.getRow(6).values = ["Mã NV", "Họ tên", "Chức vụ", "Tháng/Năm", "Lương CB", "Hệ số", "Lương Hệ số", "Thâm niên (năm)", "Thưởng thâm niên", "Hoa hồng", "Tổng thu nhập", "Khấu trừ/Phạt", "Thực nhận", "Trạng thái"];
+    sheet.columns = [
+      { key: "code", width: 12 },
+      { key: "name", width: 25 },
+      { key: "role", width: 15 },
+      { key: "period", width: 15 },
+      { key: "base", width: 15 },
+      { key: "coeff", width: 10 },
+      { key: "roleSalary", width: 15 },
+      { key: "exp", width: 12 },
+      { key: "expBonus", width: 18 },
+      { key: "commission", width: 15 },
+      { key: "gross", width: 18 },
+      { key: "penalty", width: 15 },
+      { key: "net", width: 18 },
+      { key: "status", width: 15 },
+    ];
+
+    sheet.getRow(6).font = { bold: true };
+    sheet.getRow(6).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    payrolls.forEach((p: any) => {
+      // Logic to determine role name
+      let roleName = "Nhân viên";
+      const rawRole = p.user?.role?.name || "";
+      if (roleMap[rawRole.toUpperCase()]) {
+        roleName = roleMap[rawRole.toUpperCase()];
+      }
+
+      const statusMap: any = { DRAFT: "Nháp", APPROVED: "Đã duyệt", PAID: "Đã trả" };
+      
+      // Skip if user record is missing or it's a patient
+      if (!p.user || rawRole.toUpperCase() === "PATIENT") return;
+
+      sheet.addRow({
+        code: p.user?.employee?.employeeCode || p.user?.username || (p.userId ? `ID:${p.userId}` : "N/A"),
+        name: p.user?.fullName || p.user?.employee?.fullName || "Tài khoản không tồn tại",
+        role: roleName,
+        period: `${p.month}/${p.year}`,
+        base: formatCurrencyExcel(Number(p.baseSalary)),
+        coeff: p.roleCoefficient,
+        roleSalary: formatCurrencyExcel(Number(p.roleSalary)),
+        exp: p.yearsOfService,
+        expBonus: formatCurrencyExcel(Number(p.experienceBonus)),
+        commission: formatCurrencyExcel(Number(p.commission)),
+        gross: formatCurrencyExcel(Number(p.grossSalary)),
+        penalty: formatCurrencyExcel(Number(p.penaltyAmount)),
+        net: formatCurrencyExcel(Number(p.netSalary)),
+        status: statusMap[p.status] || p.status,
+      });
+    });
+
+    // Add signature block at the end of Excel
+    sheet.addRow({});
+    sheet.addRow({});
+    const now = new Date();
+    const dateStr = `TP. Hồ Chí Minh, ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
+    
+    // Position signature under the rightmost columns
+    const dateRow = sheet.addRow([]);
+    dateRow.getCell(12).value = dateStr;
+    dateRow.getCell(12).font = { italic: true };
+    dateRow.alignment = { horizontal: 'center' };
+    dateRow.getCell(12).alignment = { horizontal: 'center' };
+    
+    const signLabelRow = sheet.addRow([]);
+    signLabelRow.getCell(12).value = "Người lập biểu";
+    signLabelRow.getCell(12).font = { bold: true };
+    signLabelRow.getCell(12).alignment = { horizontal: 'center' };
+    
+    const signNoteRow = sheet.addRow([]);
+    signNoteRow.getCell(12).value = "(Ký và ghi rõ họ tên)";
+    signNoteRow.getCell(12).font = { size: 10 };
+    signNoteRow.getCell(12).alignment = { horizontal: 'center' };
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to export Excel",
+    });
+  }
+};
+
+/**
+ * Xuất danh sách payrolls ra PDF (Bảng tổng hợp)
+ * GET /api/payrolls/export/pdf
+ */
+export const exportPayrollsPDF = async (req: Request, res: Response) => {
+  try {
+    const { month, year, status, userId } = req.query;
+
+    const filters: any = {
+      month: month ? parseInt(month as string) : undefined,
+      year: year ? parseInt(year as string) : undefined,
+      status: status as PayrollStatus,
+      userId: userId ? parseInt(userId as string) : undefined,
+      limit: 1000,
+    };
+
+    const result = await getPayrollsService(filters);
+    const payrolls = result.payrolls;
+
+    const filename = `BangThanhToanLuong-${month}-${year}.pdf`;
+    const { doc, fonts } = setupPDFResponse(res, filename);
+    const regularFont = fonts?.regular ?? "Helvetica";
+    const boldFont = fonts?.bold ?? "Helvetica-Bold";
+
+    addPDFHeader(doc, `BẢNG THANH TOÁN TIỀN LƯƠNG THÁNG ${month}/${year}`, fonts);
+
+    const statusMap: any = { DRAFT: "Nháp", APPROVED: "Đã duyệt", PAID: "Đã trả" };
+    const roleMap: any = { 
+        DOCTOR: "Bác sĩ", 
+        RECEPTIONIST: "Lễ tân", 
+        ADMIN: "Quản trị viên",
+        PATIENT: "Bệnh nhân"
+    };
+
+    const rows = payrolls
+      .filter((p: any) => p.user && p.user.role?.name?.toUpperCase() !== "PATIENT") // Filter out patients and missing users
+      .map((p: any) => {
+        let roleName = "Nhân viên";
+        const rawRole = p.user?.role?.name || "";
+        if (roleMap[rawRole.toUpperCase()]) {
+            roleName = roleMap[rawRole.toUpperCase()];
+        }
+
+        return [
+          p.user?.employee?.employeeCode || p.user?.username || (p.userId ? `ID:${p.userId}` : "N/A"),
+          p.user?.fullName || "N/A",
+          roleName,
+          formatCurrency(Number(p.netSalary)),
+          statusMap[p.status] || p.status,
+        ];
+      });
+
+    // Adjust column widths for Role column
+    const pdfHeaders = ["Mã NV", "Họ tên", "Chức vụ", "Thực nhận", "Trạng thái"];
+    const pdfColumnWidths = [60, 120, 90, 110, 80];
+
+    drawTable(doc, pdfHeaders, rows, pdfColumnWidths, doc.y, fonts);
+
+    // Chữ ký người xuất theo chuẩn Việt Nam
+    doc.moveDown(2);
+    const now = new Date();
+    const dateStr = `TP. Hồ Chí Minh, ngày ${now.getDate()} tháng ${now.getMonth() + 1} năm ${now.getFullYear()}`;
+    
+    doc.fontSize(10).font(regularFont);
+    doc.text(dateStr, 330, doc.y, { align: "center", width: 200 });
+    
+    doc.moveDown(0.3);
+    doc.fontSize(11).font(boldFont);
+    doc.text("Người lập biểu", 330, doc.y, { align: "center", width: 200 });
+    
+    doc.moveDown(0.2);
+    doc.fontSize(9).font(regularFont);
+    doc.text("(Ký và ghi rõ họ tên)", 330, doc.y, { align: "center", width: 200 });
+
+    addPDFFooter(doc, 1, fonts);
     doc.end();
   } catch (error: any) {
     return res.status(500).json({

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllMedicineExports } from "../controllers/medicine.controller";
+import { getAllMedicineExports, getMedicineExportById } from "../controllers/medicine.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
 import { RoleCode } from "../constant/role";
@@ -10,12 +10,9 @@ const router = Router();
 // All routes require authentication
 router.use(verifyToken);
 
-// Get all medicine exports
-router.get(
-  "/",
-  requireRole(RoleCode.ADMIN),
-  validatePagination,
-  getAllMedicineExports
-);
+router.get("/", requireRole(RoleCode.ADMIN), validatePagination, getAllMedicineExports);
+
+// Get medicine export by ID
+router.get("/:id", requireRole(RoleCode.ADMIN), getMedicineExportById);
 
 export default router;

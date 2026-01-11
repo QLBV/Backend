@@ -1,8 +1,11 @@
-import { Request, Response } from "express";
+﻿import { Request, Response } from "express";
 import {
   checkInAppointmentService,
+  startExaminationService,
   completeVisitService,
 } from "../services/visit.service";
+import { getDisplayStatus } from "../utils/statusMapper";
+import * as auditLogService from "../services/auditLog.service";
 
 export const checkInAppointment = async (req: Request, res: Response) => {
   try {
@@ -10,10 +13,45 @@ export const checkInAppointment = async (req: Request, res: Response) => {
       Number(req.params.appointmentId)
     );
 
+    // Fetch the updated appointment to include in response
+    const Appointment = (await import("../models/Appointment")).default;
+    const appointment = await Appointment.findByPk(visit.appointmentId);
+
+    if (!appointment) {
+      throw new Error("APPOINTMENT_NOT_FOUND");
+    }
+
+    // AUDIT LOG: Log visit creation (check-in)
+    await auditLogService.logCreate(req, "visits", visit.id, {
+      visitCode: visit.visitCode,
+      appointmentId: visit.appointmentId,
+      patientId: visit.patientId,
+      doctorId: visit.doctorId,
+      status: visit.status,
+    }).catch(err => console.error("Failed to log check-in audit:", err));
+
+    // AUDIT LOG: Log appointment status update
+    await auditLogService.logUpdate(req, "appointments", appointment.id,
+      { status: "WAITING" },
+      { status: appointment.status }
+    ).catch(err => console.error("Failed to log appointment update audit:", err));
+
+    // Calculate displayStatus
+    const displayStatus = getDisplayStatus(
+      { status: appointment.status },
+      { status: visit.status }
+    );
+
     res.json({
       success: true,
       message: "Check-in successful",
-      data: visit,
+      data: {
+        visit,
+        appointment: {
+          ...appointment.toJSON(),
+          displayStatus,
+        },
+      },
     });
   } catch (err: any) {
     // Handle specific error cases
@@ -26,10 +64,61 @@ export const checkInAppointment = async (req: Request, res: Response) => {
 
     // Handle custom error messages from service
     const errorMessage = err?.message || "INTERNAL_SERVER_ERROR";
-    const statusCode = 
+    const statusCode =
       errorMessage === "APPOINTMENT_NOT_FOUND" ? 404 :
       errorMessage === "APPOINTMENT_NOT_WAITING" ? 400 :
       errorMessage === "APPOINTMENT_ALREADY_CHECKED_IN" ? 409 :
+      500;
+
+    return res.status(statusCode).json({
+      success: false,
+      message: errorMessage,
+    });
+  }
+};
+
+export const startExamination = async (req: Request, res: Response) => {
+  try {
+    const visit = await startExaminationService(Number(req.params.id));
+
+    // Fetch the updated appointment to include in response
+    const Appointment = (await import("../models/Appointment")).default;
+    const appointment = await Appointment.findByPk(visit.appointmentId);
+
+    if (!appointment) {
+      throw new Error("APPOINTMENT_NOT_FOUND");
+    }
+
+    // AUDIT LOG: Log appointment status update (CHECKED_IN -> IN_PROGRESS)
+    await auditLogService.logUpdate(req, "appointments", appointment.id,
+      { status: "CHECKED_IN" },
+      { status: appointment.status }
+    ).catch(err => console.error("Failed to log start examination audit:", err));
+
+    // Calculate displayStatus
+    const displayStatus = getDisplayStatus(
+      { status: appointment.status },
+      { status: visit.status }
+    );
+
+    res.json({
+      success: true,
+      message: "Examination started successfully",
+      data: {
+        visit,
+        appointment: {
+          ...appointment.toJSON(),
+          displayStatus,
+        },
+      },
+    });
+  } catch (err: any) {
+    const errorMessage = err?.message || "INTERNAL_SERVER_ERROR";
+    const statusCode =
+      errorMessage === "VISIT_NOT_FOUND" ? 404 :
+      errorMessage === "APPOINTMENT_NOT_FOUND" ? 404 :
+      errorMessage === "VISIT_NOT_IN_EXAMINING_STATUS" ? 400 :
+      errorMessage === "APPOINTMENT_NOT_CHECKED_IN" ? 400 :
       500;
 
     return res.status(statusCode).json({
@@ -53,6 +142,15 @@ export const completeVisit = async (req: Request, res: Response) => {
       });
     }
 
+    // Fetch old visit for audit trail BEFORE update
+    const Visit = (await import("../models/Visit")).default;
+    const oldVisit = await Visit.findByPk(Number(req.params.id));
+    const oldData = oldVisit ? {
+      diagnosis: oldVisit.diagnosis,
+      note: oldVisit.note,
+      status: oldVisit.status,
+    } : null;
+
     const result = await completeVisitService(
       Number(req.params.id),
       diagnosis,
@@ -61,22 +159,64 @@ export const completeVisit = async (req: Request, res: Response) => {
       note
     );
 
-    // Kiá»ƒm tra náº¿u cÃ³ lá»—i khi táº¡o invoice
+    // Fetch the updated appointment to include displayStatus
+    const Appointment = (await import("../models/Appointment")).default;
+    const appointment = await Appointment.findByPk(result.visit.appointmentId);
+
+    if (!appointment) {
+      throw new Error("APPOINTMENT_NOT_FOUND");
+    }
+
+    // CRITICAL AUDIT LOG: Log diagnosis update (medical record change)
+    if (oldData) {
+      await auditLogService.logUpdate(req, "visits", result.visit.id, oldData, {
+        diagnosis: result.visit.diagnosis,
+        note: result.visit.note,
+        status: result.visit.status,
+      }).catch(err => console.error("Failed to log visit completion audit:", err));
+    }
+
+    // AUDIT LOG: Log invoice creation
+    if (result.invoice) {
+      await auditLogService.logCreate(req, "invoices", result.invoice.id, {
+        invoiceCode: result.invoice.invoiceCode,
+        visitId: result.invoice.visitId,
+        examinationFee: result.invoice.examinationFee,
+        totalAmount: result.invoice.totalAmount,
+      }).catch(err => console.error("Failed to log invoice creation audit:", err));
+    }
+
+    const displayStatus = getDisplayStatus(
+      { status: appointment.status },
+      { status: result.visit.status }
+    );
+
+    // Kiểm tra nếu có lỗi khi tạo invoice
     if (result.invoiceError) {
       return res.json({
         success: true,
-        message: "Visit completed but invoice creation failed",
-        data: result.visit,
+        message: "Examination saved but invoice creation failed",
+        data: {
+          visit: result.visit,
+          appointment: {
+            ...appointment.toJSON(),
+            displayStatus,
+          },
+        },
         warning: result.invoiceError,
       });
     }
 
     res.json({
       success: true,
-      message: "Visit completed and invoice created",
+      message: "Examination saved and invoice created",
       data: {
         visit: result.visit,
         invoice: result.invoice,
+        appointment: {
+          ...appointment.toJSON(),
+          displayStatus,
+        },
       },
     });
   } catch (e: any) {
@@ -147,22 +287,22 @@ export const getVisits = async (req: Request, res: Response) => {
           model: Patient,
           as: "patient",
           required: false,
-          include: [{ 
-            model: User, 
-            as: "user", 
+          include: [{
+            model: User,
+            as: "user",
             required: false,
-            attributes: ["id", "fullName", "email", "avatar"] 
+            attributes: ["id", "fullName", "email", "avatar"]
           }],
         },
         {
           model: Doctor,
           as: "doctor",
           required: false,
-          include: [{ 
-            model: User, 
-            as: "user", 
+          include: [{
+            model: User,
+            as: "user",
             required: false,
-            attributes: ["id", "fullName", "email", "avatar"] 
+            attributes: ["id", "fullName", "email", "avatar"]
           }],
         },
         {
@@ -183,8 +323,24 @@ export const getVisits = async (req: Request, res: Response) => {
       limit: req.query.limit ? Number(req.query.limit) : 50,
     });
 
-    // Serialize visits to ensure nested associations are properly included
-    const serializedVisits = visits.map(visit => visit.toJSON ? visit.toJSON() : visit);
+    // Serialize visits and add displayStatus to each
+    const serializedVisits = visits.map(visit => {
+      const json = visit.toJSON ? visit.toJSON() : visit;
+
+      // Calculate displayStatus if appointment exists
+      let displayStatus = null;
+      if (json.appointment) {
+        displayStatus = getDisplayStatus(
+          { status: json.appointment.status },
+          { status: json.status }
+        );
+      }
+
+      return {
+        ...json,
+        displayStatus,
+      };
+    });
 
     return res.json({
       success: true,
@@ -202,6 +358,7 @@ export const getVisitById = async (req: Request, res: Response) => {
     const Doctor = (await import("../models/Doctor")).default;
     const User = (await import("../models/User")).default;
     const Diagnosis = (await import("../models/Diagnosis")).default;
+    const Appointment = (await import("../models/Appointment")).default;
     const { RoleCode } = await import("../constant/role");
 
     const visit = await Visit.findByPk(req.params.id, {
@@ -217,6 +374,11 @@ export const getVisitById = async (req: Request, res: Response) => {
           include: [{ model: User, as: "user", attributes: ["fullName", "email"] }],
         },
         { model: Diagnosis, as: "diagnoses" },
+        {
+          model: Appointment,
+          as: "appointment",
+          required: false,
+        },
       ],
     });
 
@@ -245,9 +407,21 @@ export const getVisitById = async (req: Request, res: Response) => {
       }
     }
 
+    // Calculate displayStatus
+    const visitJson = visit.toJSON ? visit.toJSON() : visit;
+    const displayStatus = visitJson.appointment
+      ? getDisplayStatus(
+          { status: visitJson.appointment.status },
+          { status: visitJson.status }
+        )
+      : null;
+
     return res.json({
       success: true,
-      data: visit,
+      data: {
+        ...visitJson,
+        displayStatus,
+      },
     });
   } catch (e: any) {
     return res.status(500).json({ success: false, message: e.message });
@@ -260,6 +434,7 @@ export const getPatientVisits = async (req: Request, res: Response) => {
     const Doctor = (await import("../models/Doctor")).default;
     const User = (await import("../models/User")).default;
     const Diagnosis = (await import("../models/Diagnosis")).default;
+    const Appointment = (await import("../models/Appointment")).default;
     const { RoleCode } = await import("../constant/role");
 
     const patientId = Number(req.params.patientId);
@@ -284,13 +459,34 @@ export const getPatientVisits = async (req: Request, res: Response) => {
           include: [{ model: User, as: "user", attributes: ["fullName", "email"] }],
         },
         { model: Diagnosis, as: "diagnoses" },
+        {
+          model: Appointment,
+          as: "appointment",
+          required: false,
+        },
       ],
       order: [["checkInTime", "DESC"]],
     });
 
+    // Add displayStatus to each visit
+    const serializedVisits = visits.map(visit => {
+      const json = visit.toJSON ? visit.toJSON() : visit;
+      const displayStatus = json.appointment
+        ? getDisplayStatus(
+            { status: json.appointment.status },
+            { status: json.status }
+          )
+        : null;
+
+      return {
+        ...json,
+        displayStatus,
+      };
+    });
+
     return res.json({
       success: true,
-      data: visits,
+      data: serializedVisits,
     });
   } catch (e: any) {
     return res.status(500).json({ success: false, message: e.message });

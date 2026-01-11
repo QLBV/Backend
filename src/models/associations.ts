@@ -28,12 +28,19 @@ import ShiftTemplate from "./ShiftTemplate";
 import AuditLog from "./AuditLog";
 import Diagnosis from "./Diagnosis";
 import Refund from "./Refund";
+import Employee from "./Employee";
 
 /**
  * Setup all model associations
  * This function should be called after all models are initialized
  */
 export const setupAssociations = () => {
+  // Employee associations
+  Employee.belongsTo(User, { foreignKey: "userId", as: "user" });
+  Employee.belongsTo(Specialty, { foreignKey: "specialtyId", as: "specialty" });
+  User.hasOne(Employee, { foreignKey: "userId", as: "employee" });
+  Specialty.hasMany(Employee, { foreignKey: "specialtyId", as: "employees" });
+
   // Prescription associations
   Prescription.belongsTo(Visit, { foreignKey: "visitId" });
   Prescription.belongsTo(Doctor, { foreignKey: "doctorId" });
@@ -110,14 +117,14 @@ export const setupAssociations = () => {
     foreignKey: "medicineId",
     as: "medicine",
   });
-  MedicineImport.belongsTo(User, { foreignKey: "userId", as: "user" });
+  MedicineImport.belongsTo(User, { foreignKey: "userId", as: "importer" });
 
   // MedicineExport associations
   MedicineExport.belongsTo(Medicine, {
     foreignKey: "medicineId",
     as: "medicine",
   });
-  MedicineExport.belongsTo(User, { foreignKey: "userId", as: "user" });
+  MedicineExport.belongsTo(User, { foreignKey: "userId", as: "exporter" });
 
   // User <-> Role associations
   User.belongsTo(Role, { foreignKey: "roleId", as: "role" });
@@ -150,6 +157,7 @@ export const setupAssociations = () => {
     foreignKey: "userId",
     as: "user",
   });
+  User.hasOne(Patient, { foreignKey: "userId", as: "patient" });
 
   // Doctor <-> User, Specialty associations
   Doctor.belongsTo(User, { foreignKey: "userId", as: "user" });

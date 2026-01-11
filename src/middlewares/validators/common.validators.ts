@@ -95,11 +95,11 @@ export const validatePagination = (
   // Validate limit
   if (limit !== undefined) {
     const limitNum = Number(limit);
-    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100 || !Number.isInteger(limitNum)) {
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 1000 || !Number.isInteger(limitNum)) {
       return res.status(400).json({
         success: false,
         message: "INVALID_PAGINATION",
-        details: "Limit must be a positive integer between 1 and 100",
+        details: "Limit must be a positive integer between 1 and 1000",
       });
     }
   }

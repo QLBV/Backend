@@ -38,6 +38,7 @@ import NotificationSetting from "./NotificationSetting";
 import AuditLog from "./AuditLog";
 import Diagnosis from "./Diagnosis";
 import Refund from "./Refund";
+import Employee from "./Employee";
 
 // Setup associations after all models are loaded
 import { setupAssociations } from "./associations";
@@ -74,4 +75,5 @@ export {
   AuditLog,
   Diagnosis,
   Refund,
+  Employee,
 };

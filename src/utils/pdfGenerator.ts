@@ -1,8 +1,9 @@
 import PDFDocument from "pdfkit";
 import { Response } from "express";
+import { createVietnamesePDF } from "./pdfFontHelper";
 
 /**
- * Format số tiền VNĐ
+ * Format số tiền VND
  */
 export const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat("vi-VN", {
@@ -38,52 +39,73 @@ export const formatDateTime = (date: Date | string): string => {
 };
 
 /**
- * Tạo PDF header với logo và thông tin công ty
+ * Tạo PDF header với logo và thông tin phòng khám
  */
 export const addPDFHeader = (
   doc: PDFKit.PDFDocument,
-  title: string
+  title: string,
+  fonts?: { regular: string; bold: string } | null
 ): void => {
-  doc
-    .fontSize(20)
-    .font("Helvetica-Bold")
-    .text("HỆ THỐNG QUẢN LÝ PHÒNG KHÁM", 50, 50, { align: "center" });
+  const regularFont = fonts?.regular ?? "Helvetica";
+  const boldFont = fonts?.bold ?? "Helvetica-Bold";
 
+  const startY = 50;
+  
+  // Left side: Clinic Info
   doc
     .fontSize(10)
-    .font("Helvetica")
-    .text("Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM", 50, 75, {
-      align: "center",
-    });
-
-  doc.text("Điện thoại: (028) 1234 5678 | Email: info@clinic.com", {
-    align: "center",
-  });
-
-  doc.moveDown();
+    .font(boldFont)
+    .text("HỆ THỐNG QUẢN LÝ PHÒNG KHÁM", 50, startY, { align: "left", width: 250 });
+  
   doc
-    .moveTo(50, doc.y)
-    .lineTo(doc.page.width - 50, doc.y)
+    .fontSize(9)
+    .font(regularFont)
+    .text("Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM", 50, startY + 15, { align: "left", width: 250 });
+  
+  doc.text("SĐT: (028) 1234 5678", 50, startY + 30, { align: "left", width: 250 });
+
+  // Right side: National Motto
+  doc
+    .fontSize(10)
+    .font(boldFont)
+    .text("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", 300, startY, { align: "center", width: 250 });
+  
+  doc
+    .fontSize(10)
+    .font(boldFont)
+    .text("Độc lập - Tự do - Hạnh phúc", 300, startY + 15, { align: "center", width: 250 });
+  
+  const lineY = startY + 28;
+  doc
+    .moveTo(370, lineY)
+    .lineTo(480, lineY)
+    .lineWidth(0.5)
     .stroke();
 
-  doc.moveDown();
+  doc.moveDown(3);
   doc
     .fontSize(16)
-    .font("Helvetica-Bold")
-    .text(title.toUpperCase(), { align: "center" });
+    .font(boldFont)
+    .fillColor("#000000")
+    .text(title.toUpperCase(), 50, doc.y, { align: "center" });
 
-  doc.moveDown();
+  doc.moveDown(1);
 };
 
 /**
  * Tạo PDF footer với số trang
  */
-export const addPDFFooter = (doc: PDFKit.PDFDocument, pageNumber: number): void => {
+export const addPDFFooter = (
+  doc: PDFKit.PDFDocument,
+  pageNumber: number,
+  fonts?: { regular: string; bold: string } | null
+): void => {
+  const regularFont = fonts?.regular ?? "Helvetica";
   const bottomY = doc.page.height - 50;
 
   doc
     .fontSize(8)
-    .font("Helvetica")
+    .font(regularFont)
     .text(
       `Trang ${pageNumber} - In lúc ${formatDateTime(new Date())}`,
       50,
@@ -103,8 +125,11 @@ export const drawTable = (
   headers: string[],
   rows: string[][],
   columnWidths: number[],
-  startY: number
+  startY: number,
+  fonts?: { regular: string; bold: string } | null
 ): number => {
+  const regularFont = fonts?.regular ?? "Helvetica";
+  const boldFont = fonts?.bold ?? "Helvetica-Bold";
   const startX = 50;
   const rowHeight = 25;
   let currentY = startY;
@@ -113,7 +138,7 @@ export const drawTable = (
   doc.rect(startX, currentY, columnWidths.reduce((a, b) => a + b, 0), rowHeight).fill("#4A90E2");
 
   // Header text
-  doc.fontSize(10).font("Helvetica-Bold").fillColor("#FFFFFF");
+  doc.fontSize(10).font(boldFont).fillColor("#FFFFFF");
   let currentX = startX;
   headers.forEach((header, i) => {
     doc.text(header, currentX + 5, currentY + 7, {
@@ -126,7 +151,7 @@ export const drawTable = (
   currentY += rowHeight;
 
   // Rows
-  doc.fillColor("#000000").font("Helvetica");
+  doc.fillColor("#000000").font(regularFont);
   rows.forEach((row, rowIndex) => {
     currentX = startX;
 
@@ -167,11 +192,11 @@ export const drawTable = (
 export const setupPDFResponse = (
   res: Response,
   filename: string
-): PDFKit.PDFDocument => {
+): { doc: PDFKit.PDFDocument; fonts: { regular: string; bold: string } | null } => {
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
 
-  const doc = new PDFDocument({
+  const { doc, fonts } = createVietnamesePDF({
     size: "A4",
     margin: 50,
     info: {
@@ -181,7 +206,7 @@ export const setupPDFResponse = (
   });
 
   doc.pipe(res);
-  return doc;
+  return { doc, fonts };
 };
 
 /**

@@ -4,6 +4,7 @@ import User from "../models/User";
 import Specialty from "../models/Specialty";
 import { CacheService, CacheKeys } from "../services/cache.service";
 import { createDoctor } from "../services/doctor.service";
+import Employee from "../models/Employee";
 
 export const getAllDoctors = async (req: Request, res: Response) => {
   try {
@@ -13,6 +14,13 @@ export const getAllDoctors = async (req: Request, res: Response) => {
           model: User,
           as: "user",
           attributes: ["id", "fullName", "email", "avatar"],
+          include: [
+            {
+              model: Employee,
+              as: "employee",
+              attributes: ["phone", "gender", "dateOfBirth", "address"],
+            },
+          ],
         },
         { model: Specialty, as: "specialty", attributes: ["id", "name"] },
       ],
@@ -34,6 +42,13 @@ export const getDoctorById = async (req: Request, res: Response) => {
           model: User,
           as: "user",
           attributes: ["id", "fullName", "email", "avatar"],
+          include: [
+            {
+              model: Employee,
+              as: "employee",
+              attributes: ["phone", "gender", "dateOfBirth", "address"],
+            },
+          ],
         },
         { model: Specialty, as: "specialty", attributes: ["id", "name"] },
       ],
@@ -161,7 +176,14 @@ export const getDoctorsBySpecialty = async (req: Request, res: Response) => {
         {
           model: User,
           as: "user",
-          attributes: ["id", "fullName", "email", "avatar"],
+          attributes: ["id", "fullName", "email", "avatar", "isActive"],
+          include: [
+            {
+              model: Employee,
+              as: "employee",
+              attributes: ["phone", "gender", "dateOfBirth", "address"],
+            },
+          ],
         },
         {
           model: Specialty,

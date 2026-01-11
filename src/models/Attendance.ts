@@ -6,6 +6,9 @@ export enum AttendanceStatus {
   ABSENT = "ABSENT",
   LEAVE = "LEAVE",
   SICK_LEAVE = "SICK_LEAVE",
+  LATE = "LATE",
+  EARLY_LEAVE = "EARLY_LEAVE",
+  HALF_DAY = "HALF_DAY",
 }
 
 interface AttendanceAttributes {

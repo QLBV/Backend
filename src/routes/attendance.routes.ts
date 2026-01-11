@@ -6,6 +6,7 @@ import {
   getAllAttendance,
   updateAttendance,
   requestLeave,
+  runAutoAbsence,
 } from "../controllers/attendance.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
@@ -40,6 +41,13 @@ router.put(
   validateNumericId("id"),
   requireRole(RoleCode.ADMIN),
   updateAttendance
+);
+
+// Run auto-absence marking (admin only)
+router.post(
+  "/auto-absence",
+  requireRole(RoleCode.ADMIN),
+  runAutoAbsence
 );
 
 export default router;

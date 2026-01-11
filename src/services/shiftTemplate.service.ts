@@ -1,8 +1,4 @@
-import ShiftTemplate from "../models/ShiftTemplate";
-import Doctor from "../models/Doctor";
-import Shift from "../models/Shift";
-import Specialty from "../models/Specialty";
-import User from "../models/User";
+import { ShiftTemplate, Doctor, Shift, Specialty, User } from "../models";
 import { AppError } from "../utils/AppError";
 
 export class ShiftTemplateService {
@@ -78,7 +74,7 @@ export class ShiftTemplateService {
 
     if (filters?.doctorId) where.doctorId = filters.doctorId;
     if (filters?.shiftId) where.shiftId = filters.shiftId;
-    if (filters?.dayOfWeek) where.dayOfWeek = filters.dayOfWeek;
+    if (filters?.dayOfWeek && filters.dayOfWeek !== 0) where.dayOfWeek = filters.dayOfWeek;
     if (filters?.isActive !== undefined) where.isActive = filters.isActive;
 
     const templates = await ShiftTemplate.findAll({
@@ -91,7 +87,7 @@ export class ShiftTemplateService {
             {
               model: User,
               as: "user",
-              attributes: ["id", "fullName", "email", "phone"],
+              attributes: ["id", "fullName", "email"],
             },
             {
               model: Specialty,
@@ -127,7 +123,7 @@ export class ShiftTemplateService {
             {
               model: User,
               as: "user",
-              attributes: ["id", "fullName", "email", "phone"],
+              attributes: ["id", "fullName", "email"],
             },
             {
               model: Specialty,

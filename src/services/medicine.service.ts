@@ -125,8 +125,8 @@ export const importMedicineService = async (input: ImportMedicineInput) => {
       });
 
       let sequence = 1;
-      if (latestImport && (latestImport as any).importCode) {
-        const lastCode = (latestImport as any).importCode;
+      if (latestImport && latestImport.importCode) {
+        const lastCode = latestImport.importCode;
         const lastSequence = parseInt(lastCode.split("-")[2], 10);
         sequence = lastSequence + 1;
       }
@@ -146,7 +146,7 @@ export const importMedicineService = async (input: ImportMedicineInput) => {
           supplierInvoice: input.supplierInvoice,
           batchNumber: input.batchNumber,
           note: input.note,
-        } as any,
+        },
         { transaction: t }
       );
 
@@ -442,8 +442,8 @@ export const exportMedicineService = async (input: ExportMedicineInput) => {
       });
 
       let sequence = 1;
-      if (latestExport && (latestExport as any).exportCode) {
-        const lastCode = (latestExport as any).exportCode;
+      if (latestExport && latestExport.exportCode) {
+        const lastCode = latestExport.exportCode;
         const lastSequence = parseInt(lastCode.split("-")[2], 10);
         sequence = lastSequence + 1;
       }
@@ -464,7 +464,7 @@ export const exportMedicineService = async (input: ExportMedicineInput) => {
           reason: input.reason,
           exportCode,
           note: input.note,
-        } as any,
+        },
         { transaction: t }
       );
 
@@ -509,10 +509,19 @@ export const getAllMedicineImportsService = async (params?: {
       {
         model: Medicine,
         as: "medicine",
-        attributes: ["id", "name", "medicineCode"],
+        attributes: ["id", "name", "medicineCode", "unit"],
+        required: false,
+      },
+      {
+        model: User,
+        as: "importer",
+        attributes: ["id", "fullName", "email"],
         required: false,
       },
     ],
+    attributes: {
+      include: [[sequelize.col("userId"), "importedBy"]],
+    },
     order: [["importDate", "DESC"]],
     limit,
     offset,
@@ -525,6 +534,37 @@ export const getAllMedicineImportsService = async (params?: {
     limit,
     totalPages: Math.ceil(total / limit),
   };
+};
+
+/**
+ * Get medicine import by ID
+ */
+export const getMedicineImportByIdService = async (importId: number) => {
+  const importRecord = await MedicineImport.findByPk(importId, {
+    include: [
+      {
+        model: Medicine,
+        as: "medicine",
+        attributes: ["id", "name", "medicineCode", "unit"],
+        required: false,
+      },
+      {
+        model: User,
+        as: "importer",
+        attributes: ["id", "fullName", "email"],
+        required: false,
+      },
+    ],
+    attributes: {
+      include: [[sequelize.col("userId"), "importedBy"]],
+    },
+  });
+
+  if (!importRecord) {
+    throw new Error("IMPORT_RECORD_NOT_FOUND");
+  }
+
+  return importRecord;
 };
 
 /**
@@ -568,10 +608,19 @@ export const getAllMedicineExportsService = async (params?: {
       {
         model: Medicine,
         as: "medicine",
-        attributes: ["id", "name", "medicineCode"],
+        attributes: ["id", "name", "medicineCode", "unit"],
+        required: false,
+      },
+      {
+        model: User,
+        as: "exporter",
+        attributes: ["id", "fullName", "email"],
         required: false,
       },
     ],
+    attributes: {
+      include: [[sequelize.col("userId"), "exportedBy"]],
+    },
     order: [["exportDate", "DESC"]],
     limit,
     offset,
@@ -584,4 +633,35 @@ export const getAllMedicineExportsService = async (params?: {
     limit,
     totalPages: Math.ceil(total / limit),
   };
+};
+
+/**
+ * Get medicine export by ID
+ */
+export const getMedicineExportByIdService = async (exportId: number) => {
+  const exportRecord = await MedicineExport.findByPk(exportId, {
+    include: [
+      {
+        model: Medicine,
+        as: "medicine",
+        attributes: ["id", "name", "medicineCode", "unit"],
+        required: false,
+      },
+      {
+        model: User,
+        as: "exporter",
+        attributes: ["id", "fullName", "email"],
+        required: false,
+      },
+    ],
+    attributes: {
+      include: [[sequelize.col("userId"), "exportedBy"]],
+    },
+  });
+
+  if (!exportRecord) {
+    throw new Error("EXPORT_RECORD_NOT_FOUND");
+  }
+
+  return exportRecord;
 };

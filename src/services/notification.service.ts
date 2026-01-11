@@ -306,6 +306,96 @@ export async function sendDoctorChangeNotification(
 }
 
 /**
+ * Gửi email thông báo đổi lịch (ngày/ca/bác sĩ)
+ */
+export async function sendAppointmentRescheduleNotification(
+  appointmentId: number,
+  oldDetails: { doctorId: number; shiftId: number; date: Date }
+): Promise<void> {
+  try {
+    const appointment = await Appointment.findByPk(appointmentId, {
+      include: [
+        {
+          model: Patient,
+          as: "patient",
+          include: [{ model: User, as: "user" }],
+        },
+        {
+          model: Doctor,
+          as: "doctor",
+          include: [
+            { model: User, as: "user" },
+            { model: Specialty, as: "specialty" },
+          ],
+        },
+        { model: Shift, as: "shift" },
+      ],
+    });
+
+    if (!appointment) {
+      console.error(`Appointment ${appointmentId} not found`);
+      return;
+    }
+
+    const patient = appointment.get("patient") as any;
+    const doctor = appointment.get("doctor") as any;
+    const shift = appointment.get("shift") as any;
+
+    if (!patient || !doctor || !shift) {
+      console.error("Missing related data for appointment", appointmentId);
+      return;
+    }
+
+    const patientUser = patient.user;
+    const newDoctorUser = doctor.user;
+    const oldDoctor = await Doctor.findByPk(oldDetails.doctorId, {
+      include: [{ model: User, as: "user" }],
+    });
+    const oldShift = await Shift.findByPk(oldDetails.shiftId);
+
+    if (!oldDoctor || !oldDoctor.user || !oldShift) {
+      console.error("Missing old doctor/shift data for reschedule", appointmentId);
+      return;
+    }
+
+    const notification = await createNotification({
+      userId: patientUser.id,
+      type: NotificationType.APPOINTMENT_RESCHEDULED,
+      title: "Lịch khám đã được cập nhật",
+      message: `Lịch #${appointmentId} đã chuyển từ ${oldShift.name} ngày ${oldDetails.date.toDateString()} sang ${shift.name} ngày ${appointment.date}`,
+      relatedAppointmentId: appointmentId,
+    });
+
+    const emailHtml = emailTemplates.appointmentRescheduled({
+      patientName: patientUser.fullName,
+      oldDate: oldDetails.date.toString(),
+      newDate: appointment.date.toString(),
+      oldShiftName: oldShift.name,
+      newShiftName: shift.name,
+      oldDoctorName: (oldDoctor as any).user.fullName,
+      newDoctorName: newDoctorUser.fullName,
+      appointmentId: appointment.id,
+    });
+
+    const emailSent = await sendEmail({
+      to: patientUser.email,
+      subject: "Thông báo đổi lịch khám - Hệ thống Phòng khám",
+      html: emailHtml,
+    });
+
+    if (emailSent) {
+      await notification.update({
+        emailSent: true,
+        emailSentAt: new Date(),
+      });
+      console.log(`Sent reschedule notification to ${patientUser.email}`);
+    }
+  } catch (error) {
+    console.error("Error in sendAppointmentRescheduleNotification:", error);
+  }
+}
+
+/**
  * Đánh dấu notification đã đọc
  */
 export async function markNotificationAsRead(

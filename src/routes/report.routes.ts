@@ -7,13 +7,16 @@ import {
   getPatientsByGenderReport,
   getProfitReport,
   getRevenueReportPDF,
+  getRevenueReportExcel,
   getExpenseReportPDF,
+  getExpenseReportExcel,
   getProfitReportPDF,
   getTopMedicinesReportPDF,
   getPatientsByGenderReportPDF,
+  getProfitReportExcel,
   getAppointmentReport,
   getPatientStatistics,
-} from "../controllers/report.controller";
+} from "@controllers/report.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
 import { RoleCode } from "../constant/role";
@@ -52,11 +55,20 @@ router.get("/profit", verifyToken, requireRole(RoleCode.ADMIN), getProfitReport)
 // GET /api/reports/revenue/pdf?year=2025&month=12
 router.get("/revenue/pdf", verifyToken, requireRole(RoleCode.ADMIN), getRevenueReportPDF);
 
+// GET /api/reports/revenue/excel?year=2025&month=12
+router.get("/revenue/excel", verifyToken, requireRole(RoleCode.ADMIN), getRevenueReportExcel);
+
 // GET /api/reports/expense/pdf?year=2025&month=12
 router.get("/expense/pdf", verifyToken, requireRole(RoleCode.ADMIN), getExpenseReportPDF);
 
+// GET /api/reports/expense/excel?year=2025&month=12
+router.get("/expense/excel", verifyToken, requireRole(RoleCode.ADMIN), getExpenseReportExcel);
+
 // GET /api/reports/profit/pdf?year=2025&month=12
 router.get("/profit/pdf", verifyToken, requireRole(RoleCode.ADMIN), getProfitReportPDF);
+
+// GET /api/reports/profit/excel?year=2025&month=12
+router.get("/profit/excel", verifyToken, requireRole(RoleCode.ADMIN), getProfitReportExcel);
 
 // GET /api/reports/top-medicines/pdf?year=2025&month=12&limit=10
 router.get("/top-medicines/pdf", verifyToken, requireRole(RoleCode.ADMIN), getTopMedicinesReportPDF);

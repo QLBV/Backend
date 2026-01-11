@@ -7,6 +7,9 @@ import Patient from "../models/Patient";
 import PrescriptionDetail from "../models/PrescriptionDetail";
 import Appointment from "../models/Appointment";
 import Visit from "../models/Visit";
+import User from "../models/User";
+import Role from "../models/Role";
+import Doctor from "../models/Doctor";
 
 interface RevenueReportFilters {
   year: number;
@@ -76,9 +79,9 @@ export const getRevenueReportService = async (filters: RevenueReportFilters) => 
   const revenueByStatus = await Invoice.findAll({
     attributes: [
       "paymentStatus",
-      [fn("COUNT", col("id")), "count"],
-      [fn("SUM", col("totalAmount")), "totalAmount"],
-      [fn("SUM", col("paidAmount")), "paidAmount"],
+      [fn("COUNT", col("Invoice.id")), "count"],
+      [fn("SUM", col("Invoice.totalAmount")), "totalAmount"],
+      [fn("SUM", col("Invoice.paidAmount")), "paidAmount"],
     ],
     where: {
       createdAt: {
@@ -194,16 +197,47 @@ export const getExpenseReportService = async (filters: ExpenseReportFilters) => 
   // Tổng chi phí
   const totalExpense = (medicineExpense || 0) + (salaryExpense || 0);
 
-  // Chi tiết chi phí thuốc theo tháng
-  const medicineExpenseByMonth: any[] = [];
+  // Chi tiết chi phí theo thời gian (thuốc + lương)
+  const expenseOverTime: any[] = [];
 
-  if (!month) {
-    // Nếu báo cáo năm, group by tháng
+  if (month) {
+    // Theo ngày trong tháng
+    const daysInMonth = new Date(year, month, 0).getDate();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayStart = new Date(year, month - 1, day);
+      const dayEnd = new Date(year, month - 1, day + 1);
+
+      const medicineExp = await InvoiceItem.sum("subtotal", {
+        where: {
+          itemType: "MEDICINE",
+          createdAt: {
+            [Op.gte]: dayStart,
+            [Op.lt]: dayEnd,
+          },
+        },
+      });
+
+      // Đối với báo cáo tháng, lương thường tính 1 lần, nhưng để biểu đồ đẹp ta có thể phân bổ
+      // Ở đây tạm tính lương vào ngày cuối cùng của tháng hoặc 0 cho các ngày
+      let salaryExp = 0;
+      if (day === daysInMonth) {
+        salaryExp = salaryExpense || 0;
+      }
+
+      expenseOverTime.push({
+        period: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+        medicineExpense: medicineExp || 0,
+        salaryExpense: salaryExp,
+        totalExpense: (medicineExp || 0) + salaryExp,
+      });
+    }
+  } else {
+    // Theo tháng trong năm
     for (let m = 1; m <= 12; m++) {
       const monthStart = new Date(year, m - 1, 1);
       const monthEnd = new Date(year, m, 1);
 
-      const expense = await InvoiceItem.sum("subtotal", {
+      const medicineExp = await InvoiceItem.sum("subtotal", {
         where: {
           itemType: "MEDICINE",
           createdAt: {
@@ -213,9 +247,21 @@ export const getExpenseReportService = async (filters: ExpenseReportFilters) => 
         },
       });
 
-      medicineExpenseByMonth.push({
-        month: m,
-        expense: expense || 0,
+      const salaryExp = await Payroll.sum("netSalary", {
+        where: {
+          year: year,
+          month: m,
+          status: {
+            [Op.in]: ["APPROVED", "PAID"],
+          },
+        },
+      });
+
+      expenseOverTime.push({
+        period: `${year}-${String(m).padStart(2, "0")}`,
+        medicineExpense: medicineExp || 0,
+        salaryExpense: salaryExp || 0,
+        totalExpense: (medicineExp || 0) + (salaryExp || 0),
       });
     }
   }
@@ -223,8 +269,9 @@ export const getExpenseReportService = async (filters: ExpenseReportFilters) => 
   // Chi tiết chi phí lương
   const salaryExpenseByRole = await Payroll.findAll({
     attributes: [
-      [fn("SUM", col("netSalary")), "totalSalary"],
-      [fn("COUNT", col("id")), "count"],
+      [col("user.role.name"), "roleName"],
+      [fn("SUM", col("Payroll.netSalary")), "totalSalary"],
+      [fn("COUNT", col("Payroll.id")), "count"],
     ],
     where: {
       year,
@@ -235,20 +282,21 @@ export const getExpenseReportService = async (filters: ExpenseReportFilters) => 
     },
     include: [
       {
-        model: require("../models/User").default,
+        model: User,
         as: "user",
-        attributes: [],
+        attributes: [], // Don't let Sequelize add User.id automatically
         include: [
           {
-            model: require("../models/Role").default,
+            model: Role,
             as: "role",
-            attributes: ["roleName"],
+            attributes: [], // Don't let Sequelize add Role.id automatically
           },
         ],
       },
     ],
-    group: ["user.roleId", "user->role.id", "user->role.roleName"],
-    raw: false,
+    group: ["user.role.name"],
+    subQuery: false,
+    raw: true,
   });
 
   return {
@@ -259,12 +307,20 @@ export const getExpenseReportService = async (filters: ExpenseReportFilters) => 
       medicinePercentage: totalExpense > 0 ? ((medicineExpense || 0) / totalExpense) * 100 : 0,
       salaryPercentage: totalExpense > 0 ? ((salaryExpense || 0) / totalExpense) * 100 : 0,
     },
-    medicineByMonth: medicineExpenseByMonth,
-    salaryByRole: salaryExpenseByRole.map((item: any) => ({
-      role: item.user?.role?.roleName || "Unknown",
-      totalSalary: parseFloat(item.getDataValue("totalSalary")) || 0,
-      count: parseInt(item.getDataValue("count")),
+    overTime: expenseOverTime,
+    expenseTrends: expenseOverTime.map(item => ({
+      period: item.period,
+      medicineExpense: item.medicineExpense,
+      salaryExpense: item.salaryExpense,
+      totalExpense: item.totalExpense
     })),
+    salaryByRole: salaryExpenseByRole.map((item: any) => {
+      return {
+        role: item.roleName || "Unknown",
+        totalSalary: parseFloat(item.totalSalary) || 0,
+        count: parseInt(item.count) || 0,
+      };
+    }),
   };
 };
 
@@ -290,8 +346,8 @@ export const getTopMedicinesReportService = async (filters: { year: number; mont
   const topMedicines = await PrescriptionDetail.findAll({
     attributes: [
       "medicineId",
-      [fn("SUM", col("quantity")), "totalQuantity"],
-      [fn("COUNT", col("id")), "prescriptionCount"],
+      [fn("SUM", col("PrescriptionDetail.quantity")), "totalQuantity"],
+      [fn("COUNT", col("PrescriptionDetail.id")), "prescriptionCount"],
     ],
     where: {
       createdAt: {
@@ -302,36 +358,38 @@ export const getTopMedicinesReportService = async (filters: { year: number; mont
     include: [
       {
         model: Medicine,
-        as: "medicine",
+        as: "Medicine",
         attributes: ["name", "medicineCode", "unit", "salePrice"],
       },
     ],
     group: [
       "medicineId",
-      "medicine.id",
-      "medicine.name",
-      "medicine.medicineCode",
-      "medicine.unit",
-      "medicine.salePrice",
+      "Medicine.id",
+      "Medicine.name",
+      "Medicine.medicineCode",
+      "Medicine.unit",
+      "Medicine.salePrice",
     ],
     order: [[literal("totalQuantity"), "DESC"]],
     limit,
-    raw: false,
+    subQuery: false,
+    raw: true,
+    nest: true
   });
 
   return {
     topMedicines: topMedicines.map((item: any) => ({
       medicine: {
         id: item.medicineId,
-        name: item.medicine?.name,
-        code: item.medicine?.medicineCode,
-        unit: item.medicine?.unit,
-        unitPrice: item.medicine?.salePrice,
+        name: item.Medicine?.name,
+        code: item.Medicine?.medicineCode,
+        unit: item.Medicine?.unit,
+        unitPrice: item.Medicine?.salePrice,
       },
-      totalQuantity: parseFloat(item.getDataValue("totalQuantity")),
-      prescriptionCount: parseInt(item.getDataValue("prescriptionCount")),
+      totalQuantity: parseFloat(item.totalQuantity) || 0,
+      prescriptionCount: parseInt(item.prescriptionCount) || 0,
       estimatedRevenue:
-        parseFloat(item.getDataValue("totalQuantity")) * (item.medicine?.salePrice || 0),
+        (parseFloat(item.totalQuantity) || 0) * (item.Medicine?.salePrice || 0),
     })),
   };
 };
@@ -381,44 +439,48 @@ export const getMedicineAlertsReportService = async (filters: { daysUntilExpiry?
     order: [["expiryDate", "DESC"]],
   });
 
+  // Count urgent items (low stock or expiring within 7 days)
+  const urgentCount = lowStockMedicines.length + 
+    expiringMedicines.filter(med => {
+      const daysLeft = Math.floor((new Date(med.expiryDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return daysLeft <= 7;
+    }).length;
+
   return {
-    expiring: {
-      count: expiringMedicines.length,
-      medicines: expiringMedicines.map((med) => ({
-        id: med.id,
-        name: med.name,
-        code: med.medicineCode,
-        stock: med.quantity,
-        unit: med.unit,
-        expiryDate: med.expiryDate,
-        daysUntilExpiry: Math.floor(
-          (new Date(med.expiryDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-        ),
-      })),
-    },
-    lowStock: {
-      count: lowStockMedicines.length,
-      medicines: lowStockMedicines.map((med) => ({
-        id: med.id,
-        name: med.name,
-        code: med.medicineCode,
-        stock: med.quantity,
-        unit: med.unit,
-        unitPrice: med.salePrice,
-      })),
-    },
-    expired: {
-      count: expiredMedicines.length,
-      totalValue: expiredMedicines.reduce((sum, med) => sum + med.quantity * med.salePrice, 0),
-      medicines: expiredMedicines.map((med) => ({
-        id: med.id,
-        name: med.name,
-        code: med.medicineCode,
-        stock: med.quantity,
-        unit: med.unit,
-        expiryDate: med.expiryDate,
-        value: med.quantity * med.salePrice,
-      })),
+    lowStockMedicines: lowStockMedicines.map((med) => ({
+      id: med.id,
+      medicineCode: med.medicineCode,
+      medicineName: med.name,
+      currentQuantity: med.quantity,
+      minStockLevel: 10, // Default min stock level
+      alertType: 'low-stock' as const,
+    })),
+    expiringMedicines: expiringMedicines.map((med) => ({
+      id: med.id,
+      medicineCode: med.medicineCode,
+      medicineName: med.name,
+      currentQuantity: med.quantity,
+      minStockLevel: 10,
+      expiryDate: med.expiryDate,
+      daysUntilExpiry: Math.floor(
+        (new Date(med.expiryDate).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+      ),
+      alertType: 'expiring' as const,
+    })),
+    expiredMedicines: expiredMedicines.map((med) => ({
+      id: med.id,
+      medicineCode: med.medicineCode,
+      medicineName: med.name,
+      currentQuantity: med.quantity,
+      minStockLevel: 10,
+      expiryDate: med.expiryDate,
+      alertType: 'expired' as const,
+    })),
+    summary: {
+      totalLowStock: lowStockMedicines.length,
+      totalExpiring: expiringMedicines.length,
+      totalExpired: expiredMedicines.length,
+      urgentCount,
     },
   };
 };
@@ -432,7 +494,7 @@ export const getPatientsByGenderReportService = async () => {
   const genderStats = await Patient.findAll({
     attributes: [
       "gender",
-      [fn("COUNT", col("id")), "count"],
+      [fn("COUNT", col("Patient.id")), "count"],
     ],
     group: ["gender"],
     raw: true,
@@ -478,13 +540,30 @@ export const getProfitReportService = async (filters: { year: number; month?: nu
       ? (profit / revenueData.summary.totalRevenue) * 100
       : 0;
 
+  // Kết hợp overTime từ revenue và expense
+  const profitOverTime = revenueData.overTime.map((rev: any) => {
+    const exp = expenseData.overTime.find((e: any) => e.period === rev.period);
+    const expense = exp ? exp.totalExpense : 0;
+    return {
+      period: rev.period,
+      revenue: rev.revenue,
+      expense: expense,
+      profit: rev.revenue - expense,
+    };
+  });
+
   return {
     summary: {
-      revenue: revenueData.summary.totalRevenue,
-      expense: expenseData.summary.totalExpense,
-      profit,
+      totalRevenue: revenueData.summary.totalRevenue,
+      totalExpense: expenseData.summary.totalExpense,
+      totalProfit: profit,
       profitMargin: parseFloat(profitMargin.toFixed(2)),
+      // Tạm tính change là 0 vì cần dữ liệu kỳ trước để so sánh (có thể mở rộng sau)
+      revenueChange: 0,
+      expenseChange: 0,
+      profitChange: 0,
     },
+    overTime: profitOverTime,
     breakdown: {
       revenue: revenueData.summary,
       expense: expenseData.summary,
@@ -496,29 +575,21 @@ export const getProfitReportService = async (filters: { year: number; month?: nu
  * Báo cáo lịch hẹn
  * GET /api/reports/appointments
  */
+/**
+ * Báo cáo lịch hẹn
+ * GET /api/reports/appointments
+ */
 export const getAppointmentReportService = async (filters: { year: number; month?: number }) => {
   const { year, month } = filters;
 
-  let startDate: Date;
-  let endDate: Date;
-
-  if (month) {
-    startDate = new Date(year, month - 1, 1);
-    endDate = new Date(year, month, 1);
-  } else {
-    startDate = new Date(year, 0, 1);
-    endDate = new Date(year + 1, 0, 1);
-  }
+  const where: any = {
+    date: month 
+      ? { [Op.between]: [new Date(year, month - 1, 1), new Date(year, month, 0)] }
+      : { [Op.between]: [new Date(year, 0, 1), new Date(year, 11, 31)] }
+  };
 
   // Tổng số lịch hẹn
-  const totalAppointments = await Appointment.count({
-    where: {
-      createdAt: {
-        [Op.gte]: startDate,
-        [Op.lt]: endDate,
-      },
-    },
-  });
+  const totalAppointments = await Appointment.count({ where });
 
   // Lịch hẹn theo trạng thái
   const appointmentsByStatus = await Appointment.findAll({
@@ -526,90 +597,120 @@ export const getAppointmentReportService = async (filters: { year: number; month
       "status",
       [fn("COUNT", col("id")), "count"],
     ],
-    where: {
-      createdAt: {
-        [Op.gte]: startDate,
-        [Op.lt]: endDate,
-      },
-    },
+    where,
     group: ["status"],
     raw: true,
   });
 
-  // Lịch hẹn theo ca
-  const appointmentsByShift = await Appointment.findAll({
+  // Lịch hẹn theo bác sĩ
+  const appointmentsByDoctor = await Appointment.findAll({
     attributes: [
-      "shiftId",
-      [fn("COUNT", col("id")), "count"],
+      [col("doctor.user.fullName"), "doctorName"],
+      [fn("COUNT", col("Appointment.id")), "count"],
     ],
-    where: {
-      createdAt: {
-        [Op.gte]: startDate,
-        [Op.lt]: endDate,
-      },
-    },
     include: [
       {
-        model: require("../models/Shift").default,
-        as: "shift",
-        attributes: ["name", "startTime", "endTime"],
-      },
+        model: Doctor,
+        as: "doctor",
+        attributes: [],
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: [],
+          }
+        ]
+      }
     ],
-    group: ["shiftId", "shift.id", "shift.name", "shift.startTime", "shift.endTime"],
-    raw: false,
+    where,
+    group: ["doctor.user.fullName"],
+    raw: true,
   });
 
-  // Tỷ lệ hoàn thành
+  // Lịch hẹn theo thời gian (Trend) - Đảm bảo hiển thị tất cả các mốc thời gian
+  const overTimeRaw = await Appointment.findAll({
+    attributes: [
+      month 
+        ? [fn("DATE_FORMAT", col("date"), "%Y-%m-%d"), "period"]
+        : [fn("DATE_FORMAT", col("date"), "%Y-%m"), "period"],
+      [fn("COUNT", col("id")), "total"],
+      [fn("SUM", literal("CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END")), "completed"],
+      [fn("SUM", literal("CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END")), "cancelled"],
+      [fn("SUM", literal("CASE WHEN status = 'NO_SHOW' THEN 1 ELSE 0 END")), "noShow"],
+    ],
+    where,
+    group: ["period"],
+    order: [[col("period"), "ASC"]],
+    raw: true,
+  });
+
+  // Tạo danh sách tất cả các mốc thời gian (Tất cả các tháng hoặc tất cả các ngày)
+  const allPeriods: any[] = [];
+  if (month) {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayStr = d.toString().padStart(2, '0');
+      const monthStr = month.toString().padStart(2, '0');
+      allPeriods.push(`${year}-${monthStr}-${dayStr}`);
+    }
+  } else {
+    for (let m = 1; m <= 12; m++) {
+      const monthStr = m.toString().padStart(2, '0');
+      allPeriods.push(`${year}-${monthStr}`);
+    }
+  }
+
+  // Khớp dữ liệu thực tế vào danh sách đầy đủ
+  const overTime = allPeriods.map(p => {
+    const found: any = overTimeRaw.find((item: any) => item.period === p);
+    return {
+      period: p,
+      total: found ? parseInt(found.total) : 0,
+      completed: found ? parseInt(found.completed) : 0,
+      cancelled: found ? parseInt(found.cancelled) : 0,
+      noShow: found ? parseInt(found.noShow) : 0,
+    };
+  });
+
+  // Thống kê tóm tắt
   const completedCount = await Appointment.count({
-    where: {
-      createdAt: {
-        [Op.gte]: startDate,
-        [Op.lt]: endDate,
-      },
-      status: "COMPLETED",
-    },
+    where: { ...where, status: "COMPLETED" },
   });
 
   const cancelledCount = await Appointment.count({
-    where: {
-      createdAt: {
-        [Op.gte]: startDate,
-        [Op.lt]: endDate,
-      },
-      status: "CANCELLED",
-    },
+    where: { ...where, status: "CANCELLED" },
   });
 
   const noShowCount = await Appointment.count({
-    where: {
-      createdAt: {
-        [Op.gte]: startDate,
-        [Op.lt]: endDate,
-      },
-      status: "NO_SHOW",
-    },
+    where: { ...where, status: "NO_SHOW" },
   });
+
+  // Tính trung bình mỗi ngày
+  const daysInPeriod = month 
+    ? new Date(year, month, 0).getDate() 
+    : (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 366 : 365);
+  
+  const averagePerDay = totalAppointments / daysInPeriod;
 
   return {
     summary: {
-      total: totalAppointments,
-      completed: completedCount,
-      cancelled: cancelledCount,
-      noShow: noShowCount,
+      totalAppointments,
+      completedAppointments: completedCount,
+      cancelledAppointments: cancelledCount,
+      noShowAppointments: noShowCount,
+      averagePerDay,
       completionRate: totalAppointments > 0 ? (completedCount / totalAppointments) * 100 : 0,
-      cancellationRate: totalAppointments > 0 ? (cancelledCount / totalAppointments) * 100 : 0,
-      noShowRate: totalAppointments > 0 ? (noShowCount / totalAppointments) * 100 : 0,
     },
+    overTime,
     byStatus: appointmentsByStatus.map((item: any) => ({
       status: item.status,
       count: parseInt(item.count),
       percentage: totalAppointments > 0 ? (parseInt(item.count) / totalAppointments) * 100 : 0,
     })),
-    byShift: appointmentsByShift.map((item: any) => ({
-      shiftId: item.shiftId,
-      shiftName: item.shift?.name || "Unknown",
-      shiftTime: item.shift ? `${item.shift.startTime} - ${item.shift.endTime}` : "N/A",
-      count: parseInt(item.getDataValue("count")),
+    byDoctor: appointmentsByDoctor.map((item: any) => ({
+      doctorName: item.doctorName || "Bác sĩ ẩn danh",
+      count: parseInt(item.count),
+      percentage: totalAppointments > 0 ? (parseInt(item.count) / totalAppointments) * 100 : 0,
     })),
   };
 };
@@ -618,15 +719,40 @@ export const getAppointmentReportService = async (filters: { year: number; month
  * Báo cáo thống kê bệnh nhân
  * GET /api/reports/patient-statistics
  */
-export const getPatientStatisticsService = async () => {
+export const getPatientStatisticsService = async (year: number, month?: number) => {
+  const userWhere: any = {};
+
+  if (year) {
+    if (month) {
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0, 23, 59, 59);
+      userWhere.createdAt = { [Op.between]: [startDate, endDate] };
+    } else {
+      const startDate = new Date(year, 0, 1);
+      const endDate = new Date(year, 11, 31, 23, 59, 59);
+      userWhere.createdAt = { [Op.between]: [startDate, endDate] };
+    }
+  }
+
   // Tổng số bệnh nhân
   const totalPatients = await Patient.count();
+  
+  const activePatients = await Patient.count({
+    include: [{ model: User, as: "user", where: { isActive: true }, attributes: [] }]
+  });
+
+  const inactivePatients = totalPatients - activePatients;
+
+  // Bệnh nhân mới trong kỳ
+  const newPatients = await Patient.count({
+    include: [{ model: User, as: "user", where: userWhere, attributes: [] }]
+  });
 
   // Thống kê theo giới tính
   const genderStats = await Patient.findAll({
     attributes: [
       "gender",
-      [fn("COUNT", col("id")), "count"],
+      [fn("COUNT", col("Patient.id")), "count"],
     ],
     group: ["gender"],
     raw: true,
@@ -641,9 +767,9 @@ export const getPatientStatisticsService = async () => {
     { name: "61+", min: 61, max: 150 },
   ];
 
+  const currentYear = new Date().getFullYear();
   const ageStats = await Promise.all(
     ageGroups.map(async (group) => {
-      const currentYear = new Date().getFullYear();
       const maxBirthYear = currentYear - group.min;
       const minBirthYear = currentYear - group.max;
 
@@ -657,39 +783,64 @@ export const getPatientStatisticsService = async () => {
       });
 
       return {
-        ageGroup: group.name,
+        ageRange: group.name,
         count,
-        percentage: totalPatients > 0 ? (count / totalPatients) * 100 : 0,
       };
     })
   );
 
-  // Bệnh nhân mới trong 30 ngày qua
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  const newPatientsLast30Days = await Patient.count({
-    include: [
-      {
-        model: require("../models/User").default,
-        as: "user",
-        attributes: [],
-        where: {
-          createdAt: {
-            [Op.gte]: thirtyDaysAgo,
-          },
-        },
-      },
+  // Thống kê theo thời gian (Bệnh nhân mới)
+  const overTimeRaw = await Patient.findAll({
+    attributes: [
+      month 
+        ? [fn("DATE_FORMAT", col("user.createdAt"), "%Y-%m-%d"), "period"]
+        : [fn("DATE_FORMAT", col("user.createdAt"), "%Y-%m"), "period"],
+      [fn("COUNT", col("Patient.id")), "count"],
     ],
+    include: [{
+      model: User,
+      as: "user",
+      attributes: [],
+      where: userWhere
+    }],
+    group: ["period"],
+    raw: true,
   });
+
+  // Tạo timeline đầy đủ
+  const patientsOverTime: any[] = [];
+  if (year) {
+    if (month) {
+      const daysInMonth = new Date(year, month, 0).getDate();
+      for (let d = 1; d <= daysInMonth; d++) {
+        const p = `${year}-${month.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`;
+        const found: any = overTimeRaw.find((item: any) => item.period === p);
+        patientsOverTime.push({
+          period: p,
+          newPatients: found ? parseInt(found.count) : 0,
+          totalPatients: totalPatients, // Đơn giản hóa, hiển thị tổng hiện tại
+        });
+      }
+    } else {
+      for (let m = 1; m <= 12; m++) {
+        const p = `${year}-${m.toString().padStart(2, '0')}`;
+        const found: any = overTimeRaw.find((item: any) => item.period === p);
+        patientsOverTime.push({
+          period: p,
+          newPatients: found ? parseInt(found.count) : 0,
+          totalPatients: totalPatients,
+        });
+      }
+    }
+  }
 
   // Top bệnh nhân có nhiều lượt khám nhất
   const topPatientsByVisits = await Visit.findAll({
     attributes: [
       "patientId",
-      [fn("COUNT", col("id")), "visitCount"],
+      [fn("COUNT", col("Visit.id")), "visitCount"],
     ],
-    group: ["patientId"],
+    group: ["patientId", "patient.id", "patient.user.id"],
     include: [
       {
         model: Patient,
@@ -697,34 +848,35 @@ export const getPatientStatisticsService = async () => {
         attributes: ["id"],
         include: [
           {
-            model: require("../models/User").default,
+            model: User,
             as: "user",
-            attributes: ["fullName", "email"],
+            attributes: ["fullName"],
           },
         ],
       },
     ],
     order: [[literal("visitCount"), "DESC"]],
     limit: 10,
-    raw: false,
+    subQuery: false,
+    raw: true,
+    nest: true
   });
 
   return {
-    summary: {
-      total: totalPatients,
-      newLast30Days: newPatientsLast30Days,
-    },
-    byGender: genderStats.map((item: any) => ({
+    totalPatients,
+    newPatients,
+    activePatients,
+    inactivePatients,
+    patientsByAge: ageStats,
+    patientsByGender: genderStats.map((item: any) => ({
       gender: item.gender || "UNKNOWN",
       count: parseInt(item.count),
       percentage: totalPatients > 0 ? (parseInt(item.count) / totalPatients) * 100 : 0,
     })),
-    byAge: ageStats,
-    topPatients: topPatientsByVisits.map((item: any) => ({
-      patientId: item.patientId,
-      patientName: item.patient?.user?.fullName || "N/A",
-      patientEmail: item.patient?.user?.email || "N/A",
-      visitCount: parseInt(item.getDataValue("visitCount")),
+    patientsOverTime,
+    topVisitingPatients: topPatientsByVisits.map((item: any) => ({
+      patientName: item.patient?.user?.fullName || "Ẩn danh",
+      visitCount: parseInt(item.visitCount) || 0,
     })),
   };
 };

@@ -2,14 +2,176 @@ import { Transaction, Op } from "sequelize";
 import Invoice, { PaymentStatus } from "../models/Invoice";
 import InvoiceItem, { ItemType } from "../models/InvoiceItem";
 import Payment, { PaymentMethod } from "../models/Payment";
+import Refund, { RefundStatus } from "../models/Refund";
 import Visit from "../models/Visit";
-import Prescription from "../models/Prescription";
 import PrescriptionDetail from "../models/PrescriptionDetail";
 import Patient from "../models/Patient";
 import Doctor from "../models/Doctor";
 import User from "../models/User";
+import Appointment from "../models/Appointment";
+import Shift from "../models/Shift";
+import Specialty from "../models/Specialty";
 import sequelize from "../config/database";
 import { generateInvoiceCode } from "../utils/codeGenerator";
+import { VisitStateMachine, AppointmentStateMachine } from "../utils/stateMachine";
+import { AppointmentStatus } from "../constant/appointment";
+
+export const invoiceAssociations = [
+  {
+    model: Visit,
+    as: "visit",
+    attributes: [
+      "id",
+      "appointmentId",
+      "patientId",
+      "doctorId",
+      "checkInTime",
+      "checkOutTime",
+      "diagnosis",
+      "symptoms",
+      "status",
+      "note",
+      "createdAt",
+    ],
+    include: [
+      {
+        model: Patient,
+        as: "patient",
+        attributes: [
+          "id",
+          "patientCode",
+          "fullName",
+          "gender",
+          "dateOfBirth",
+          "avatar",
+        ],
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "fullName", "email", "avatar"],
+          },
+        ],
+      },
+      {
+        model: Doctor,
+        as: "doctor",
+        attributes: ["id", "doctorCode", "specialtyId"],
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "fullName", "email", "avatar"],
+          },
+          {
+            model: Specialty,
+            as: "specialty",
+            attributes: ["id", "name"],
+          },
+        ],
+      },
+      {
+        model: Appointment,
+        as: "appointment",
+        attributes: ["id", "date", "slotNumber", "status"],
+        include: [
+          {
+            model: Shift,
+            as: "shift",
+            attributes: ["id", "name", "startTime", "endTime"],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    model: Patient,
+    as: "patient",
+    attributes: [
+      "id",
+      "patientCode",
+      "fullName",
+      "gender",
+      "dateOfBirth",
+      "avatar",
+    ],
+    include: [
+      {
+        model: User,
+        as: "user",
+        attributes: ["id", "fullName", "email", "avatar"],
+      },
+    ],
+  },
+  {
+    model: Doctor,
+    as: "doctor",
+    attributes: ["id", "doctorCode", "specialtyId"],
+    include: [
+      {
+        model: User,
+        as: "user",
+        attributes: ["id", "fullName", "email", "avatar"],
+      },
+      {
+        model: Specialty,
+        as: "specialty",
+        attributes: ["id", "name"],
+      },
+    ],
+  },
+  { model: User, as: "creator", attributes: ["id", "fullName", "email"] },
+  {
+    model: InvoiceItem,
+    as: "items",
+    include: [
+      {
+        model: PrescriptionDetail,
+        as: "prescriptionDetail",
+      },
+    ],
+  },
+  {
+    model: Payment,
+    as: "payments",
+    include: [
+      { model: User, as: "creator", attributes: ["id", "fullName", "email"] },
+    ],
+  },
+];
+
+export const formatInvoice = (invoice: any) => {
+  if (!invoice) return invoice;
+  const data = invoice.toJSON ? invoice.toJSON() : invoice;
+
+  const attachUserName = (doctor: any) => {
+    if (doctor && doctor.user) {
+      doctor.fullName = doctor.fullName || doctor.user.fullName;
+      doctor.email = doctor.email || doctor.user.email;
+      doctor.avatar = doctor.avatar || doctor.user.avatar;
+    }
+  };
+
+  const attachPatientUser = (patient: any) => {
+    if (patient && patient.user) {
+      patient.fullName = patient.fullName || patient.user.fullName;
+      patient.email = patient.email || patient.user.email;
+      patient.avatar = patient.avatar || patient.user.avatar;
+    }
+  };
+
+  attachUserName(data.doctor);
+  attachPatientUser(data.patient);
+
+  if (data.visit) {
+    data.visit.visitDate =
+      data.visit.visitDate || data.visit.checkInTime || data.visit.createdAt;
+    attachUserName(data.visit.doctor);
+    attachPatientUser(data.visit.patient);
+  }
+
+  return data;
+};
 
 /**
  * Tạo hóa đơn tự động khi Visit completed
@@ -126,16 +288,11 @@ export const createInvoiceFromVisit = async (
     }
 
     // 8. Reload invoice với associations
-    return await Invoice.findByPk(invoice.id, {
-      include: [
-        { association: "visit" },
-        { association: "patient" },
-        { association: "doctor" },
-        { association: "creator" },
-        { association: "items" },
-        { association: "payments" },
-      ],
+    const hydrated = await Invoice.findByPk(invoice.id, {
+      include: invoiceAssociations,
     });
+
+    return formatInvoice(hydrated);
   } catch (error) {
     if (!transaction) {
       await t.rollback();
@@ -186,20 +343,15 @@ export const getInvoicesService = async (filters: {
 
   const { count, rows } = await Invoice.findAndCountAll({
     where,
-    include: [
-      { association: "patient" },
-      { association: "doctor" },
-      { association: "creator" },
-      { association: "items" },
-      { association: "payments" },
-    ],
+    include: invoiceAssociations,
     order: [["createdAt", "DESC"]],
     limit,
     offset,
+    distinct: true,
   });
 
   return {
-    invoices: rows,
+    invoices: rows.map((row) => formatInvoice(row)),
     pagination: {
       total: count,
       page,
@@ -214,27 +366,14 @@ export const getInvoicesService = async (filters: {
  */
 export const getInvoiceByIdService = async (invoiceId: number) => {
   const invoice = await Invoice.findByPk(invoiceId, {
-    include: [
-      { association: "visit" },
-      { association: "patient" },
-      { association: "doctor" },
-      { association: "creator" },
-      {
-        association: "items",
-        include: [{ association: "prescriptionDetail" }],
-      },
-      {
-        association: "payments",
-        include: [{ association: "creator" }],
-      },
-    ],
+    include: invoiceAssociations,
   });
 
   if (!invoice) {
     throw new Error("Invoice not found");
   }
 
-  return invoice;
+  return formatInvoice(invoice);
 };
 
 /**
@@ -371,6 +510,41 @@ export const addPaymentService = async (
 
     await invoice.save({ transaction: t });
 
+    // When invoice is fully paid, close visit/appointment lifecycle
+    if (invoice.paymentStatus === PaymentStatus.PAID) {
+      const visit = await Visit.findByPk(invoice.visitId, {
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+
+      if (visit) {
+        if (visit.status !== "COMPLETED") {
+          // STATE MACHINE: Validate visit transition to COMPLETED
+          VisitStateMachine.validateTransition(visit.status, "COMPLETED");
+
+          visit.status = "COMPLETED";
+          visit.checkOutTime = visit.checkOutTime ?? new Date();
+          await visit.save({ transaction: t });
+        }
+
+        const appointment = await Appointment.findByPk(visit.appointmentId, {
+          transaction: t,
+          lock: t.LOCK.UPDATE,
+        });
+
+        if (appointment && appointment.status !== "COMPLETED") {
+          // STATE MACHINE: Validate appointment transition to COMPLETED
+          AppointmentStateMachine.validateTransition(
+            appointment.status as AppointmentStatus,
+            AppointmentStatus.COMPLETED
+          );
+
+          appointment.status = AppointmentStatus.COMPLETED;
+          await appointment.save({ transaction: t });
+        }
+      }
+    }
+
     await t.commit();
 
     // Return updated invoice
@@ -404,16 +578,13 @@ export const getInvoicePaymentsService = async (invoiceId: number) => {
  * Lấy hóa đơn theo bệnh nhân
  */
 export const getInvoicesByPatientService = async (patientId: number) => {
-  return await Invoice.findAll({
+  const invoices = await Invoice.findAll({
     where: { patientId },
-    include: [
-      { association: "visit" },
-      { association: "doctor" },
-      { association: "items" },
-      { association: "payments" },
-    ],
+    include: invoiceAssociations,
     order: [["createdAt", "DESC"]],
   });
+
+  return invoices.map((item) => formatInvoice(item));
 };
 
 /**
@@ -453,4 +624,195 @@ export const getInvoiceStatisticsService = async (filters: {
   });
 
   return invoices;
+};
+
+/**
+ * Process approved refund - decrease invoice paidAmount
+ * CRITICAL: Only call this when Refund.status = APPROVED or COMPLETED
+ */
+export const processRefundService = async (
+  refundId: number,
+  approvedBy: number
+) => {
+  const t = await sequelize.transaction();
+
+  try {
+    // 1. Get refund with lock
+    const refund = await Refund.findByPk(refundId, {
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (!refund) {
+      throw new Error("REFUND_NOT_FOUND");
+    }
+
+    // 2. Validate refund status
+    if (refund.status === RefundStatus.COMPLETED) {
+      throw new Error("REFUND_ALREADY_COMPLETED");
+    }
+
+    if (refund.status === RefundStatus.REJECTED) {
+      throw new Error("CANNOT_PROCESS_REJECTED_REFUND");
+    }
+
+    if (refund.status !== RefundStatus.APPROVED) {
+      throw new Error("REFUND_NOT_APPROVED");
+    }
+
+    // 3. Get invoice with lock
+    const invoice = await Invoice.findByPk(refund.invoiceId, {
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (!invoice) {
+      throw new Error("INVOICE_NOT_FOUND");
+    }
+
+    // 4. Validate refund amount
+    if (refund.amount > invoice.paidAmount) {
+      throw new Error("REFUND_AMOUNT_EXCEEDS_PAID_AMOUNT");
+    }
+
+    // 5. CRITICAL: Decrease paidAmount
+    const oldPaidAmount = invoice.paidAmount;
+    const oldPaymentStatus = invoice.paymentStatus;
+
+    invoice.paidAmount -= refund.amount;
+
+    // 6. Recalculate payment status
+    if (invoice.paidAmount === 0) {
+      invoice.paymentStatus = PaymentStatus.UNPAID;
+    } else if (invoice.paidAmount < invoice.totalAmount) {
+      invoice.paymentStatus = PaymentStatus.PARTIALLY_PAID;
+    } else {
+      invoice.paymentStatus = PaymentStatus.PAID;
+    }
+
+    await invoice.save({ transaction: t });
+
+    // 7. Create negative payment record for audit trail
+    await Payment.create(
+      {
+        invoiceId: invoice.id,
+        amount: -refund.amount, // Negative amount
+        paymentMethod: PaymentMethod.CASH, // Refund method
+        paymentDate: new Date(),
+        reference: `REFUND_${refund.id}`,
+        note: `Refund: ${refund.reason}`,
+        createdBy: approvedBy,
+      },
+      { transaction: t }
+    );
+
+    // 8. Mark refund as COMPLETED
+    refund.status = RefundStatus.COMPLETED;
+    refund.completedDate = new Date();
+    await refund.save({ transaction: t });
+
+    await t.commit();
+
+    return {
+      refund,
+      invoice,
+      oldPaidAmount,
+      newPaidAmount: invoice.paidAmount,
+      oldPaymentStatus,
+      newPaymentStatus: invoice.paymentStatus,
+    };
+  } catch (error) {
+    await t.rollback();
+    throw error;
+  }
+};
+
+/**
+ * Get revenue report grouped by payment method
+ * For financial reconciliation and cash flow analysis
+ */
+export const getRevenueByPaymentMethodService = async (filters: {
+  fromDate?: Date;
+  toDate?: Date;
+  doctorId?: number;
+}) => {
+  const invoiceWhere: any = {};
+  const paymentWhere: any = {};
+
+  // Date filter for invoices
+  if (filters.fromDate || filters.toDate) {
+    invoiceWhere.createdAt = {};
+    if (filters.fromDate) {
+      invoiceWhere.createdAt[Op.gte] = filters.fromDate;
+    }
+    if (filters.toDate) {
+      invoiceWhere.createdAt[Op.lte] = filters.toDate;
+    }
+  }
+
+  // Doctor filter
+  if (filters.doctorId) {
+    invoiceWhere.doctorId = filters.doctorId;
+  }
+
+  // Date filter for payments
+  if (filters.fromDate || filters.toDate) {
+    paymentWhere.paymentDate = {};
+    if (filters.fromDate) {
+      paymentWhere.paymentDate[Op.gte] = filters.fromDate;
+    }
+    if (filters.toDate) {
+      paymentWhere.paymentDate[Op.lte] = filters.toDate;
+    }
+  }
+
+  // Get payments grouped by method
+  const paymentsByMethod = await Payment.findAll({
+    where: paymentWhere,
+    include: [
+      {
+        model: Invoice,
+        as: "invoice",
+        where: invoiceWhere,
+        attributes: [],
+      },
+    ],
+    attributes: [
+      "paymentMethod",
+      [sequelize.fn("COUNT", sequelize.col("Payment.id")), "transactionCount"],
+      [sequelize.fn("SUM", sequelize.col("Payment.amount")), "totalAmount"],
+      [sequelize.fn("AVG", sequelize.col("Payment.amount")), "averageAmount"],
+      [sequelize.fn("MIN", sequelize.col("Payment.amount")), "minAmount"],
+      [sequelize.fn("MAX", sequelize.col("Payment.amount")), "maxAmount"],
+    ],
+    group: ["paymentMethod"],
+    raw: true,
+  });
+
+  // Calculate grand total
+  const grandTotal = paymentsByMethod.reduce(
+    (sum: number, item: any) => sum + parseFloat(item.totalAmount || 0),
+    0
+  );
+
+  // Add percentage to each method
+  const paymentSummary = paymentsByMethod.map((item: any) => ({
+    paymentMethod: item.paymentMethod,
+    transactionCount: parseInt(item.transactionCount),
+    totalAmount: parseFloat(item.totalAmount || 0),
+    averageAmount: parseFloat(item.averageAmount || 0),
+    minAmount: parseFloat(item.minAmount || 0),
+    maxAmount: parseFloat(item.maxAmount || 0),
+    percentage: grandTotal > 0 ? (parseFloat(item.totalAmount || 0) / grandTotal) * 100 : 0,
+  }));
+
+  return {
+    summary: paymentSummary,
+    grandTotal,
+    filters: {
+      fromDate: filters.fromDate,
+      toDate: filters.toDate,
+      doctorId: filters.doctorId,
+    },
+  };
 };

@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { Op } from "sequelize";
 import Shift from "../models/Shift";
 import DoctorShift from "../models/DoctorShift";
 import Doctor from "../models/Doctor";
@@ -130,15 +131,16 @@ export const getShiftSchedule = async (req: Request, res: Response) => {
       });
     }
 
-    // Get all shifts
-    const shifts = await Shift.findAll();
+    // Get all shifts ordered by start time
+    const shifts = await Shift.findAll({
+       order: [["startTime", "ASC"]]
+    });
 
     // Get all doctor shifts within the date range
     const doctorShifts = await DoctorShift.findAll({
       where: {
         workDate: {
-          $gte: startDate,
-          $lte: endDate,
+          [Op.between]: [startDate as string, endDate as string],
         },
       },
       include: [
@@ -166,43 +168,58 @@ export const getShiftSchedule = async (req: Request, res: Response) => {
       order: [["workDate", "ASC"]],
     });
 
-    // Group by date and shift
-    const scheduleMap = new Map<string, any>();
+    // Generate full list of dates in the range
+    const dates: string[] = [];
+    const currDate = new Date(startDate as string);
+    const lastDate = new Date(endDate as string);
+    
+    // Safety check to prevent infinite loop (max 365 days)
+    let daysCount = 0;
+    while (currDate <= lastDate && daysCount < 365) {
+      dates.push(currDate.toISOString().slice(0, 10));
+      currDate.setDate(currDate.getDate() + 1);
+      daysCount++;
+    }
 
+    // Create a lookup map for existing assignments
+    const assignmentsMap = new Map<string, any[]>();
     doctorShifts.forEach((ds: any) => {
-      const date = ds.workDate;
-      const shiftId = ds.shiftId;
-      const key = `${date}_${shiftId}`;
-
-      if (!scheduleMap.has(key)) {
-        scheduleMap.set(key, {
-          date,
-          shift: {
-            id: ds.shift?.id,
-            name: ds.shift?.name,
-            startTime: ds.shift?.startTime,
-            endTime: ds.shift?.endTime,
-          },
-          doctors: [],
-        });
-      }
-
-      scheduleMap.get(key).doctors.push({
-        doctorShiftId: ds.id,
-        doctorId: ds.doctor?.id,
-        doctorName: ds.doctor?.user?.fullName,
-        doctorEmail: ds.doctor?.user?.email,
-        specialty: ds.doctor?.specialty?.name,
-        specialtyId: ds.doctor?.specialty?.id,
-      });
+        const key = `${ds.workDate}_${ds.shiftId}`;
+        if (!assignmentsMap.has(key)) {
+            assignmentsMap.set(key, []);
+        }
+        assignmentsMap.get(key)?.push(ds);
     });
 
-    // Convert map to array and sort
-    const schedule = Array.from(scheduleMap.values()).sort((a, b) => {
-      if (a.date !== b.date) {
-        return a.date.localeCompare(b.date);
-      }
-      return a.shift.id - b.shift.id;
+    // Build the complete schedule (Dates x Shifts)
+    const schedule: any[] = [];
+    
+    dates.forEach(date => {
+        shifts.forEach(shift => {
+            const key = `${date}_${shift.id}`;
+            const shiftsInSlot = assignmentsMap.get(key) || [];
+            
+            const doctors = shiftsInSlot.map((ds: any) => ({
+                doctorShiftId: ds.id,
+                doctorId: ds.doctor?.id,
+                doctorCode: ds.doctor?.doctorCode || "",
+                doctorName: ds.doctor?.user?.fullName || "Unknown",
+                doctorEmail: ds.doctor?.user?.email || "",
+                specialty: ds.doctor?.specialty?.name || "",
+                specialtyId: ds.doctor?.specialty?.id,
+            }));
+
+            schedule.push({
+                date: date,
+                shift: {
+                    id: shift.id,
+                    name: shift.name,
+                    startTime: shift.startTime,
+                    endTime: shift.endTime,
+                },
+                doctors: doctors
+            });
+        });
     });
 
     return res.json({

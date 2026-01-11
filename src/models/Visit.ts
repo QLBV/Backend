@@ -17,7 +17,9 @@ export default class Visit extends Model {
   declare diseaseCategoryId?: number;
   declare diagnosis?: string;
   declare note?: string;
-  declare status: "EXAMINING" | "COMPLETED";
+  declare status: "EXAMINING" | "EXAMINED" | "COMPLETED";
+  declare doctorSignature?: string;
+  declare signedAt?: Date;
   declare vitalSigns?: {
     bloodPressure?: string;
     heartRate?: number;
@@ -49,8 +51,18 @@ Visit.init(
       allowNull: true,
     },
     status: {
-      type: DataTypes.ENUM("EXAMINING", "COMPLETED"),
+      type: DataTypes.ENUM("EXAMINING", "EXAMINED", "COMPLETED"),
       defaultValue: "EXAMINING",
+    },
+    doctorSignature: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Digital signature or hash of doctor's approval (for compliance)",
+    },
+    signedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: "Timestamp when doctor signed the diagnosis",
     },
   },
   {

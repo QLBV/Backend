@@ -1,4 +1,4 @@
-import { Transaction, Op } from "sequelize";
+﻿import { Transaction, Op } from "sequelize";
 import { sequelize } from "../models";
 import Prescription, { PrescriptionStatus } from "../models/Prescription";
 import PrescriptionDetail from "../models/PrescriptionDetail";
@@ -10,7 +10,14 @@ import Doctor from "../models/Doctor";
 import User from "../models/User";
 import PatientProfile from "../models/PatientProfile";
 import Specialty from "../models/Specialty";
-import { generatePrescriptionCode } from "../utils/codeGenerator";
+import Appointment from "../models/Appointment";
+import Invoice from "../models/Invoice";
+import InvoiceItem, { ItemType } from "../models/InvoiceItem";
+import {
+  generatePrescriptionCode,
+  generateExportCode,
+} from "../utils/codeGenerator";
+import { createInvoiceFromVisit } from "./invoice.service";
 
 interface MedicineInput {
   medicineId: number;
@@ -60,8 +67,28 @@ export const createPrescriptionService = async (
       if (visit.doctorId !== doctorId) {
         throw new Error("UNAUTHORIZED_VISIT");
       }
-      if (visit.status !== "COMPLETED") {
-        throw new Error("VISIT_NOT_COMPLETED");
+      // Visit must be at least EXAMINED (diagnosis saved) to create prescription
+      if (
+        visit.status !== "EXAMINING" &&
+        visit.status !== "EXAMINED" &&
+        visit.status !== "COMPLETED"
+      ) {
+        throw new Error("VISIT_NOT_EXAMINED");
+      }
+
+      // Ensure appointment is in the correct state (doctor has started the exam)
+      const appointment = await Appointment.findByPk(visit.appointmentId, {
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+      if (!appointment) {
+        throw new Error("APPOINTMENT_NOT_FOUND");
+      }
+      if (appointment.status === "CHECKED_IN") {
+        appointment.status = "IN_PROGRESS";
+        await appointment.save({ transaction: t });
+      } else if (appointment.status !== "IN_PROGRESS") {
+        throw new Error("APPOINTMENT_NOT_IN_PROGRESS");
       }
 
       // 2. Check if prescription already exists for this visit
@@ -75,6 +102,8 @@ export const createPrescriptionService = async (
 
       // 3. Generate prescription code
       const prescriptionCode = await generatePrescriptionCode();
+      const doctorUser = await Doctor.findByPk(doctorId, { transaction: t });
+      const doctorUserId = doctorUser?.userId || doctorId;
 
       // 4. Create prescription (totalAmount will be calculated)
       const prescription = await Prescription.create(
@@ -142,8 +171,10 @@ export const createPrescriptionService = async (
         );
 
         // 📊 Create audit trail
+        const exportCode = await generateExportCode();
         await MedicineExport.create(
           {
+            exportCode,
             medicineId: medicine.id,
             quantity: item.quantity,
             exportDate: new Date(),
@@ -157,6 +188,83 @@ export const createPrescriptionService = async (
       // 6. Update total amount
       prescription.totalAmount = totalAmount;
       await prescription.save({ transaction: t });
+
+      // 7. Mark visit as completed after prescription is finalized
+      if (visit.status !== "COMPLETED") {
+        visit.status = "COMPLETED";
+        visit.checkOutTime = visit.checkOutTime ?? new Date();
+        await visit.save({ transaction: t });
+      }
+
+      // 8. Ensure invoice exists and sync medicine charges
+      let invoice = await Invoice.findOne({
+        where: { visitId: visit.id },
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+
+      if (!invoice) {
+        try {
+          await createInvoiceFromVisit(input.visitId, doctorUserId, 100000, t);
+          invoice = await Invoice.findOne({
+            where: { visitId: visit.id },
+            transaction: t,
+            lock: t.LOCK.UPDATE,
+          });
+        } catch (invoiceError: any) {
+          if (invoiceError.message?.includes("already exists")) {
+            invoice = await Invoice.findOne({
+              where: { visitId: visit.id },
+              transaction: t,
+              lock: t.LOCK.UPDATE,
+            });
+          } else {
+            console.error(
+              "Failed to create invoice:",
+              invoiceError?.message || invoiceError
+            );
+          }
+        }
+      }
+
+      if (invoice) {
+        await InvoiceItem.destroy({
+          where: { invoiceId: invoice.id, itemType: ItemType.MEDICINE },
+          transaction: t,
+        });
+
+        const details = await PrescriptionDetail.findAll({
+          where: { prescriptionId: prescription.id },
+          transaction: t,
+        });
+
+        let medicineTotalAmount = 0;
+
+        for (const detail of details) {
+          const subtotal = Number(detail.quantity) * Number(detail.unitPrice);
+          medicineTotalAmount += subtotal;
+
+          await InvoiceItem.create(
+            {
+              invoiceId: invoice.id,
+              itemType: ItemType.MEDICINE,
+              prescriptionDetailId: detail.id,
+              medicineName: detail.medicineName,
+              quantity: detail.quantity,
+              unitPrice: detail.unitPrice,
+              subtotal,
+            },
+            { transaction: t }
+          );
+        }
+
+        invoice.medicineTotalAmount = medicineTotalAmount;
+        invoice.totalAmount =
+          Number(invoice.examinationFee) +
+          Number(invoice.medicineTotalAmount) -
+          Number(invoice.discount || 0);
+        await invoice.save({ transaction: t });
+      }
 
       return prescription;
     }
@@ -275,8 +383,10 @@ export const updatePrescriptionService = async (
             { transaction: t }
           );
 
+          const exportCode = await generateExportCode();
           await MedicineExport.create(
             {
+              exportCode,
               medicineId: medicine.id,
               quantity: item.quantity,
               exportDate: new Date(),
@@ -488,56 +598,57 @@ export const getPrescriptionsService = async (params?: {
     where.doctorId = params.doctorId;
   }
 
-  const { rows: prescriptions, count: total } = await Prescription.findAndCountAll({
-    where,
-    include: [
-      {
-        model: PrescriptionDetail,
-        as: "details",
-        include: [
-          {
-            model: Medicine,
-            as: "Medicine",
-            attributes: ["id", "name", "medicineCode"],
-            required: false,
-          },
-        ],
-      },
-      {
-        model: Patient,
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["id", "fullName", "email", "avatar"],
-          },
-        ],
-      },
-      {
-        model: Doctor,
-        as: "Doctor",
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["id", "fullName", "email", "avatar"],
-          },
-          {
-            model: Specialty,
-            as: "specialty",
-            attributes: ["id", "name"],
-          },
-        ],
-      },
-      {
-        model: Visit,
-        attributes: ["id", "checkInTime", "diagnosis", "symptoms"],
-      },
-    ],
-    order: [["createdAt", "DESC"]],
-    limit,
-    offset,
-  });
+  const { rows: prescriptions, count: total } =
+    await Prescription.findAndCountAll({
+      where,
+      include: [
+        {
+          model: PrescriptionDetail,
+          as: "details",
+          include: [
+            {
+              model: Medicine,
+              as: "Medicine",
+              attributes: ["id", "name", "medicineCode"],
+              required: false,
+            },
+          ],
+        },
+        {
+          model: Patient,
+          include: [
+            {
+              model: User,
+              as: "user",
+              attributes: ["id", "fullName", "email", "avatar"],
+            },
+          ],
+        },
+        {
+          model: Doctor,
+          as: "Doctor",
+          include: [
+            {
+              model: User,
+              as: "user",
+              attributes: ["id", "fullName", "email", "avatar"],
+            },
+            {
+              model: Specialty,
+              as: "specialty",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+        {
+          model: Visit,
+          attributes: ["id", "checkInTime", "diagnosis", "symptoms"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+      limit,
+      offset,
+    });
 
   return {
     prescriptions,

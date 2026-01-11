@@ -35,10 +35,10 @@ export const getTemplates = async (
     const { doctorId, shiftId, dayOfWeek, isActive } = req.query;
 
     const filters: any = {};
-    if (doctorId) filters.doctorId = Number(doctorId);
-    if (shiftId) filters.shiftId = Number(shiftId);
-    if (dayOfWeek) filters.dayOfWeek = Number(dayOfWeek);
-    if (isActive !== undefined) filters.isActive = isActive === "true";
+    if (doctorId && doctorId !== "all") filters.doctorId = Number(doctorId);
+    if (shiftId && shiftId !== "all") filters.shiftId = Number(shiftId);
+    if (dayOfWeek && dayOfWeek !== "all") filters.dayOfWeek = Number(dayOfWeek);
+    if (isActive !== undefined && isActive !== "all") filters.isActive = isActive === "true";
 
     const templates = await ShiftTemplateService.getTemplates(filters);
 

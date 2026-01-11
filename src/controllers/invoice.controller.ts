@@ -8,6 +8,7 @@ import {
   getInvoicePaymentsService,
   getInvoicesByPatientService,
   getInvoiceStatisticsService,
+  getRevenueByPaymentMethodService,
 } from "../services/invoice.service";
 import { PaymentStatus } from "../models/Invoice";
 import { PaymentMethod } from "../models/Payment";
@@ -16,6 +17,9 @@ import {
   formatDate,
   formatDateTime,
 } from "../utils/pdfGenerator";
+import * as auditLogService from "../services/auditLog.service";
+import Invoice from "../models/Invoice";
+import { RoleCode } from "../constant/role";
 
 /**
  * Tạo hóa đơn từ visit
@@ -80,6 +84,18 @@ export const getInvoices = async (req: Request, res: Response) => {
       toDate: toDate ? new Date(toDate as string) : undefined,
     };
 
+    // AUTHORIZATION: DOCTOR can only view invoices for their own patients
+    if (req.user!.roleId === RoleCode.DOCTOR) {
+      if (!req.user!.doctorId) {
+        return res.status(400).json({
+          success: false,
+          message: "DOCTOR_NOT_SETUP",
+        });
+      }
+      // Force filter by doctorId
+      filters.doctorId = req.user!.doctorId;
+    }
+
     const result = await getInvoicesService(filters);
 
     return res.json({
@@ -107,11 +123,13 @@ export const getInvoiceById = async (req: Request, res: Response) => {
 
     const invoice = await getInvoiceByIdService(invoiceId);
 
-    // Authorization check - Patient chỉ xem được invoice của mình
-    const user = (req as any).user;
-    if (user.roleId === 3) {
-      // PATIENT role
-      const patient = await (req as any).models.Patient.findOne({
+    // Authorization check
+    const user = req.user!;
+
+    // PATIENT can only view their own invoices
+    if (user.roleId === RoleCode.PATIENT) {
+      const Patient = (await import("../models/Patient")).default;
+      const patient = await Patient.findOne({
         where: { userId: user.userId },
       });
 
@@ -119,6 +137,23 @@ export const getInvoiceById = async (req: Request, res: Response) => {
         return res.status(403).json({
           success: false,
           message: "You can only view your own invoices",
+        });
+      }
+    }
+
+    // DOCTOR can only view invoices for their own patients
+    if (user.roleId === RoleCode.DOCTOR) {
+      if (!user.doctorId) {
+        return res.status(400).json({
+          success: false,
+          message: "DOCTOR_NOT_SETUP",
+        });
+      }
+
+      if (invoice.doctorId !== user.doctorId) {
+        return res.status(403).json({
+          success: false,
+          message: "FORBIDDEN: You can only view invoices for your own patients",
         });
       }
     }
@@ -146,7 +181,49 @@ export const updateInvoice = async (req: Request, res: Response) => {
     const invoiceId = parseInt(req.params.id);
     const { discount, note } = req.body;
 
+    // Get old data before update for audit
+    const oldInvoice = await Invoice.findByPk(invoiceId);
+    const oldData = oldInvoice ? {
+      discount: oldInvoice.discount,
+      note: oldInvoice.note,
+      totalAmount: oldInvoice.totalAmount,
+    } : null;
+
+    // CRITICAL: Discount approval workflow
+    if (discount !== undefined && oldInvoice) {
+      const totalBeforeDiscount = oldInvoice.examinationFee + oldInvoice.medicineTotalAmount;
+      const discountPercentage = totalBeforeDiscount > 0 ? (discount / totalBeforeDiscount) * 100 : 0;
+
+      // If discount > 20%, only ADMIN can approve
+      if (discountPercentage > 20) {
+        const userRole = req.user!.roleId;
+        if (userRole !== RoleCode.ADMIN) {
+          return res.status(403).json({
+            success: false,
+            message: "DISCOUNT_EXCEEDS_THRESHOLD_REQUIRES_ADMIN_APPROVAL",
+            details: {
+              requestedDiscount: discount,
+              totalBeforeDiscount,
+              discountPercentage: discountPercentage.toFixed(2),
+              threshold: "20%",
+              requiredRole: "ADMIN",
+            },
+          });
+        }
+      }
+    }
+
     const invoice = await updateInvoiceService(invoiceId, { discount, note });
+
+    // CRITICAL AUDIT LOG: Log discount changes (financial impact)
+    if (oldData && oldData.discount !== invoice.discount) {
+      await auditLogService.logUpdate(req, "invoices", invoice.id, oldData, {
+        discount: invoice.discount,
+        note: invoice.note,
+        totalAmount: invoice.totalAmount,
+        discountChangedBy: req.user!.userId,
+      }).catch(err => console.error("Failed to log invoice update audit:", err));
+    }
 
     return res.json({
       success: true,
@@ -179,6 +256,11 @@ export const addPayment = async (req: Request, res: Response) => {
       });
     }
 
+    // Get old paidAmount before payment
+    const oldInvoice = await Invoice.findByPk(invoiceId);
+    const oldPaidAmount = oldInvoice?.paidAmount || 0;
+    const oldPaymentStatus = oldInvoice?.paymentStatus;
+
     const invoice = await addPaymentService(invoiceId, {
       amount: parseFloat(amount),
       paymentMethod: paymentMethod as PaymentMethod,
@@ -186,6 +268,19 @@ export const addPayment = async (req: Request, res: Response) => {
       note,
       createdBy,
     });
+
+    // CRITICAL AUDIT LOG: Log payment addition (financial transaction)
+    await auditLogService.logCreate(req, "payments", invoiceId, {
+      invoiceId,
+      amount: parseFloat(amount),
+      paymentMethod,
+      reference,
+      createdBy,
+      oldPaidAmount,
+      newPaidAmount: invoice.paidAmount,
+      oldPaymentStatus,
+      newPaymentStatus: invoice.paymentStatus,
+    }).catch(err => console.error("Failed to log payment audit:", err));
 
     return res.status(201).json({
       success: true,
@@ -203,11 +298,31 @@ export const addPayment = async (req: Request, res: Response) => {
 /**
  * Lấy lịch sử thanh toán của hóa đơn
  * GET /api/invoices/:id/payments
- * Role: ADMIN, RECEPTIONIST
+ * Role: ADMIN, RECEPTIONIST, DOCTOR (own patients only)
  */
 export const getInvoicePayments = async (req: Request, res: Response) => {
   try {
     const invoiceId = parseInt(req.params.id);
+
+    // AUTHORIZATION: Get invoice first to check ownership
+    const invoice = await getInvoiceByIdService(invoiceId);
+
+    // DOCTOR can only view payment history for their own patients
+    if (req.user!.roleId === RoleCode.DOCTOR) {
+      if (!req.user!.doctorId) {
+        return res.status(400).json({
+          success: false,
+          message: "DOCTOR_NOT_SETUP",
+        });
+      }
+
+      if (invoice.doctorId !== req.user!.doctorId) {
+        return res.status(403).json({
+          success: false,
+          message: "FORBIDDEN: You can only view payment history for your own patients",
+        });
+      }
+    }
 
     const payments = await getInvoicePaymentsService(invoiceId);
 
@@ -366,6 +481,36 @@ export const getInvoiceStatistics = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: error?.message || "Failed to retrieve statistics",
+    });
+  }
+};
+
+/**
+ * Revenue report by payment method
+ * GET /api/invoices/revenue-by-payment-method
+ * Role: ADMIN
+ */
+export const getRevenueByPaymentMethod = async (req: Request, res: Response) => {
+  try {
+    const { fromDate, toDate, doctorId } = req.query;
+
+    const filters: any = {
+      fromDate: fromDate ? new Date(fromDate as string) : undefined,
+      toDate: toDate ? new Date(toDate as string) : undefined,
+      doctorId: doctorId ? parseInt(doctorId as string) : undefined,
+    };
+
+    const report = await getRevenueByPaymentMethodService(filters);
+
+    return res.json({
+      success: true,
+      message: "Revenue report by payment method retrieved successfully",
+      data: report,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to retrieve revenue report",
     });
   }
 };

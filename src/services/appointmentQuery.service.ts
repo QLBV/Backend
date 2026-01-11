@@ -5,6 +5,7 @@ import Doctor from "../models/Doctor";
 import Shift from "../models/Shift";
 import User from "../models/User";
 import Specialty from "../models/Specialty";
+import { getDisplayStatus } from "../utils/statusMapper";
 
 export const getAppointmentsService = async (q: {
   date?: string;
@@ -20,6 +21,8 @@ export const getAppointmentsService = async (q: {
   if (q.shiftId) where.shiftId = q.shiftId;
   if (q.status) where.status = q.status;
   if (q.patientId) where.patientId = q.patientId;
+
+  const Visit = (await import("../models/Visit")).default;
 
   const appointments = await Appointment.findAll({
     where,
@@ -56,11 +59,17 @@ export const getAppointmentsService = async (q: {
           },
         ],
       },
-      { 
-        model: Shift, 
+      {
+        model: Shift,
         as: "shift",
         required: false,
         attributes: ["id", "name", "startTime", "endTime"],
+      },
+      {
+        model: Visit,
+        as: "visit",
+        required: false,
+        attributes: ["id", "checkInTime", "diagnosis", "status"],
       },
     ],
     order: [["date", "ASC"], ["shiftId", "ASC"], ["slotNumber", "ASC"]],
@@ -85,8 +94,15 @@ export const getAppointmentsService = async (q: {
 
   // Serialize appointments to ensure nested associations are properly included
   // Use toJSON() to properly serialize Sequelize instances
+  // Add displayStatus field using statusMapper
   return appointments.map(apt => {
     const json = apt.toJSON ? apt.toJSON() : apt;
-    return json;
+    return {
+      ...json,
+      displayStatus: getDisplayStatus(
+        { status: json.status },
+        json.visit ? { status: json.visit.status } : null
+      ),
+    };
   });
 };

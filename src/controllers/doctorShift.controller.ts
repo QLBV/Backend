@@ -4,6 +4,7 @@ import Doctor from "../models/Doctor";
 import Shift from "../models/Shift";
 import User from "../models/User";
 import Specialty from "../models/Specialty";
+import Employee from "../models/Employee";
 import { cancelDoctorShiftAndReschedule } from "../services/appointmentReschedule.service";
 
 export const assignDoctorToShift = async (req: Request, res: Response) => {
@@ -131,7 +132,14 @@ export const getAllDoctorShifts = async (req: Request, res: Response) => {
             {
               model: User,
               as: "user",
-              attributes: ["id", "fullName", "email", "avatar"],
+              attributes: ["id", "fullName", "email", "avatar", "isActive"],
+              include: [
+                {
+                  model: Employee,
+                  as: "employee",
+                  attributes: ["phone", "gender", "dateOfBirth", "address"],
+                },
+              ],
             },
             {
               model: Specialty,
@@ -162,8 +170,14 @@ export const getAllDoctorShifts = async (req: Request, res: Response) => {
 export const getShiftsByDoctor = async (req: Request, res: Response) => {
   try {
     const { doctorId } = req.params;
+    const docId = Number(doctorId);
+    
+    if (isNaN(docId)) {
+      return res.status(400).json({ success: false, message: "Invalid doctor ID" });
+    }
+
     const shifts = await DoctorShift.findAll({
-      where: { doctorId: Number(doctorId) },
+      where: { doctorId: docId },
       include: [
         { 
           model: Shift, 
@@ -180,7 +194,14 @@ export const getShiftsByDoctor = async (req: Request, res: Response) => {
               model: User,
               as: "user",
               required: false,
-              attributes: ["id", "fullName", "email", "avatar"],
+              attributes: ["id", "fullName", "email", "avatar", "isActive"],
+              include: [
+                {
+                  model: Employee,
+                  as: "employee",
+                  attributes: ["phone", "gender", "dateOfBirth", "address"],
+                },
+              ],
             },
           ],
         },
@@ -188,22 +209,19 @@ export const getShiftsByDoctor = async (req: Request, res: Response) => {
       order: [["workDate", "DESC"], ["shiftId", "ASC"]],
     });
     
-    // Serialize shifts to ensure nested associations are properly included
-    const serializedShifts = shifts.map(shift => shift.toJSON ? shift.toJSON() : shift);
-    
     // Debug: Log first shift to check data structure
-    if (serializedShifts.length > 0) {
+    if (shifts.length > 0) {
       console.log("🔍 First doctor shift data:", {
-        id: serializedShifts[0].id,
-        doctorId: serializedShifts[0].doctorId,
-        shiftId: serializedShifts[0].shiftId,
-        workDate: serializedShifts[0].workDate,
-        hasShift: !!serializedShifts[0].shift,
-        shiftName: serializedShifts[0].shift?.name,
+        id: shifts[0].id,
+        doctorId: shifts[0].doctorId,
+        shiftId: shifts[0].shiftId,
+        workDate: shifts[0].workDate,
+        hasShift: !!shifts[0].shift,
+        shiftName: shifts[0].shift?.name,
       });
     }
     
-    return res.json({ success: true, data: serializedShifts });
+    return res.json({ success: true, data: shifts });
   } catch (error: any) {
     console.error("Error in getShiftsByDoctor:", error);
     return res
@@ -352,7 +370,14 @@ export const getAvailableDoctorsByDate = async (req: Request, res: Response) => 
             {
               model: User,
               as: "user",
-              attributes: ["id", "fullName", "email", "avatar"],
+              attributes: ["id", "fullName", "email", "avatar", "isActive"],
+              include: [
+                {
+                  model: Employee,
+                  as: "employee",
+                  attributes: ["phone", "gender", "dateOfBirth", "address"],
+                },
+              ],
             },
             {
               model: Specialty,

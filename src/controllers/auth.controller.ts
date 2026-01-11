@@ -78,6 +78,14 @@ export const login = async (req: Request, res: Response) => {
     });
   }
 
+  // Check if account is active
+  if (!user.isActive) {
+    return res.status(403).json({
+      success: false,
+      message: "ACCOUNT_DEACTIVATED",
+    });
+  }
+
   let patientId: number | null = null;
   let doctorId: number | null = null;
 
@@ -86,28 +94,60 @@ export const login = async (req: Request, res: Response) => {
     patientId = patient ? patient.id : null;
   }
 
-  if (user.roleId === RoleCode.DOCTOR) {
-    const doctor = await Doctor.findOne({ where: { userId: user.id } });
-    doctorId = doctor ? doctor.id : null;
+  // Handle staff/doctor roles
+  if ([RoleCode.DOCTOR, RoleCode.RECEPTIONIST, RoleCode.ADMIN].includes(user.roleId)) {
+    const Employee = require("../models/Employee").default;
+    const employee = await Employee.findOne({ where: { userId: user.id } });
+    
+    if (employee) {
+      if (user.roleId === RoleCode.DOCTOR) {
+        let doctor = await Doctor.findOne({ where: { userId: user.id } });
+        if (!doctor) {
+          // AUTO-RECONCILE: Create missing doctor record for compatibility
+          doctor = await Doctor.create({
+            userId: user.id,
+            doctorCode: employee.employeeCode,
+            specialtyId: employee.specialtyId,
+            position: employee.position,
+            degree: employee.degree,
+            description: employee.description
+          });
+          console.log(`[Auth] Auto-reconciled missing doctor record for user ${user.id}`);
+        }
+        doctorId = doctor.id;
+      } else {
+        // For other staff, use employeeId as doctorId in payload for some generic staff checks
+        doctorId = employee.id;
+      }
+    }
   }
 
-  const payload = {
+  // JWT payload - only include necessary fields for token
+  const jwtPayload = {
+    userId: user.id,
+    roleId: user.roleId,
+    patientId,
+    doctorId,
+  };
+
+  // User data for response - include all user info
+  const userData = {
     email: user.email,
     fullName: user.fullName,
     userId: user.id,
     roleId: user.roleId,
-    // patientId,
-    // doctorId,
+    patientId,
+    doctorId,
   };
 
   return res.json({
     success: true,
     message: "LOGIN_SUCCESS",
     tokens: {
-      accessToken: generateAccessToken(payload),
-      refreshToken: generateRefreshToken(payload),
+      accessToken: generateAccessToken(jwtPayload),
+      refreshToken: generateRefreshToken(jwtPayload),
     },
-    user: payload,
+    user: userData,
   });
 };
 

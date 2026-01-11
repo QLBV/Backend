@@ -22,7 +22,7 @@ router.post("/register", registerValidator, register);
 router.post("/login", loginValidator, login);
 
 // Làm mới token
-router.post("/refresh-token", verifyToken, refreshToken);
+router.post("/refresh-token", refreshToken);
 
 // Đăng xuất
 router.post("/logout", verifyToken, logout);

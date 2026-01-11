@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import User from "../models/User";
-import Role from "../models/Role";
+import { User, Role, Employee, Patient, Specialty } from "../models";
+import { Op } from "sequelize";
+import { RoleCode } from "../constant/role";
 import {
   getNotificationSettingsService,
   updateNotificationSettingsService,
@@ -9,21 +10,59 @@ import {
 
 export const getAllUsers = async (req: Request, res: Response) => {
   try {
-    const users = await User.findAll({
+    const { page, limit, search, role, isActive } = req.query;
+    console.log("getAllUsers params:", { page, limit, search, role, isActive });
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
+    const offset = (pageNum - 1) * limitNum;
+
+    const where: any = {};
+    if (search) {
+      where[Op.or] = [
+        { fullName: { [Op.like]: `%${search}%` } },
+        { email: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    if (role && role !== "all") {
+      if (role === "employee") {
+        where["$role.name$"] = { [Op.in]: ["DOCTOR", "RECEPTIONIST"] };
+      } else {
+        where["$role.name$"] = role.toString().toUpperCase();
+      }
+    }
+
+    if (isActive !== undefined) {
+      where.isActive = isActive === "true";
+    }
+
+    console.log("getAllUsers where:", JSON.stringify(where));
+
+    const { count, rows: users } = await User.findAndCountAll({
+      where,
       attributes: { exclude: ["password"] },
       include: [{ model: Role, as: "role", attributes: ["name"] }],
+      limit: limitNum,
+      offset: offset,
+      order: [["createdAt", "DESC"]],
+      distinct: true,
     });
 
     return res.json({
       success: true,
-      count: users.length,
-      data: users,
+      data: {
+        users,
+        total: count,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(count / limitNum),
+      },
     });
-  } catch (error) {
-    console.error("Get all users error:", error);
+  } catch (error: any) {
+    console.error("Get all users error detail:", error);
     return res.status(500).json({
       success: false,
-      message: "Failed to get users",
+      message: error.message || "Failed to get users",
     });
   }
 };
@@ -34,7 +73,15 @@ export const getUserById = async (req: Request, res: Response) => {
 
     const user = await User.findByPk(id, {
       attributes: { exclude: ["password"] },
-      include: [{ model: Role, as: "role", attributes: ["name"] }],
+      include: [
+        { model: Role, as: "role", attributes: ["name"] },
+        { 
+          model: Employee, 
+          as: "employee", 
+          include: [{ model: Specialty, as: "specialty", attributes: ["name"] }] 
+        },
+        { model: Patient, as: "patient" }
+      ],
     });
 
     if (!user) {
@@ -59,7 +106,7 @@ export const getUserById = async (req: Request, res: Response) => {
 
 export const createUser = async (req: Request, res: Response) => {
   try {
-    const { email, password, fullName, roleId } = req.body;
+    const { email, password, fullName, roleId, phone, gender, dateOfBirth, address, cccd } = req.body;
 
     if (!email || !password || !fullName || !roleId) {
       return res.status(400).json({
@@ -84,6 +131,56 @@ export const createUser = async (req: Request, res: Response) => {
       fullName,
       roleId,
     });
+
+    // Create profile based on role
+    const rid = Number(roleId);
+    const idStr = user.id.toString().padStart(4, '0');
+
+    if (rid === RoleCode.DOCTOR || rid === RoleCode.RECEPTIONIST || rid === RoleCode.ADMIN) {
+      const prefixes: Record<number, string> = {
+        [RoleCode.DOCTOR]: 'DOC',
+        [RoleCode.RECEPTIONIST]: 'REC',
+        [RoleCode.ADMIN]: 'ADM'
+      };
+      const prefix = prefixes[rid] || 'EMP';
+      const employeeCode = `${prefix}${idStr}`;
+      
+      const pos = rid === RoleCode.DOCTOR ? 'Bác sĩ' : (rid === RoleCode.RECEPTIONIST ? 'Lễ tân' : 'Quản trị viên');
+      
+      await Employee.create({
+        userId: user.id,
+        employeeCode,
+        position: pos,
+        joiningDate: new Date().toISOString().split('T')[0],
+        phone,
+        gender,
+        dateOfBirth,
+        address,
+        cccd
+      });
+
+      // If it's a doctor, also create record in doctors table for compatibility
+      if (rid === RoleCode.DOCTOR) {
+        const Doctor = require("../models/Doctor").default;
+        await Doctor.create({
+          userId: user.id,
+          doctorCode: employeeCode,
+          position: pos,
+          description: ""
+        });
+      }
+    } else if (rid === RoleCode.PATIENT) {
+      const patientCode = `PAT${idStr}`;
+      await Patient.create({
+        userId: user.id,
+        patientCode,
+        fullName: user.fullName,
+        gender: gender || 'OTHER',
+        dateOfBirth: dateOfBirth || new Date(),
+        phone,
+        address
+      } as any);
+    }
 
     return res.status(201).json({
       success: true,
@@ -289,6 +386,10 @@ export const activateUser = async (req: Request, res: Response) => {
 
     await user.update({ isActive: true });
 
+    // Reload to get latest state from database
+    await user.reload();
+    console.log("User activated, isActive after reload:", user.isActive);
+
     return res.json({
       success: true,
       message: "User activated successfully",
@@ -333,6 +434,10 @@ export const deactivateUser = async (req: Request, res: Response) => {
     }
 
     await user.update({ isActive: false });
+
+    // Reload to get latest state from database
+    await user.reload();
+    console.log("User deactivated, isActive after reload:", user.isActive);
 
     return res.json({
       success: true,
@@ -396,10 +501,65 @@ export const changeUserRole = async (req: Request, res: Response) => {
 
     await user.update({ roleId });
 
+    // Ensure profile mapping exists for the new role
+    const rid = Number(roleId);
+    const idStr = user.id.toString().padStart(4, '0');
+
+    if ([RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR].includes(rid)) {
+      let employee = await Employee.findOne({ where: { userId: user.id } });
+      if (!employee) {
+        const prefixes: Record<number, string> = {
+          [RoleCode.DOCTOR]: 'DOC',
+          [RoleCode.RECEPTIONIST]: 'REC',
+          [RoleCode.ADMIN]: 'ADM'
+        };
+        const prefix = prefixes[rid] || 'EMP';
+        const employeeCode = `${prefix}${idStr}`;
+        const pos = rid === RoleCode.DOCTOR ? 'Bác sĩ' : (rid === RoleCode.RECEPTIONIST ? 'Lễ tân' : 'Quản trị viên');
+        
+        employee = await Employee.create({
+          userId: user.id,
+          employeeCode,
+          position: pos,
+          joiningDate: new Date().toISOString().split('T')[0]
+        });
+      }
+
+      if (rid === RoleCode.DOCTOR) {
+        const Doctor = (await import("../models/Doctor")).default;
+        const exists = await Doctor.findOne({ where: { userId: user.id } });
+        if (!exists) {
+          await Doctor.create({
+            userId: user.id,
+            doctorCode: employee.employeeCode,
+            specialtyId: employee.specialtyId,
+            position: employee.position,
+            degree: employee.degree
+          });
+        }
+      }
+    } else if (rid === RoleCode.PATIENT) {
+      const exists = await Patient.findOne({ where: { userId: user.id } });
+      if (!exists) {
+        await Patient.create({
+          userId: user.id,
+          patientCode: `PAT${idStr}`,
+          fullName: user.fullName,
+          gender: 'OTHER',
+          dateOfBirth: new Date()
+        });
+      }
+    }
+
     // Reload with role information
     await user.reload({
-      include: [{ model: Role, as: "role", attributes: ["id", "roleName"] }],
+      include: [{ model: Role, as: "role", attributes: ["id", "name"] }],
     });
+
+    const userData: any = user.toJSON();
+    if (userData.role) {
+      userData.role = userData.role;
+    }
 
     return res.json({
       success: true,

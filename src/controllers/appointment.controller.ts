@@ -7,6 +7,11 @@ import {
   notifyAppointmentCreated,
   notifyAppointmentCancelled,
 } from "../events/appointmentEvents";
+import { getDisplayStatus } from "../utils/statusMapper";
+import * as auditLogService from "../services/auditLog.service";
+import { AppointmentStateMachine } from "../utils/stateMachine";
+import { AppointmentStatus } from "../constant/appointment";
+import { sendAppointmentRescheduleNotification } from "../services/notification.service";
 
 export const createAppointment = async (req: Request, res: Response) => {
   try {
@@ -51,13 +56,31 @@ export const createAppointment = async (req: Request, res: Response) => {
       symptomInitial,
     });
 
+    // AUDIT LOG: Log appointment creation
+    await auditLogService.logCreate(req, "appointments", appointment.id, {
+      appointmentCode: appointment.appointmentCode,
+      patientId: appointment.patientId,
+      doctorId: appointment.doctorId,
+      shiftId: appointment.shiftId,
+      date: appointment.date,
+      bookingType: appointment.bookingType,
+      bookedBy: appointment.bookedBy,
+      status: appointment.status,
+    }).catch(err => console.error("Failed to log appointment creation audit:", err));
+
     //  Emit event để gửi notification
     notifyAppointmentCreated(appointment.id);
+
+    // Calculate displayStatus (new appointments are always WAITING with no visit)
+    const displayStatus = getDisplayStatus({ status: appointment.status }, null);
 
     return res.json({
       success: true,
       message: "APPOINTMENT_CREATED",
-      data: appointment,
+      data: {
+        ...appointment.toJSON(),
+        displayStatus,
+      },
     });
     
   } catch (e: any) {
@@ -85,13 +108,25 @@ export const cancelAppointment = async (req: Request, res: Response) => {
       requesterPatientId: req.user?.patientId ?? null,
     });
 
+    // AUDIT LOG: Log appointment cancellation
+    await auditLogService.logUpdate(req, "appointments", result.id,
+      { status: "WAITING" },
+      { status: result.status, cancelledBy: req.user!.userId }
+    ).catch(err => console.error("Failed to log appointment cancellation audit:", err));
+
     //  Emit event để gửi notification hủy lịch
     notifyAppointmentCancelled(id, "Bệnh nhân hủy lịch");
+
+    // Calculate displayStatus (cancelled appointments have no visit)
+    const displayStatus = getDisplayStatus({ status: result.status }, null);
 
     return res.json({
       success: true,
       message: "APPOINTMENT_CANCELLED",
-      data: result,
+      data: {
+        ...result.toJSON(),
+        displayStatus,
+      },
     });
   } catch (e: any) {
     const map: Record<string, string> = {
@@ -115,8 +150,10 @@ export const getAppointments = async (req: Request, res: Response) => {
     const shiftId = req.query.shiftId ? Number(req.query.shiftId) : undefined;
     const status = req.query.status ? String(req.query.status) : undefined;
 
-    // Nếu là PATIENT, chỉ cho xem lịch của chính mình
+    // Role-based filtering
     let patientIdFilter: number | undefined = undefined;
+    let doctorIdFilter = doctorId;
+
     if (req.user?.roleId === RoleCode.PATIENT) {
       if (!req.user.patientId) {
         return res.status(400).json({
@@ -125,11 +162,19 @@ export const getAppointments = async (req: Request, res: Response) => {
         });
       }
       patientIdFilter = req.user.patientId;
+    } else if (req.user?.roleId === RoleCode.DOCTOR) {
+      if (!req.user.doctorId) {
+        return res.status(400).json({
+          success: false,
+          message: "DOCTOR_NOT_SETUP",
+        });
+      }
+      doctorIdFilter = req.user.doctorId;
     }
 
     const data = await getAppointmentsService({
       date,
-      doctorId,
+      doctorId: doctorIdFilter,
       shiftId,
       status,
       patientId: patientIdFilter,
@@ -162,6 +207,7 @@ export const getAppointmentById = async (req: Request, res: Response) => {
     const Doctor = (await import("../models/Doctor")).default;
     const Shift = (await import("../models/Shift")).default;
     const User = (await import("../models/User")).default;
+    const Visit = (await import("../models/Visit")).default;
 
     const appointment = await Appointment.findByPk(id, {
       include: [
@@ -176,6 +222,12 @@ export const getAppointmentById = async (req: Request, res: Response) => {
           include: [{ model: User, as: "user", attributes: ["fullName", "email"] }],
         },
         { model: Shift, as: "shift" },
+        {
+          model: Visit,
+          as: "visit",
+          required: false,
+          attributes: ["id", "checkInTime", "diagnosis", "status"],
+        },
       ],
     });
 
@@ -187,19 +239,25 @@ export const getAppointmentById = async (req: Request, res: Response) => {
     }
 
     // Check permission: patient can only view their own, doctor can view theirs, admin/receptionist can view all
-    // Normalize roleId to handle string/number type mismatch
     const roleId = req.user!.roleId;
     const normalizedRole = typeof roleId === 'string' ? parseInt(roleId, 10) : roleId;
-    
-    // Admin and Receptionist can view all appointments
+
     const isAdmin = normalizedRole === RoleCode.ADMIN;
     const isReceptionist = normalizedRole === RoleCode.RECEPTIONIST;
-    
+
+    const appointmentData = appointment.toJSON ? appointment.toJSON() : appointment;
+    const responseData = {
+      ...appointmentData,
+      displayStatus: getDisplayStatus(
+        { status: appointmentData.status },
+        appointmentData.visit ? { status: appointmentData.visit.status } : null
+      ),
+    };
+
     if (isAdmin || isReceptionist) {
-      return res.json({ success: true, data: appointment });
+      return res.json({ success: true, data: responseData });
     }
-    
-    // Patient can only view their own appointments
+
     if (normalizedRole === RoleCode.PATIENT) {
       if (appointment.patientId !== req.user!.patientId) {
         return res.status(403).json({
@@ -207,8 +265,7 @@ export const getAppointmentById = async (req: Request, res: Response) => {
           message: "FORBIDDEN",
         });
       }
-    } 
-    // Doctor can only view their assigned appointments
+    }
     else if (normalizedRole === RoleCode.DOCTOR) {
       if (appointment.doctorId !== req.user!.doctorId) {
         return res.status(403).json({
@@ -218,7 +275,7 @@ export const getAppointmentById = async (req: Request, res: Response) => {
       }
     }
 
-    return res.json({ success: true, data: appointment });
+    return res.json({ success: true, data: responseData });
   } catch (e: any) {
     return res.status(500).json({ success: false, message: e.message });
   }
@@ -239,7 +296,6 @@ export const updateAppointment = async (req: Request, res: Response) => {
       });
     }
 
-    // Only allow update if status is WAITING
     if (appointment.status !== "WAITING") {
       return res.status(400).json({
         success: false,
@@ -247,7 +303,6 @@ export const updateAppointment = async (req: Request, res: Response) => {
       });
     }
 
-    // Check permission
     const role = req.user!.roleId;
     if (role === RoleCode.PATIENT) {
       if (appointment.patientId !== req.user!.patientId) {
@@ -258,7 +313,106 @@ export const updateAppointment = async (req: Request, res: Response) => {
       }
     }
 
-    // Update fields
+    const oldData = {
+      doctorId: appointment.doctorId,
+      shiftId: appointment.shiftId,
+      date: appointment.date,
+      symptomInitial: appointment.symptomInitial,
+    };
+
+    const isDoctorChanged = doctorId !== undefined && Number(doctorId) !== appointment.doctorId;
+    const isShiftChanged = shiftId !== undefined && Number(shiftId) !== appointment.shiftId;
+    const isDateChanged = date !== undefined && new Date(date).getTime() !== new Date(appointment.date).getTime();
+    const isRescheduled = isDoctorChanged || isShiftChanged || isDateChanged;
+
+    if (isDoctorChanged || isShiftChanged || isDateChanged) {
+      const { Op } = await import("sequelize");
+      const { BOOKING_CONFIG } = await import("../config/booking.config");
+
+      const newDoctorId = doctorId !== undefined ? Number(doctorId) : appointment.doctorId;
+      const newShiftId = shiftId !== undefined ? Number(shiftId) : appointment.shiftId;
+      const newDate = date !== undefined ? new Date(date) : appointment.date;
+
+      const dayCount = await Appointment.count({
+        where: {
+          doctorId: newDoctorId,
+          date: newDate,
+          status: { [Op.ne]: "CANCELLED" },
+          id: { [Op.ne]: id },
+        },
+      });
+
+      if (dayCount >= BOOKING_CONFIG.MAX_APPOINTMENTS_PER_DAY) {
+        return res.status(400).json({
+          success: false,
+          message: "DAY_FULL",
+        });
+      }
+
+      const shiftCount = await Appointment.count({
+        where: {
+          doctorId: newDoctorId,
+          shiftId: newShiftId,
+          date: newDate,
+          status: { [Op.ne]: "CANCELLED" },
+          id: { [Op.ne]: id },
+        },
+      });
+
+      if (shiftCount >= BOOKING_CONFIG.MAX_SLOTS_PER_SHIFT) {
+        return res.status(400).json({
+          success: false,
+          message: "SHIFT_FULL",
+        });
+      }
+
+      const Shift = (await import("../models/Shift")).default;
+      const patientAppointments = await Appointment.findAll({
+        where: {
+          patientId: appointment.patientId,
+          date: newDate,
+          status: {
+            [Op.in]: ["WAITING", "CHECKED_IN", "IN_PROGRESS"],
+          },
+          id: { [Op.ne]: id },
+        },
+        include: [
+          {
+            model: Shift,
+            as: "shift",
+            attributes: ["startTime", "endTime"],
+          },
+        ],
+      });
+
+      if (patientAppointments.length > 0) {
+        const newShift = await Shift.findByPk(newShiftId);
+        if (!newShift) {
+          return res.status(400).json({
+            success: false,
+            message: "SHIFT_NOT_FOUND",
+          });
+        }
+
+        for (const existingAppt of patientAppointments) {
+          const existingShift = (existingAppt as any).shift;
+          if (!existingShift) continue;
+
+          const newStart = newShift.startTime;
+          const newEnd = newShift.endTime;
+          const existingStart = existingShift.startTime;
+          const existingEnd = existingShift.endTime;
+
+          if (newStart < existingEnd && existingStart < newEnd) {
+            return res.status(400).json({
+              success: false,
+              message: "PATIENT_ALREADY_HAS_OVERLAPPING_APPOINTMENT",
+            });
+          }
+        }
+      }
+    }
+
     if (doctorId !== undefined) appointment.doctorId = Number(doctorId);
     if (shiftId !== undefined) appointment.shiftId = Number(shiftId);
     if (date !== undefined) appointment.date = new Date(date);
@@ -266,10 +420,36 @@ export const updateAppointment = async (req: Request, res: Response) => {
 
     await appointment.save();
 
+    const newData = {
+      doctorId: appointment.doctorId,
+      shiftId: appointment.shiftId,
+      date: appointment.date,
+      symptomInitial: appointment.symptomInitial,
+    };
+    await auditLogService.logUpdate(req, "appointments", appointment.id, oldData, newData)
+      .catch(err => console.error("Failed to log appointment update audit:", err));
+
+    if (isRescheduled) {
+      try {
+        await sendAppointmentRescheduleNotification(appointment.id, {
+          doctorId: oldData.doctorId,
+          shiftId: oldData.shiftId,
+          date: oldData.date,
+        });
+      } catch (notifyErr) {
+        console.error("Failed to send reschedule notification:", notifyErr);
+      }
+    }
+
+    const displayStatus = getDisplayStatus({ status: appointment.status }, null);
+
     return res.json({
       success: true,
       message: "APPOINTMENT_UPDATED",
-      data: appointment,
+      data: {
+        ...appointment.toJSON(),
+        displayStatus,
+      },
     });
   } catch (e: any) {
     return res.status(500).json({ success: false, message: e.message });
@@ -321,7 +501,7 @@ export const getUpcomingAppointments = async (req: Request, res: Response) => {
     let filter: any = {
       status: "WAITING",
       date: {
-        [Op.gte]: new Date().toISOString().split("T")[0], // Today or future
+        [Op.gte]: new Date().toISOString().split("T")[0],
       },
     };
 
@@ -343,10 +523,8 @@ export const getUpcomingAppointments = async (req: Request, res: Response) => {
       filter.doctorId = req.user!.doctorId;
     }
 
-    // Use getAppointmentsService to ensure all associations are included
     const appointments = await getAppointmentsService(filter);
     
-    // Apply limit and sort
     const limitedAppointments = appointments
       .sort((a: any, b: any) => {
         const dateA = new Date(a.date).getTime();
@@ -376,7 +554,6 @@ export const markNoShow = async (req: Request, res: Response) => {
       });
     }
 
-    // Only admin and receptionist can mark no-show
     const role = req.user!.roleId;
     if (role !== RoleCode.ADMIN && role !== RoleCode.RECEPTIONIST) {
       return res.status(403).json({
@@ -385,21 +562,43 @@ export const markNoShow = async (req: Request, res: Response) => {
       });
     }
 
-    // Can only mark no-show if status is WAITING
-    if (appointment.status !== "WAITING") {
+    try {
+      AppointmentStateMachine.validateTransition(
+        appointment.status as AppointmentStatus,
+        AppointmentStatus.NO_SHOW
+      );
+    } catch (err: any) {
       return res.status(400).json({
         success: false,
-        message: "CAN_ONLY_MARK_WAITING_APPOINTMENTS",
+        message: err.message || "INVALID_STATUS_TRANSITION",
       });
     }
 
-    appointment.status = "NO_SHOW";
+    appointment.status = AppointmentStatus.NO_SHOW;
     await appointment.save();
+
+    const Patient = (await import("../models/Patient")).default;
+    const patient = await Patient.findByPk(appointment.patientId);
+    if (patient) {
+      patient.noShowCount = (patient.noShowCount || 0) + 1;
+      patient.lastNoShowDate = new Date();
+      await patient.save();
+    }
+
+    await auditLogService.logUpdate(req, "appointments", appointment.id,
+      { status: "WAITING" },
+      { status: appointment.status, patientNoShowCount: patient?.noShowCount }
+    ).catch(err => console.error("Failed to log no-show audit:", err));
+
+    const displayStatus = getDisplayStatus({ status: appointment.status }, null);
 
     return res.json({
       success: true,
       message: "APPOINTMENT_MARKED_NO_SHOW",
-      data: appointment,
+      data: {
+        ...appointment.toJSON(),
+        displayStatus,
+      },
     });
   } catch (e: any) {
     return res.status(500).json({ success: false, message: e.message });

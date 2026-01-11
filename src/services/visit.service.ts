@@ -3,6 +3,55 @@ import Visit from "../models/Visit";
 import { sequelize } from "../models";
 import { createInvoiceFromVisit } from "./invoice.service";
 import { generateVisitCode } from "../utils/codeGenerator";
+import { VisitStateMachine } from "../utils/stateMachine";
+import { AppointmentStateMachine } from "../utils/stateMachine";
+import { AppointmentStatus } from "../constant/appointment";
+
+/**
+ * Start examination - Doctor clicks "Khám bệnh" button
+ * Updates appointment status from CHECKED_IN to IN_PROGRESS
+ */
+export const startExaminationService = async (visitId: number) => {
+  return await sequelize.transaction(async (t) => {
+    // 1. Find visit by ID
+    const visit = await Visit.findByPk(visitId, {
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (!visit) {
+      throw new Error("VISIT_NOT_FOUND");
+    }
+
+    // 2. Validate visit status
+    if (visit.status !== "EXAMINING") {
+      throw new Error("VISIT_NOT_IN_EXAMINING_STATUS");
+    }
+
+    // 3. Find and update appointment status
+    const appointment = await Appointment.findByPk(visit.appointmentId, {
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (!appointment) {
+      throw new Error("APPOINTMENT_NOT_FOUND");
+    }
+
+    // STATE MACHINE: Validate appointment transition to IN_PROGRESS
+    AppointmentStateMachine.validateTransition(
+      appointment.status as AppointmentStatus,
+      AppointmentStatus.IN_PROGRESS
+    );
+
+    // Update appointment to IN_PROGRESS
+    appointment.status = AppointmentStatus.IN_PROGRESS;
+    await appointment.save({ transaction: t });
+
+    // Visit status remains EXAMINING
+    return visit;
+  });
+};
 
 export const checkInAppointmentService = async (appointmentId: number) => {
   try {
@@ -16,9 +65,23 @@ export const checkInAppointmentService = async (appointmentId: number) => {
       if (!appointment) {
         throw new Error("APPOINTMENT_NOT_FOUND");
       }
-      
-      if (appointment.status !== "WAITING") {
-        throw new Error("APPOINTMENT_NOT_WAITING");
+
+      // STATE MACHINE: Validate appointment transition to CHECKED_IN
+      AppointmentStateMachine.validateTransition(
+        appointment.status as AppointmentStatus,
+        AppointmentStatus.CHECKED_IN
+      );
+
+      // CRITICAL: Validate appointment date - prevent check-in for old appointments
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const appointmentDate = new Date(appointment.date);
+      appointmentDate.setHours(0, 0, 0, 0);
+
+      if (appointmentDate < yesterday) {
+        throw new Error("APPOINTMENT_TOO_OLD_TO_CHECK_IN");
       }
 
       // 2. Check if visit already exists for this appointment
@@ -45,8 +108,8 @@ export const checkInAppointmentService = async (appointmentId: number) => {
         { transaction: t }
       );
 
-      // 5. Update appointment
-      appointment.status = "CHECKED_IN";
+      // 5. Update appointment (transition already validated above)
+      appointment.status = AppointmentStatus.CHECKED_IN;
       await appointment.save({ transaction: t });
 
       return visit;
@@ -71,19 +134,76 @@ export const completeVisitService = async (
 ) => {
   return sequelize.transaction(async (t) => {
     // 1. Lấy visit
-    const visit = await Visit.findByPk(visitId, { transaction: t });
+    const visit = await Visit.findByPk(visitId, { transaction: t, lock: t.LOCK.UPDATE });
     if (!visit) throw new Error("VISIT_NOT_FOUND");
 
-    if (visit.status === "COMPLETED")
-      throw new Error("VISIT_ALREADY_COMPLETED");
+    // CRITICAL: STATE MACHINE - Enforce immutable rule
+    VisitStateMachine.validateNotCompleted(visit.status);
 
-    // 2. Cập nhật visit
+    // STATE MACHINE: Validate visit transition to EXAMINED
+    VisitStateMachine.validateTransition(visit.status, "EXAMINED");
+
+    // 2. Cập nhật visit với doctor signature
     visit.diagnosis = diagnosis;
     visit.note = note;
-    visit.status = "COMPLETED";
+    // Mark as EXAMINED after doctor saves examination
+    visit.status = "EXAMINED";
+
+    // COMPLIANCE: Generate doctor signature (hash of key fields)
+    // This creates an audit trail that diagnosis was approved by the doctor
+    const crypto = require("crypto");
+    const signatureData = {
+      visitId: visit.id,
+      doctorId: visit.doctorId,
+      patientId: visit.patientId,
+      diagnosis,
+      timestamp: new Date().toISOString(),
+    };
+    visit.doctorSignature = crypto
+      .createHash("sha256")
+      .update(JSON.stringify(signatureData))
+      .digest("hex");
+    visit.signedAt = new Date();
+
     await visit.save({ transaction: t });
 
-    // 3. Tự động tạo invoice
+    // 3. Keep appointment in progress; completion happens after payment
+    const appointment = await Appointment.findByPk(visit.appointmentId, { transaction: t });
+    if (appointment) {
+      console.log("[completeVisit] Before update:", {
+        appointmentId: appointment.id,
+        currentStatus: appointment.status,
+        willChangeTo: appointment.status,
+      });
+
+      // Ensure appointment is in progress; auto-bump from CHECKED_IN if needed
+      let appointmentChanged = false;
+      if (appointment.status === "CHECKED_IN") {
+        // STATE MACHINE: Validate transition before auto-bump
+        AppointmentStateMachine.validateTransition(
+          AppointmentStatus.CHECKED_IN,
+          AppointmentStatus.IN_PROGRESS
+        );
+        appointment.status = AppointmentStatus.IN_PROGRESS;
+        appointmentChanged = true;
+      } else if (appointment.status !== "IN_PROGRESS") {
+        throw new Error("APPOINTMENT_NOT_IN_PROGRESS");
+      }
+
+      // Keep appointment in progress until payment is completed
+      if (appointmentChanged) {
+        await appointment.save({ transaction: t });
+      }
+
+      console.log("[completeVisit] After update:", {
+        appointmentId: appointment.id,
+        savedStatus: appointment.status,
+      });
+    } else {
+      throw new Error("APPOINTMENT_NOT_FOUND");
+    }
+
+    // 4. Tự động tạo invoice
     try {
       const invoice = await createInvoiceFromVisit(
         visitId,

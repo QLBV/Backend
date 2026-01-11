@@ -1,7 +1,6 @@
 import { Transaction } from "sequelize";
-import ShiftTemplate from "../models/ShiftTemplate";
-import DoctorShift, { DoctorShiftStatus } from "../models/DoctorShift";
-import { sequelize } from "../models";
+import { ShiftTemplate, DoctorShift, sequelize } from "../models";
+import { DoctorShiftStatus } from "../models/DoctorShift";
 import { AppError } from "../utils/AppError";
 
 export class ScheduleGenerationService {

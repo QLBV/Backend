@@ -5,6 +5,7 @@ import Invoice from "../models/Invoice";
 import Payroll from "../models/Payroll";
 import Appointment from "../models/Appointment";
 import Visit from "../models/Visit";
+import MedicineExport from "../models/MedicineExport";
 
 export const generatePrescriptionCode = async (): Promise<string> => {
   const today = new Date();
@@ -185,4 +186,35 @@ export const generateVisitCode = async (): Promise<string> => {
   // Format: VIS-YYYYMMDD-00001
   const sequenceStr = sequence.toString().padStart(5, "0");
   return `VIS-${dateStr}-${sequenceStr}`;
+};
+
+/**
+ * Generate export code with format: EXP-YYYYMMDD-00001
+ * Sequential counter resets daily
+ */
+export const generateExportCode = async (): Promise<string> => {
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
+
+  // Find the latest export code for today
+  const latestExport = await MedicineExport.findOne({
+    where: {
+      exportCode: {
+        [Op.like]: `EXP-${dateStr}-%`,
+      },
+    },
+    order: [["exportCode", "DESC"]],
+  });
+
+  let sequence = 1;
+  if (latestExport) {
+    // Extract the sequence number from the last code
+    const lastCode = (latestExport as any).exportCode;
+    const lastSequence = parseInt(lastCode.split("-")[2], 10);
+    sequence = lastSequence + 1;
+  }
+
+  // Format: EXP-YYYYMMDD-00001
+  const sequenceStr = sequence.toString().padStart(5, "0");
+  return `EXP-${dateStr}-${sequenceStr}`;
 };

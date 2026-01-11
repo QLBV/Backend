@@ -8,6 +8,7 @@ import {
   getPrescriptionByVisitService,
   getPrescriptionsService,
 } from "../services/prescription.service";
+import { getInvoiceByIdService } from "../services/invoice.service";
 import { generatePrescriptionPDF } from "../utils/pdfGenerator";
 import Prescription, { PrescriptionStatus } from "../models/Prescription";
 import PrescriptionDetail from "../models/PrescriptionDetail";
@@ -19,6 +20,7 @@ import User from "../models/User";
 import PatientProfile from "../models/PatientProfile";
 import Specialty from "../models/Specialty";
 import { RoleCode } from "../constant/role";
+import * as auditLogService from "../services/auditLog.service";
 
 /**
  * Create a new prescription
@@ -27,7 +29,7 @@ import { RoleCode } from "../constant/role";
  */
 export const createPrescription = async (req: Request, res: Response) => {
   try {
-    const doctorId = req.user!.userId;
+    const doctorId = (req.user as any).doctorId || req.user!.userId;
     const { visitId, patientId, medicines, note } = req.body;
 
     const prescription = await createPrescriptionService(doctorId, patientId, {
@@ -36,10 +38,35 @@ export const createPrescription = async (req: Request, res: Response) => {
       note,
     });
 
+    // CRITICAL AUDIT LOG: Log prescription creation (medical record)
+    await auditLogService.logCreate(req, "prescriptions", prescription.id, {
+      prescriptionCode: prescription.prescriptionCode,
+      visitId: prescription.visitId,
+      doctorId: prescription.doctorId,
+      patientId: prescription.patientId,
+      totalAmount: prescription.totalAmount,
+      status: prescription.status,
+      medicineCount: medicines?.length || 0,
+    }).catch(err => console.error("Failed to log prescription creation audit:", err));
+
+    // Get invoice info if it was created (reuse service for full associations)
+    const Invoice = require("../models/Invoice").default;
+    const invoiceRecord = await Invoice.findOne({
+      where: { visitId },
+      attributes: ["id"],
+    });
+
+    const invoice = invoiceRecord
+      ? await getInvoiceByIdService(invoiceRecord.id)
+      : null;
+
     return res.status(201).json({
       success: true,
-      message: "Prescription created successfully",
-      data: prescription,
+      message: "Prescription created successfully. Invoice has been generated.",
+      data: {
+        prescription,
+        invoice: invoice || null,
+      },
     });
   } catch (error: any) {
     const errorMessage = error?.message || "Failed to create prescription";
@@ -67,6 +94,20 @@ export const createPrescription = async (req: Request, res: Response) => {
       });
     }
 
+    if (errorMessage === "APPOINTMENT_NOT_IN_PROGRESS") {
+      return res.status(400).json({
+        success: false,
+        message: "Appointment must be in progress before creating prescription",
+      });
+    }
+
+    if (errorMessage === "APPOINTMENT_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
+    }
+
     if (errorMessage === "UNAUTHORIZED_VISIT") {
       return res.status(403).json({
         success: false,
@@ -88,14 +129,32 @@ export const createPrescription = async (req: Request, res: Response) => {
  */
 export const updatePrescription = async (req: Request, res: Response) => {
   try {
-    const doctorId = req.user!.userId;
+    const doctorId = (req.user as any).doctorId || req.user!.userId;
     const { id } = req.params;
     const { medicines, note } = req.body;
+
+    // Get old data before update
+    const oldPrescription = await Prescription.findByPk(Number(id));
+    const oldData = oldPrescription ? {
+      totalAmount: oldPrescription.totalAmount,
+      note: oldPrescription.note,
+      status: oldPrescription.status,
+    } : null;
 
     const prescription = await updatePrescriptionService(Number(id), doctorId, {
       medicines,
       note,
     });
+
+    // CRITICAL AUDIT LOG: Log prescription update (medical record change)
+    if (oldData) {
+      await auditLogService.logUpdate(req, "prescriptions", prescription.id, oldData, {
+        totalAmount: prescription.totalAmount,
+        note: prescription.note,
+        status: prescription.status,
+        medicineCount: medicines?.length || 0,
+      }).catch(err => console.error("Failed to log prescription update audit:", err));
+    }
 
     return res.json({
       success: true,
@@ -141,10 +200,16 @@ export const updatePrescription = async (req: Request, res: Response) => {
  */
 export const cancelPrescription = async (req: Request, res: Response) => {
   try {
-    const doctorId = req.user!.userId;
+    const doctorId = (req.user as any).doctorId || req.user!.userId;
     const { id } = req.params;
 
     const prescription = await cancelPrescriptionService(Number(id), doctorId);
+
+    // CRITICAL AUDIT LOG: Log prescription cancellation (medical record change)
+    await auditLogService.logUpdate(req, "prescriptions", prescription.id,
+      { status: "DRAFT" },
+      { status: prescription.status, cancelledBy: req.user!.userId }
+    ).catch(err => console.error("Failed to log prescription cancellation audit:", err));
 
     return res.json({
       success: true,
@@ -348,10 +413,21 @@ export const dispensePrescription = async (req: Request, res: Response) => {
     }
 
     // Update prescription status
+    const oldStatus = prescription.status;
     prescription.status = PrescriptionStatus.DISPENSED;
     prescription.dispensedAt = new Date();
     prescription.dispensedBy = dispensedBy || req.user!.userId;
     await prescription.save();
+
+    // AUDIT LOG: Log prescription dispensing
+    await auditLogService.logUpdate(req, "prescriptions", prescription.id,
+      { status: oldStatus },
+      {
+        status: prescription.status,
+        dispensedAt: prescription.dispensedAt,
+        dispensedBy: prescription.dispensedBy,
+      }
+    ).catch(err => console.error("Failed to log prescription dispense audit:", err));
 
     return res.json({
       success: true,

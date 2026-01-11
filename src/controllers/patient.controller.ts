@@ -76,6 +76,8 @@ const formatPatient = (patient: any) => {
             ? patient.allergies 
             : [])
       : [],
+    noShowCount: patient.noShowCount || 0,
+    lastNoShowDate: patient.lastNoShowDate || null,
   };
 };
 

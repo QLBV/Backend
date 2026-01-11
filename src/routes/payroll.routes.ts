@@ -9,6 +9,8 @@ import {
   getUserPayrollHistory,
   getPayrollStatistics,
   exportPayrollPDF,
+  exportPayrollsExcel,
+  exportPayrollsPDF as exportAllPayrollsPDF,
   getDoctorPayrolls,
   getPayrollsByPeriod,
 } from "../controllers/payroll.controller";
@@ -54,6 +56,19 @@ router.get(
   requireRole(RoleCode.ADMIN),
   validateGetPayrollsByPeriod,
   getPayrollsByPeriod
+);
+
+// Export all payrolls (Admin only)
+router.get(
+  "/export/excel",
+  requireRole(RoleCode.ADMIN),
+  exportPayrollsExcel
+);
+
+router.get(
+  "/export/pdf",
+  requireRole(RoleCode.ADMIN),
+  exportAllPayrollsPDF
 );
 
 // Get doctor payrolls - must be before /:id to avoid conflict

@@ -1,5 +1,5 @@
 import { DataTypes, Model } from "sequelize";
-import { sequelize } from ".";
+import sequelize from "../config/database";
 import Doctor from "./Doctor";
 import Shift from "./Shift";
 
@@ -22,22 +22,26 @@ ShiftTemplate.init(
     doctorId: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
+      field: "doctor_id",
       references: { model: Doctor, key: "id" },
     },
     shiftId: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
+      field: "shift_id",
       references: { model: Shift, key: "id" },
     },
     dayOfWeek: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      field: "day_of_week",
       comment: "1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday",
     },
     isActive: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true,
+      field: "is_active",
     },
     notes: {
       type: DataTypes.TEXT,

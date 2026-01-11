@@ -4,7 +4,6 @@ import DoctorShift from "../models/DoctorShift";
 import { sequelize } from "../models";
 import { BOOKING_CONFIG } from "../config/booking.config";
 import { generateAppointmentCode } from "../utils/codeGenerator";
-import { generateAppointmentCode } from "../utils/codeGenerator";
 
 interface CreateAppointmentInput {
   patientId: number;
@@ -40,7 +39,53 @@ export const createAppointmentService = async (
       });
       if (!ds) throw new Error("DOCTOR_NOT_ON_DUTY");
 
-      // 2) Giới hạn 40 lịch / ngày (tất cả ca)
+      // 2) CRITICAL: Validate patient không book nhiều slot overlap
+      // Kiểm tra patient không có appointment khác cùng ngày với status WAITING/CHECKED_IN/IN_PROGRESS
+      const patientAppointments = await Appointment.findAll({
+        where: {
+          patientId,
+          date,
+          status: {
+            [Op.in]: ["WAITING", "CHECKED_IN", "IN_PROGRESS"],
+          },
+        },
+        include: [
+          {
+            model: (await import("../models/Shift")).default,
+            as: "shift",
+            attributes: ["startTime", "endTime"],
+          },
+        ],
+        transaction: t,
+      });
+
+      if (patientAppointments.length > 0) {
+        // Get current shift time
+        const currentShift = await (
+          await import("../models/Shift")
+        ).default.findByPk(shiftId, { transaction: t });
+        if (!currentShift) throw new Error("SHIFT_NOT_FOUND");
+
+        // Check for time overlap
+        for (const existingAppt of patientAppointments) {
+          const existingShift = (existingAppt as any).shift;
+          if (!existingShift) continue;
+
+          // Simple overlap check: if shifts overlap, appointments overlap
+          // Shift A: [startA, endA], Shift B: [startB, endB]
+          // Overlap if: startA < endB AND startB < endA
+          const currentStart = currentShift.startTime;
+          const currentEnd = currentShift.endTime;
+          const existingStart = existingShift.startTime;
+          const existingEnd = existingShift.endTime;
+
+          if (currentStart < existingEnd && existingStart < currentEnd) {
+            throw new Error("PATIENT_ALREADY_HAS_OVERLAPPING_APPOINTMENT");
+          }
+        }
+      }
+
+      // 3) Giới hạn 40 lịch / ngày (tất cả ca)
       const dayCount = await Appointment.count({
         where: {
           doctorId,
@@ -52,7 +97,7 @@ export const createAppointmentService = async (
       if (dayCount >= BOOKING_CONFIG.MAX_APPOINTMENTS_PER_DAY)
         throw new Error("DAY_FULL");
 
-      // 3) Lấy slot cuối của ca (lock row thật)
+      // 4) Lấy slot cuối của ca (lock row thật)
       const last = await Appointment.findOne({
         where: {
           doctorId,
@@ -69,10 +114,10 @@ export const createAppointmentService = async (
       if (nextSlot > BOOKING_CONFIG.MAX_SLOTS_PER_SHIFT)
         throw new Error("SHIFT_FULL");
 
-      // 4) Generate appointment code
+      // 5) Generate appointment code
       const appointmentCode = await generateAppointmentCode();
 
-      // 5) Create + retry nếu đụng unique slot
+      // 6) Create + retry nếu đụng unique slot
       while (nextSlot <= BOOKING_CONFIG.MAX_SLOTS_PER_SHIFT) {
         try {
           const appt = await Appointment.create(

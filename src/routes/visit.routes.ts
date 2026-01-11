@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   checkInAppointment,
+  startExamination,
   completeVisit,
   getVisits,
   getVisitById,
@@ -20,6 +21,13 @@ router.post(
   validateNumericId("appointmentId"),
   requireRole(RoleCode.RECEPTIONIST, RoleCode.ADMIN),
   checkInAppointment
+);
+
+router.put(
+  "/:id/start",
+  validateNumericId("id"),
+  requireRole(RoleCode.DOCTOR),
+  startExamination
 );
 
 router.put(

@@ -15,6 +15,8 @@ import {
   exportMedicineService,
   getAllMedicineImportsService,
   getAllMedicineExportsService,
+  getMedicineImportByIdService,
+  getMedicineExportByIdService,
 } from "../services/medicine.service";
 
 /**
@@ -520,6 +522,68 @@ export const getAllMedicineExports = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: error?.message || "Failed to get medicine exports",
+    });
+  }
+};
+
+/**
+ * Get medicine import by ID
+ * GET /api/medicine-imports/:id
+ * Role: ADMIN
+ */
+export const getMedicineImportById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const importRecord = await getMedicineImportByIdService(Number(id));
+
+    return res.json({
+      success: true,
+      data: importRecord,
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message || "Failed to get medicine import";
+
+    if (errorMessage === "IMPORT_RECORD_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Medicine import not found",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: errorMessage,
+    });
+  }
+};
+
+/**
+ * Get medicine export by ID
+ * GET /api/medicine-exports/:id
+ * Role: ADMIN
+ */
+export const getMedicineExportById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const exportRecord = await getMedicineExportByIdService(Number(id));
+
+    return res.json({
+      success: true,
+      data: exportRecord,
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message || "Failed to get medicine export";
+
+    if (errorMessage === "EXPORT_RECORD_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Medicine export not found",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: errorMessage,
     });
   }
 };

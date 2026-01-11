@@ -7,14 +7,15 @@ interface DoctorAttributes {
   id: number;
   doctorCode: string;
   userId: number;
-  specialtyId: number;
+  specialtyId?: number | null;
   position?: string;
   degree?: string;
   description?: string;
+  isActive: boolean;
 }
 
 interface DoctorCreationAttributes
-  extends Optional<DoctorAttributes, "id" | "doctorCode"> {}
+  extends Optional<DoctorAttributes, "id" | "doctorCode" | "isActive"> {}
 
 class Doctor
   extends Model<DoctorAttributes, DoctorCreationAttributes>
@@ -23,10 +24,11 @@ class Doctor
   public id!: number;
   public doctorCode!: string;
   public userId!: number;
-  public specialtyId!: number;
+  public specialtyId?: number | null;
   public position?: string;
   public degree?: string;
   public description?: string;
+  public isActive!: boolean;
 }
 
 Doctor.init(
@@ -48,7 +50,7 @@ Doctor.init(
     },
     specialtyId: {
       type: DataTypes.INTEGER.UNSIGNED,
-      allowNull: false,
+      allowNull: true,
       references: { model: Specialty, key: "id" },
     },
     position: {
@@ -60,11 +62,33 @@ Doctor.init(
     description: {
       type: DataTypes.STRING(255),
     },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
   },
   {
     sequelize,
     tableName: "doctors",
     timestamps: true,
+    hooks: {
+      afterUpdate: async (doctor: Doctor, options: any) => {
+        if (options.syncing) return;
+        const Employee = sequelize.models.Employee;
+        if (Employee) {
+          await Employee.update({
+            employeeCode: doctor.doctorCode,
+            specialtyId: doctor.specialtyId,
+            position: doctor.position,
+            degree: doctor.degree,
+            description: doctor.description
+          }, { 
+            where: { userId: doctor.userId },
+            hooks: false
+          } as any);
+        }
+      }
+    }
   }
 );
 

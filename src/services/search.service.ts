@@ -6,6 +6,7 @@ import Patient from "../models/Patient";
 import PatientProfile from "../models/PatientProfile";
 import Shift from "../models/Shift";
 import User from "../models/User";
+import { invoiceAssociations, formatInvoice } from "./invoice.service";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -265,16 +266,7 @@ export const searchInvoicesService = async (filters: {
 
   const { count, rows } = await Invoice.findAndCountAll({
     where,
-    include: [
-      { model: Patient, as: "patient", attributes: ["id", "fullName", "patientCode"] },
-      {
-        model: Doctor,
-        as: "doctor",
-        attributes: ["id"],
-        include: [{ model: User, as: "user", attributes: ["fullName"] }],
-      },
-      { model: User, as: "creator", attributes: ["id", "fullName", "email"] },
-    ],
+    include: invoiceAssociations,
     order: [["createdAt", "DESC"]],
     limit,
     offset,
@@ -282,7 +274,7 @@ export const searchInvoicesService = async (filters: {
   });
 
   return {
-    invoices: rows,
+    invoices: rows.map((row) => formatInvoice(row)),
     pagination: {
       total: count,
       page,

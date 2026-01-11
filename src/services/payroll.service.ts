@@ -4,35 +4,92 @@ import Attendance, { AttendanceStatus } from "../models/Attendance";
 import Invoice, { PaymentStatus } from "../models/Invoice";
 import User from "../models/User";
 import Role from "../models/Role";
+import Employee from "../models/Employee";
 import sequelize from "../config/database";
 import { generatePayrollCode } from "../utils/codeGenerator";
 import { RoleCode } from "../constant/role";
+import { createNotification } from "./notification.service";
+import { NotificationType } from "../models/Notification";
 
 /**
- * Hệ số lương theo role
+ * =================================================================================================
+ * PAYROLL BUSINESS RULES (QUY TẮC TÍNH LƯƠNG)
+ * Verified against System Requirements:
+ * 
+ * 1. BASE SALARY (Lương cơ sở): FIXED at 2,500,000 VNĐ.
+ * 
+ * 2. COEFFICIENTS (Hệ số):
+ *    - RECEPTIONIST (Lễ tân): Initial = 2.0, Increase = 0.2/year.
+ *    - DOCTOR (Bác sĩ): Initial = 5.0, Increase = 0.4/year.
+ *    - Formula: Current Coeff = Initial + (YearsOfService * Increase).
+ * 
+ * 3. SALARY FORMULAS (Công thức lương):
+ *    - RECEPTIONIST: Salary = Base Salary * Current Coefficient.
+ *    - DOCTOR: Salary = (Base Salary * Current Coefficient) + Commission.
+ * 
+ * 4. COMMISSION (Hoa hồng - Doctor only):
+ *    - 5% of total value of PAID invoices handled by the doctor in the month.
+ * 
+ * 5. LEAVE & PENALTY (Nghỉ phép & Phạt):
+ *    - Limits: Receptionist (10 days/year), Doctor (15 days/year).
+ *    - Penalty: 200,000 VNĐ per day exceeding the annual limit.
+ *    - Logic: Check total days off in current year. If > Limit, subtract penalty.
+ * 
+ * =================================================================================================
  */
-const ROLE_COEFFICIENTS: { [key: number]: number } = {
-  [RoleCode.RECEPTIONIST]: 2.0, // Lễ tân
-  [RoleCode.ADMIN]: 3.0, // Admin
-  [RoleCode.DOCTOR]: 5.0, // Bác sĩ
-  [RoleCode.PATIENT]: 0, // Patient không có lương
+
+/**
+ * Constants & Configs
+ */
+const BASE_SALARY = 2500000; // 2.5 triệu VNĐ
+
+interface RoleConfig {
+  initialCoefficient: number;
+  experienceIncrease: number; // Hệ số tăng thêm mỗi năm
+  maxLeaveDaysPerYear: number; // Số ngày nghỉ tối đa/năm
+}
+
+const ROLE_CONFIGS: { [key: number]: RoleConfig } = {
+  [RoleCode.RECEPTIONIST]: {
+    initialCoefficient: 2.0,
+    experienceIncrease: 0.2,
+    maxLeaveDaysPerYear: 10,
+  },
+  [RoleCode.DOCTOR]: {
+    initialCoefficient: 5.0,
+    experienceIncrease: 0.4,
+    maxLeaveDaysPerYear: 15,
+  },
+  // Default values for other roles if needed
+  [RoleCode.ADMIN]: {
+    initialCoefficient: 3.0,
+    experienceIncrease: 0.0,
+    maxLeaveDaysPerYear: 12, // Default
+  }
 };
 
-/**
- * Constants
- */
-const BASE_SALARY = 2500000; // 2.5 triệu
-const EXPERIENCE_BONUS_PER_YEAR = 200000; // 200k/năm
-const ALLOWED_DAYS_OFF_PER_MONTH = 2; // 2 ngày/tháng
-const PENALTY_PER_DAY = 200000; // 200k/ngày
+const PENALTY_PER_DAY = 200000; // 200k/ngày quá hạn
 const COMMISSION_RATE = 0.05; // 5% cho bác sĩ
 
 /**
- * Tính số năm kinh nghiệm dựa trên ngày tạo user
+ * Tính số năm kinh nghiệm (Theo ngày vào làm)
+ * Tính chính xác theo ngày tháng.
+ * Ví dụ: Vào làm 15/02/2023.
+ * - Tính lương tháng 1/2025 (Chốt 31/01/2025): Chưa đủ 2 năm (1 năm 11 tháng) -> 1 năm.
+ * - Tính lương tháng 2/2025 (Chốt 28/02/2025): Đã đủ 2 năm -> 2 năm.
  */
-const calculateYearsOfService = (createdAt: Date): number => {
-  const now = new Date();
-  const years = now.getFullYear() - createdAt.getFullYear();
+const calculateYearsOfService = (startDate: Date | string, targetDate: Date): number => {
+  const start = new Date(startDate);
+  const now = targetDate;
+  
+  let years = now.getFullYear() - start.getFullYear();
+  const m = now.getMonth() - start.getMonth();
+  
+  // Nếu chưa đến tháng sinh nhật làm việc hoặc cùng tháng nhưng chưa đến ngày
+  if (m < 0 || (m === 0 && now.getDate() < start.getDate())) {
+    years--;
+  }
+
   return Math.max(0, years);
 };
 
@@ -49,14 +106,13 @@ export const calculatePayrollService = async (
 
   try {
     // Validate month & year
-    if (month < 1 || month > 12) {
-      throw new Error("Invalid month. Must be between 1-12");
-    }
+    if (month < 1 || month > 12) throw new Error("Invalid month. Must be between 1-12");
+    if (year < 2000 || year > 2100) throw new Error("Invalid year");
 
-    if (year < 2000 || year > 2100) {
-      throw new Error("Invalid year");
-    }
+    // Ngày chốt tính lương (Cuối tháng)
+    const payrollEndDate = new Date(year, month, 0); 
 
+    // 1. Kiểm tra xem đã tồn tại payroll cho tháng này chưa
     // 1. Kiểm tra xem đã tồn tại payroll cho tháng này chưa
     const existingPayroll = await Payroll.findOne({
       where: { userId, month, year },
@@ -64,39 +120,75 @@ export const calculatePayrollService = async (
     });
 
     if (existingPayroll) {
-      throw new Error(`Payroll already exists for user ${userId} in ${month}/${year}`);
+      if (existingPayroll.status !== PayrollStatus.PAID) {
+        // Cho phép tính toán lại nếu chưa thanh toán (Nháp hoặc Đã duyệt)
+        await existingPayroll.destroy({ transaction: t });
+      } else {
+        throw new Error(`Payroll already exists for user ${userId} in ${month}/${year} and is already PAID`);
+      }
     }
 
-    // 2. Lấy thông tin user với role
+    // 2. Lấy thông tin user và employee
     const user = await User.findByPk(userId, {
       include: [{ model: Role, as: "role" }],
       transaction: t,
     });
 
-    if (!user) {
-      throw new Error("User not found");
+    if (!user) throw new Error("User not found");
+
+    const employee = await Employee.findOne({
+      where: { userId: user.id },
+      transaction: t,
+    });
+
+    // Config cho role hiện tại (Nếu không có config thì lấy mặc định hoặc return)
+    const config = ROLE_CONFIGS[user.roleId];
+    
+    // EXCLUDE ADMIN AND PATIENT from payroll
+    if (user.roleId === RoleCode.PATIENT || user.roleId === RoleCode.ADMIN) {
+       throw new Error(`Role ${user.roleId === RoleCode.ADMIN ? 'Administrator' : 'Patient'} is not eligible for payroll`);
     }
 
-    // 3. Lấy hệ số role
-    const roleCoefficient = ROLE_COEFFICIENTS[user.roleId] || 0;
-
-    if (roleCoefficient === 0) {
-      throw new Error("This user role is not eligible for payroll");
+    if (!config) {
+        // Fallback or error? Assuming basic config for others or error.
+       // Let's use a safe fallback or throw.
+       if (![RoleCode.RECEPTIONIST, RoleCode.DOCTOR].includes(user.roleId)) {
+          throw new Error("This user role is not eligible for payroll");
+       }
     }
 
-    // 4. Tính số năm kinh nghiệm
-    const yearsOfService = calculateYearsOfService(user.createdAt!);
-    const experienceBonus = yearsOfService * EXPERIENCE_BONUS_PER_YEAR;
+    // 3. Tính thâm niên (Năm kinh nghiệm)
+    // TÍNH TẠI THỜI ĐIỂM CUỐI THÁNG LƯƠNG (để đảm bảo tính đúng mốc thâm niên của tháng đó)
+    const startDateForExp = employee?.joiningDate || user.createdAt!;
+    const yearsOfService = calculateYearsOfService(startDateForExp, payrollEndDate);
 
-    // 5. Tính lương cơ bản theo role
-    const roleSalary = BASE_SALARY * roleCoefficient;
+    // 4. Tính Hệ số hiện tại
+    // HeSo = KhoiDiem + (NamKinhNghiem * HeSoTangThem)
+    const currentCoefficient = config.initialCoefficient + (yearsOfService * config.experienceIncrease);
 
-    // 6. Tính hoa hồng (chỉ cho DOCTOR)
+    // 5. Tính lương cơ bản
+    // Lương = 2,500,000 * Hệ số
+    const roleSalary = BASE_SALARY * currentCoefficient; 
+    
+    // Calculate experience bonus value for reference/breakdown
+    // Note: For RECEPTIONIST, the User request strictly specifies "Base * Coefficient", 
+    // implying no separate "bonus" columns should confuse the total.
+    // We already do Gross = RoleSalary (which includes exp) + Commission.
+    // We will keep experienceBonusAmount as metadata for others, but for Receptionist 
+    // we can explicitly set it to 0 or leave it as derived metadata.
+    // Since the frontend shows "Included", keeping it as metadata is fine, 
+    // but clearly commenting `grossSalary` calculation below is key.
+    
+    // We will keep this calculated for detailed breakdown if needed, 
+    // but ensure it is NOT added to grossSalary (it is already in roleSalary via coefficient).
+    const experienceBonusAmount = (yearsOfService * config.experienceIncrease) * BASE_SALARY;
+
+    // 6. Tính hoa hồng (Chỉ cho DOCTOR)
     let totalInvoices = 0;
     let commission = 0;
 
     if (user.roleId === RoleCode.DOCTOR) {
-      // Tìm doctor ID từ userId
+      // Tìm doctor info
       const doctor = await sequelize.models.Doctor.findOne({
         where: { userId },
         transaction: t,
@@ -104,16 +196,16 @@ export const calculatePayrollService = async (
 
       if (doctor) {
         // Tính tổng hóa đơn đã thanh toán trong tháng
-        const startDate = new Date(year, month - 1, 1); // First day of month
-        const endDate = new Date(year, month, 0, 23, 59, 59); // Last day of month
+        const startOfMonth = new Date(year, month - 1, 1); 
+        const endOfMonth = new Date(year, month, 0, 23, 59, 59);
 
         const result = await Invoice.findOne({
           where: {
             doctorId: (doctor as any).id,
             paymentStatus: PaymentStatus.PAID,
-            createdAt: {
-              [Op.gte]: startDate,
-              [Op.lte]: endDate,
+            updatedAt: { // Use updatedAt (payment time) or createdAt? Usually payment time. 
+              [Op.gte]: startOfMonth,
+              [Op.lte]: endOfMonth,
             },
           },
           attributes: [[fn("SUM", col("totalAmount")), "total"]],
@@ -126,16 +218,17 @@ export const calculatePayrollService = async (
       }
     }
 
-    // 7. Tính số ngày nghỉ và phạt
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59);
+    // 7. Tính ngày nghỉ và phạt (Theo năm)
+    const startOfYear = new Date(year, 0, 1); // Jan 1st
+    const endOfCalculationMonth = new Date(year, month, 0, 23, 59, 59); // End of current payroll month
 
-    const daysOffCount = await Attendance.count({
+    // Tổng số ngày nghỉ từ đầu năm đến hết tháng này
+    const totalDaysOffThisYear = await Attendance.count({
       where: {
         userId,
         date: {
-          [Op.gte]: startDate,
-          [Op.lte]: endDate,
+          [Op.gte]: startOfYear,
+          [Op.lte]: endOfCalculationMonth,
         },
         status: {
           [Op.in]: [AttendanceStatus.ABSENT, AttendanceStatus.LEAVE],
@@ -144,17 +237,50 @@ export const calculatePayrollService = async (
       transaction: t,
     });
 
-    const penaltyDaysOff = Math.max(0, daysOffCount - ALLOWED_DAYS_OFF_PER_MONTH);
+    // Số ngày nghỉ trong tháng này (để lưu vào record payroll)
+    const startOfMonth = new Date(year, month - 1, 1);
+    const daysOffThisMonth = await Attendance.count({
+      where: {
+        userId,
+        date: {
+          [Op.gte]: startOfMonth,
+          [Op.lte]: endOfCalculationMonth,
+        },
+        status: {
+          [Op.in]: [AttendanceStatus.ABSENT, AttendanceStatus.LEAVE],
+        },
+      },
+      transaction: t,
+    });
+
+    // Tính số ngày bị phạt trong tháng này
+    // Logic: 
+    // 1. Số ngày được phép còn lại TRƯỚC tháng này = Max(Allowed - (TotalYear - ThisMonth), 0)
+    // 2. Số ngày quá hạn trong tháng này = ThisMonth - RemainingAllowed
+    // Hoặc đơn giản: 
+    // ExcessDaysTotal = Max(0, TotalYear - Allowed)
+    // ExcessDaysBefore = Max(0, (TotalYear - ThisMonth) - Allowed)
+    // PenaltyDaysCurrentMonth = ExcessDaysTotal - ExcessDaysBefore
+    
+    const daysOffBeforeThisMonth = totalDaysOffThisYear - daysOffThisMonth;
+    const excessDaysTotal = Math.max(0, totalDaysOffThisYear - config.maxLeaveDaysPerYear);
+    const excessDaysBefore = Math.max(0, daysOffBeforeThisMonth - config.maxLeaveDaysPerYear);
+    const penaltyDaysOff = excessDaysTotal - excessDaysBefore;
+
     const penaltyAmount = penaltyDaysOff * PENALTY_PER_DAY;
 
-    // 8. Tính tổng lương
-    const grossSalary = roleSalary + experienceBonus + commission;
+    // 8. Tổng lương
+    // Lương = (Lương cơ sở * Hệ số) + Hoa hồng - Phạt
+    // Note: User formula for doctor: Base * Coeff + Commission. 
+    // User formula for receptionist: Base * Coeff.
+    // Penalty is applied for both if excess leave.
+    const grossSalary = roleSalary + commission;
     const netSalary = grossSalary - penaltyAmount;
 
-    // 9. Generate payroll code
+    // 9. Generate Code
     const payrollCode = await generatePayrollCode(year, month);
 
-    // 10. Tạo Payroll record
+    // 10. Create Record
     const payroll = await Payroll.create(
       {
         payrollCode,
@@ -162,15 +288,15 @@ export const calculatePayrollService = async (
         month,
         year,
         baseSalary: BASE_SALARY,
-        roleCoefficient,
+        roleCoefficient: currentCoefficient,
         roleSalary,
         yearsOfService,
-        experienceBonus,
+        experienceBonus: experienceBonusAmount, // Saving for detailed breakdown
         totalInvoices,
         commissionRate: user.roleId === RoleCode.DOCTOR ? COMMISSION_RATE : 0,
         commission,
-        daysOff: daysOffCount,
-        allowedDaysOff: ALLOWED_DAYS_OFF_PER_MONTH,
+        daysOff: daysOffThisMonth,
+        allowedDaysOff: config.maxLeaveDaysPerYear, // Lưu giới hạn năm để tham khảo
         penaltyDaysOff,
         penaltyAmount,
         grossSalary,
@@ -182,12 +308,12 @@ export const calculatePayrollService = async (
 
     await t.commit();
 
-    // Reload with associations
     return await Payroll.findByPk(payroll.id, {
       include: [
-        { association: "user", include: [{ model: Role, as: "role" }] },
+        { association: "user", include: [{ model: Role, as: "role" }, { model: Employee, as: "employee" }] },
       ],
     });
+
   } catch (error) {
     await t.rollback();
     throw error;
@@ -206,7 +332,7 @@ export const calculatePayrollForAllService = async (
   const eligibleUsers = await User.findAll({
     where: {
       roleId: {
-        [Op.in]: [RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR],
+        [Op.in]: [RoleCode.RECEPTIONIST, RoleCode.DOCTOR],
       },
       isActive: true,
     },
@@ -273,7 +399,7 @@ export const getPayrollsService = async (filters: {
   const { count, rows } = await Payroll.findAndCountAll({
     where,
     include: [
-      { association: "user", include: [{ model: Role, as: "role" }] },
+      { association: "user", include: [{ model: Role, as: "role" }, { model: Employee, as: "employee" }] },
       { association: "approver" },
     ],
     order: [
@@ -303,7 +429,7 @@ export const getMyPayrollsService = async (userId: number) => {
   return await Payroll.findAll({
     where: { userId },
     include: [
-      { association: "user", include: [{ model: Role, as: "role" }] },
+      { association: "user", include: [{ model: Role, as: "role" }, { model: Employee, as: "employee" }] },
       { association: "approver" },
     ],
     order: [
@@ -319,7 +445,7 @@ export const getMyPayrollsService = async (userId: number) => {
 export const getPayrollByIdService = async (payrollId: number) => {
   const payroll = await Payroll.findByPk(payrollId, {
     include: [
-      { association: "user", include: [{ model: Role, as: "role" }] },
+      { association: "user", include: [{ model: Role, as: "role" }, { model: Employee, as: "employee" }] },
       { association: "approver" },
     ],
   });
@@ -363,6 +489,18 @@ export const approvePayrollService = async (
     await payroll.save({ transaction: t });
 
     await t.commit();
+
+    // Gửi thông báo cho nhân viên
+    try {
+      await createNotification({
+        userId: payroll.userId,
+        type: NotificationType.SYSTEM,
+        title: "Bảng lương đã được phê duyệt",
+        message: `Bảng lương tháng ${payroll.month}/${payroll.year} của bạn đã được phê duyệt. Thực nhận: ${Number(payroll.netSalary).toLocaleString("vi-VN")} VNĐ.`,
+      });
+    } catch (notifError) {
+      console.error("Failed to send payroll notification:", notifError);
+    }
 
     return await getPayrollByIdService(payrollId);
   } catch (error) {
@@ -414,7 +552,7 @@ export const getUserPayrollHistoryService = async (userId: number) => {
   return await Payroll.findAll({
     where: { userId },
     include: [
-      { association: "user", include: [{ model: Role, as: "role" }] },
+      { association: "user", include: [{ model: Role, as: "role" }, { model: Employee, as: "employee" }] },
       { association: "approver" },
     ],
     order: [

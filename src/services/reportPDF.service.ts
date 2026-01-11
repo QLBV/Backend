@@ -1,6 +1,6 @@
-import PDFDocument from "pdfkit";
 import { Response } from "express";
 import { ChartJSNodeCanvas } from "chartjs-node-canvas";
+import PDFKit from "pdfkit";
 import {
   getRevenueReportService,
   getExpenseReportService,
@@ -9,6 +9,27 @@ import {
   getPatientsByGenderReportService,
 } from "./report.service";
 import { formatCurrency, formatDate } from "../utils/pdfGenerator";
+import { createVietnamesePDF, setFont } from "../utils/pdfFontHelper";
+
+const createReportDoc = (
+  res: Response,
+  filename: string
+): {
+  doc: PDFKit.PDFDocument;
+  useRegular: () => void;
+  useBold: () => void;
+} => {
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+
+  const { doc, fonts } = createVietnamesePDF({ margin: 50, size: "A4" });
+  doc.pipe(res);
+
+  const useRegular = () => setFont(doc, fonts, false);
+  const useBold = () => setFont(doc, fonts, true);
+
+  return { doc, useRegular, useBold };
+};
 
 /**
  * Generate Revenue Report PDF
@@ -25,25 +46,25 @@ export const generateRevenueReportPDF = async (
     ? `Revenue_Report_${year}_${month}.pdf`
     : `Revenue_Report_${year}.pdf`;
 
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-
-  const doc = new PDFDocument({ margin: 50, size: "A4" });
-  doc.pipe(res);
+  const { doc, useRegular, useBold } = createReportDoc(res, filename);
 
   // Title
-  doc.fontSize(20).font("Helvetica-Bold").text("BÁO CÁO DOANH THU", { align: "center" });
+  useBold();
+  doc.fontSize(20).text("BÁO CÁO DOANH THU", { align: "center" });
   doc.moveDown(0.5);
 
   const period = month ? `Tháng ${month}/${year}` : `Năm ${year}`;
-  doc.fontSize(12).font("Helvetica").text(period, { align: "center" });
+  useRegular();
+  doc.fontSize(12).text(period, { align: "center" });
   doc.moveDown(2);
 
   // Summary
-  doc.fontSize(14).font("Helvetica-Bold").text("TỔNG QUAN");
+  useBold();
+  doc.fontSize(14).text("TỔNG QUAN");
   doc.moveDown(0.5);
 
-  doc.fontSize(11).font("Helvetica");
+  useRegular();
+  doc.fontSize(11);
   doc.text(`Tổng doanh thu: ${formatCurrency(reportData.summary.totalRevenue)}`);
   doc.text(`Đã thu: ${formatCurrency(reportData.summary.collectedRevenue)}`);
   doc.text(`Chưa thu: ${formatCurrency(reportData.summary.uncollectedRevenue)}`);
@@ -52,10 +73,12 @@ export const generateRevenueReportPDF = async (
   doc.moveDown(2);
 
   // Revenue by status
-  doc.fontSize(14).font("Helvetica-Bold").text("DOANH THU THEO TRẠNG THÁI");
+  useBold();
+  doc.fontSize(14).text("DOANH THU THEO TRẠNG THÁI");
   doc.moveDown(0.5);
 
-  doc.fontSize(10).font("Helvetica");
+  useRegular();
+  doc.fontSize(10);
   reportData.byStatus.forEach((status: any) => {
     doc.text(
       `${status.paymentStatus}: ${formatCurrency(status.totalAmount)} (${status.count} hóa đơn)`
@@ -65,7 +88,8 @@ export const generateRevenueReportPDF = async (
 
   // Revenue chart
   if (reportData.overTime.length > 0) {
-    doc.fontSize(14).font("Helvetica-Bold").text("BIỂU ĐỒ DOANH THU");
+    useBold();
+    doc.fontSize(14).text("BIỂU ĐỒ DOANH THU");
     doc.moveDown(0.5);
 
     // Generate chart
@@ -104,7 +128,8 @@ export const generateRevenueReportPDF = async (
   }
 
   // Footer
-  doc.fontSize(9).font("Helvetica-Oblique");
+  useRegular();
+  doc.fontSize(9);
   doc.text(`Báo cáo được tạo lúc: ${formatDate(new Date())}`, 50, doc.page.height - 50, {
     align: "center",
   });
@@ -126,25 +151,25 @@ export const generateExpenseReportPDF = async (
     ? `Expense_Report_${year}_${month}.pdf`
     : `Expense_Report_${year}.pdf`;
 
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-
-  const doc = new PDFDocument({ margin: 50, size: "A4" });
-  doc.pipe(res);
+  const { doc, useRegular, useBold } = createReportDoc(res, filename);
 
   // Title
-  doc.fontSize(20).font("Helvetica-Bold").text("BÁO CÁO CHI PHÍ", { align: "center" });
+  useBold();
+  doc.fontSize(20).text("BÁO CÁO CHI PHÍ", { align: "center" });
   doc.moveDown(0.5);
 
   const period = month ? `Tháng ${month}/${year}` : `Năm ${year}`;
-  doc.fontSize(12).font("Helvetica").text(period, { align: "center" });
+  useRegular();
+  doc.fontSize(12).text(period, { align: "center" });
   doc.moveDown(2);
 
   // Summary
-  doc.fontSize(14).font("Helvetica-Bold").text("TỔNG QUAN");
+  useBold();
+  doc.fontSize(14).text("TỔNG QUAN");
   doc.moveDown(0.5);
 
-  doc.fontSize(11).font("Helvetica");
+  useRegular();
+  doc.fontSize(11);
   doc.text(`Tổng chi phí: ${formatCurrency(reportData.summary.totalExpense)}`);
   doc.text(`Chi phí thuốc: ${formatCurrency(reportData.summary.medicineExpense)} (${reportData.summary.medicinePercentage.toFixed(1)}%)`);
   doc.text(`Chi phí lương: ${formatCurrency(reportData.summary.salaryExpense)} (${reportData.summary.salaryPercentage.toFixed(1)}%)`);
@@ -182,7 +207,8 @@ export const generateExpenseReportPDF = async (
   doc.moveDown(15);
 
   // Footer
-  doc.fontSize(9).font("Helvetica-Oblique");
+  useRegular();
+  doc.fontSize(9);
   doc.text(`Báo cáo được tạo lúc: ${formatDate(new Date())}`, 50, doc.page.height - 50, {
     align: "center",
   });
@@ -204,28 +230,28 @@ export const generateProfitReportPDF = async (
     ? `Profit_Report_${year}_${month}.pdf`
     : `Profit_Report_${year}.pdf`;
 
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-
-  const doc = new PDFDocument({ margin: 50, size: "A4" });
-  doc.pipe(res);
+  const { doc, useRegular, useBold } = createReportDoc(res, filename);
 
   // Title
-  doc.fontSize(20).font("Helvetica-Bold").text("BÁO CÁO LỢI NHUẬN", { align: "center" });
+  useBold();
+  doc.fontSize(20).text("BÁO CÁO LỢI NHUẬN", { align: "center" });
   doc.moveDown(0.5);
 
   const period = month ? `Tháng ${month}/${year}` : `Năm ${year}`;
-  doc.fontSize(12).font("Helvetica").text(period, { align: "center" });
+  useRegular();
+  doc.fontSize(12).text(period, { align: "center" });
   doc.moveDown(2);
 
   // Summary
-  doc.fontSize(14).font("Helvetica-Bold").text("TỔNG QUAN");
+  useBold();
+  doc.fontSize(14).text("TỔNG QUAN");
   doc.moveDown(0.5);
 
-  doc.fontSize(11).font("Helvetica");
-  doc.text(`Doanh thu: ${formatCurrency(reportData.summary.revenue)}`);
-  doc.text(`Chi phí: ${formatCurrency(reportData.summary.expense)}`);
-  doc.text(`Lợi nhuận: ${formatCurrency(reportData.summary.profit)}`);
+  useRegular();
+  doc.fontSize(11);
+  doc.text(`Doanh thu: ${formatCurrency(reportData.summary.totalRevenue)}`);
+  doc.text(`Chi phí: ${formatCurrency(reportData.summary.totalExpense)}`);
+  doc.text(`Lợi nhuận: ${formatCurrency(reportData.summary.totalProfit)}`);
   doc.text(`Tỷ suất lợi nhuận: ${reportData.summary.profitMargin}%`);
   doc.moveDown(2);
 
@@ -239,9 +265,9 @@ export const generateProfitReportPDF = async (
         {
           label: "VNĐ",
           data: [
-            reportData.summary.revenue,
-            reportData.summary.expense,
-            reportData.summary.profit,
+            reportData.summary.totalRevenue,
+            reportData.summary.totalExpense,
+            reportData.summary.totalProfit,
           ],
           backgroundColor: [
             "rgba(75, 192, 192, 0.8)",
@@ -270,7 +296,8 @@ export const generateProfitReportPDF = async (
   doc.moveDown(10);
 
   // Footer
-  doc.fontSize(9).font("Helvetica-Oblique");
+  useRegular();
+  doc.fontSize(9);
   doc.text(`Báo cáo được tạo lúc: ${formatDate(new Date())}`, 50, doc.page.height - 50, {
     align: "center",
   });
@@ -292,28 +319,28 @@ export const generateTopMedicinesReportPDF = async (
     ? `Top_Medicines_${year}_${month}.pdf`
     : `Top_Medicines_${year}.pdf`;
 
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-
-  const doc = new PDFDocument({ margin: 50, size: "A4" });
-  doc.pipe(res);
+  const { doc, useRegular, useBold } = createReportDoc(res, filename);
 
   // Title
-  doc.fontSize(20).font("Helvetica-Bold").text(`TOP ${limit} THUỐC DÙNG NHIỀU NHẤT`, { align: "center" });
+  useBold();
+  doc.fontSize(20).text(`TOP ${limit} THUỐC DÙNG NHIỀU NHẤT`, { align: "center" });
   doc.moveDown(0.5);
 
   const period = month ? `Tháng ${month}/${year}` : `Năm ${year}`;
-  doc.fontSize(12).font("Helvetica").text(period, { align: "center" });
+  useRegular();
+  doc.fontSize(12).text(period, { align: "center" });
   doc.moveDown(2);
 
   // Table
-  doc.fontSize(11).font("Helvetica-Bold");
+  useBold();
+  doc.fontSize(11);
   doc.text("STT   Tên thuốc                    Số lượng    Số đơn    Doanh thu ước tính");
   doc.moveDown(0.3);
   doc.strokeColor("#000000").lineWidth(1).moveTo(50, doc.y).lineTo(550, doc.y).stroke();
   doc.moveDown(0.3);
 
-  doc.fontSize(10).font("Helvetica");
+  useRegular();
+  doc.fontSize(10);
   reportData.topMedicines.forEach((med: any, index: number) => {
     const row = `${(index + 1).toString().padEnd(6)}${med.medicine.name.substring(0, 25).padEnd(28)}${med.totalQuantity.toString().padEnd(12)}${med.prescriptionCount.toString().padEnd(10)}${formatCurrency(med.estimatedRevenue)}`;
     doc.text(row);
@@ -355,7 +382,8 @@ export const generateTopMedicinesReportPDF = async (
   }
 
   // Footer
-  doc.fontSize(9).font("Helvetica-Oblique");
+  useRegular();
+  doc.fontSize(9);
   doc.text(`Báo cáo được tạo lúc: ${formatDate(new Date())}`, 50, doc.page.height - 50, {
     align: "center",
   });
@@ -371,21 +399,20 @@ export const generatePatientsByGenderReportPDF = async (res: Response) => {
 
   const filename = `Patients_By_Gender_Report.pdf`;
 
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-
-  const doc = new PDFDocument({ margin: 50, size: "A4" });
-  doc.pipe(res);
+  const { doc, useRegular, useBold } = createReportDoc(res, filename);
 
   // Title
-  doc.fontSize(20).font("Helvetica-Bold").text("BÁO CÁO BỆNH NHÂN THEO GIỚI TÍNH", { align: "center" });
+  useBold();
+  doc.fontSize(20).text("BÁO CÁO BỆNH NHÂN THEO GIỚI TÍNH", { align: "center" });
   doc.moveDown(2);
 
   // Summary
-  doc.fontSize(14).font("Helvetica-Bold").text("TỔNG QUAN");
+  useBold();
+  doc.fontSize(14).text("TỔNG QUAN");
   doc.moveDown(0.5);
 
-  doc.fontSize(11).font("Helvetica");
+  useRegular();
+  doc.fontSize(11);
   doc.text(`Tổng số bệnh nhân: ${reportData.total}`);
   doc.moveDown(1);
 
@@ -429,7 +456,8 @@ export const generatePatientsByGenderReportPDF = async (res: Response) => {
   doc.image(chartBuffer, 100, doc.y, { width: 400 });
 
   // Footer
-  doc.fontSize(9).font("Helvetica-Oblique");
+  useRegular();
+  doc.fontSize(9);
   doc.text(`Báo cáo được tạo lúc: ${formatDate(new Date())}`, 50, doc.page.height - 50, {
     align: "center",
   });

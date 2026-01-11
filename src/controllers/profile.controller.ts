@@ -35,19 +35,27 @@ export const getMyProfile = async (req: Request, res: Response) => {
     let additionalInfo: any = null;
     let patientId: number | null = null;
     let doctorId: number | null = null;
+    let employeeId: number | null = null;
 
-    if ((req as any).user.roleId === 3) {
+    if (user.roleId === 3) {
       // PATIENT
       additionalInfo = await Patient.findOne({
         where: { userId },
         attributes: { exclude: ["createdAt", "updatedAt"] },
+        include: [
+          {
+            model: require("../models/PatientProfile").default,
+            as: "profiles",
+          },
+        ],
       });
       if (additionalInfo) {
         patientId = additionalInfo.id;
       }
-    } else if ((req as any).user.roleId === 4) {
-      // DOCTOR
-      additionalInfo = await Doctor.findOne({
+    } else if ([1, 2, 4].includes(user.roleId)) {
+      // ADMIN, RECEPTIONIST, DOCTOR
+      const Employee = require("../models/Employee").default;
+      additionalInfo = await Employee.findOne({
         where: { userId },
         attributes: { exclude: ["createdAt", "updatedAt"] },
         include: [
@@ -59,18 +67,32 @@ export const getMyProfile = async (req: Request, res: Response) => {
         ],
       });
       if (additionalInfo) {
-        doctorId = additionalInfo.id;
+        employeeId = additionalInfo.id;
+        if (user.roleId === 4) {
+          // Get actual doctorId from Doctor table
+          const doc = await Doctor.findOne({ where: { userId } });
+          doctorId = doc ? doc.id : additionalInfo.id; 
+        }
       }
+    }
+
+    const profileData: any = {
+      ...user.toJSON(),
+      patientId,
+      doctorId,
+      employeeId,
+      patient: user.roleId === 3 ? additionalInfo : null,
+      doctor: [1, 2, 4].includes(user.roleId) ? additionalInfo : null,
+      profileDetails: additionalInfo,
+    };
+
+    if (profileData.doctor && profileData.doctor.employeeCode && !profileData.doctor.doctorCode) {
+      profileData.doctor.doctorCode = profileData.doctor.employeeCode;
     }
 
     return res.json({
       success: true,
-      data: {
-        ...user.toJSON(),
-        patientId,
-        doctorId,
-        profileDetails: additionalInfo,
-      },
+      data: profileData,
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -87,7 +109,21 @@ export const getMyProfile = async (req: Request, res: Response) => {
 export const updateMyProfile = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
-    const { fullName, avatar } = req.body;
+    const {
+      fullName,
+      avatar,
+      email,
+      phone,
+      address,
+      gender,
+      dateOfBirth,
+      cccd,
+      bio,
+      position,
+      degree,
+      expertise,
+      profiles,
+    } = req.body;
 
     const user = await User.findByPk(userId);
     if (!user) {
@@ -97,23 +133,79 @@ export const updateMyProfile = async (req: Request, res: Response) => {
       });
     }
 
-    // Update allowed fields
+    // 1. Update basic User info
     if (fullName) user.fullName = fullName;
     if (avatar) user.avatar = avatar;
-
+    if (email) user.email = email;
     await user.save();
 
-    // Return updated user without password
-    const updatedUser = await User.findByPk(userId, {
-      attributes: { exclude: ["password"] },
-      include: [{ model: Role, as: "role" }],
-    });
+    // 2. Update Role-specific info
+    if (user.roleId === 3) {
+      // PATIENT
+      const Patient = require("../models/Patient").default;
+      const patient = await Patient.findOne({ where: { userId } });
+      if (patient) {
+        if (fullName) patient.fullName = fullName;
+        if (gender) patient.gender = gender;
+        if (dateOfBirth) patient.dateOfBirth = dateOfBirth;
+        if (cccd) patient.cccd = cccd;
+        if (avatar) patient.avatar = avatar;
+        await patient.save();
 
-    return res.json({
-      success: true,
-      message: "Profile updated successfully",
-      data: updatedUser,
-    });
+        // Update Patient Profiles (Phone, Address)
+        const PatientProfile = require("../models/PatientProfile").default;
+        if (profiles && Array.isArray(profiles)) {
+          for (const p of profiles) {
+            await PatientProfile.upsert({
+              patientId: patient.id,
+              type: p.type,
+              value: p.value,
+              city: p.city,
+              ward: p.ward,
+              isPrimary: true,
+            });
+          }
+        } else {
+          // Fallback to top-level phone/address if profiles not provided
+          if (phone) {
+            await PatientProfile.upsert({
+              patientId: patient.id,
+              type: "phone",
+              value: phone,
+              isPrimary: true,
+            });
+          }
+          if (address) {
+            await PatientProfile.upsert({
+              patientId: patient.id,
+              type: "address",
+              value: address,
+              isPrimary: true,
+            });
+          }
+        }
+      }
+    } else if ([1, 2, 4].includes(user.roleId)) {
+      // ADMIN, RECEPTIONIST, DOCTOR
+      const Employee = require("../models/Employee").default;
+      const employee = await Employee.findOne({ where: { userId } });
+      if (employee) {
+        if (phone) employee.phone = phone;
+        if (address) employee.address = address;
+        if (gender) employee.gender = gender;
+        if (dateOfBirth) employee.dateOfBirth = dateOfBirth;
+        if (cccd) employee.cccd = cccd;
+        if (avatar) employee.avatar = avatar;
+        if (bio) employee.description = bio;
+        if (position) employee.position = position;
+        if (degree) employee.degree = degree;
+        if (expertise) employee.expertise = expertise;
+        await employee.save();
+      }
+    }
+
+    // Return full updated profile structure
+    return getMyProfile(req, res);
   } catch (error: any) {
     return res.status(500).json({
       success: false,

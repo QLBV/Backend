@@ -10,6 +10,7 @@ import {
   getInvoicesByPatient,
   getInvoiceStatistics,
   getUnpaidInvoices,
+  getRevenueByPaymentMethod,
 } from "../controllers/invoice.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
@@ -32,6 +33,13 @@ router.use(verifyToken);
 
 // Statistics route (must be before /:id to avoid route conflict)
 router.get("/statistics", requireRole(RoleCode.ADMIN), getInvoiceStatistics);
+
+// Revenue report by payment method
+router.get(
+  "/revenue-by-payment-method",
+  requireRole(RoleCode.ADMIN),
+  getRevenueByPaymentMethod
+);
 
 // Unpaid invoices
 router.get(
@@ -57,7 +65,7 @@ router.post(
 
 router.get(
   "/",
-  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST),
+  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR),
   validateGetInvoices,
   getInvoices
 );
@@ -65,6 +73,7 @@ router.get(
 router.get(
   "/:id",
   validateNumericId("id"),
+  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR),
   getInvoiceById // Authorization check inside controller
 );
 
@@ -88,7 +97,7 @@ router.post(
 router.get(
   "/:id/payments",
   validateNumericId("id"),
-  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST),
+  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR),
   getInvoicePayments
 );
 
@@ -96,6 +105,7 @@ router.get(
 router.get(
   "/:id/pdf",
   validateNumericId("id"),
+  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST),
   exportInvoicePDF // Authorization check inside controller
 );
 

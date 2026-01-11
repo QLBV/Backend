@@ -4,11 +4,13 @@ import Medicine from "./Medicine";
 
 interface MedicineExportAttributes {
   id: number;
+  exportCode: string;
   medicineId: number;
   quantity: number;
   exportDate: Date;
   userId: number;
   reason: string;
+  note?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -21,11 +23,13 @@ class MedicineExport
   implements MedicineExportAttributes
 {
   public id!: number;
+  public exportCode!: string;
   public medicineId!: number;
   public quantity!: number;
   public exportDate!: Date;
   public userId!: number;
   public reason!: string;
+  public note?: string;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -36,6 +40,11 @@ MedicineExport.init(
       type: DataTypes.INTEGER.UNSIGNED,
       autoIncrement: true,
       primaryKey: true,
+    },
+    exportCode: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      unique: true,
     },
     medicineId: {
       type: DataTypes.INTEGER.UNSIGNED,
@@ -57,6 +66,10 @@ MedicineExport.init(
     reason: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+    note: {
+      type: DataTypes.TEXT,
+      allowNull: true,
     },
   },
   {

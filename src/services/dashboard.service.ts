@@ -10,157 +10,20 @@ import { CacheService, CacheKeys } from "./cache.service";
 /**
  * Dashboard realtime data
  * GET /api/dashboard
- * Note: This is real-time data, so caching is not recommended
  */
 export const getDashboardDataService = async () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const [stats, overview, recentActivities, quickStats, alerts] = await Promise.all([
+    getDashboardStatsService(),
+    getDashboardOverviewService(),
+    getRecentActivitiesService(10),
+    getQuickStatsService(),
+    getSystemAlertsService(),
+  ]);
 
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  // Doanh thu hôm nay
-  const todayRevenue = await Invoice.sum("totalAmount", {
-    where: {
-      createdAt: {
-        [Op.gte]: today,
-        [Op.lt]: tomorrow,
-      },
-      paymentStatus: "PAID",
-    },
-  });
-
-  // Doanh thu hôm qua
-  const yesterdayRevenue = await Invoice.sum("totalAmount", {
-    where: {
-      createdAt: {
-        [Op.gte]: yesterday,
-        [Op.lt]: today,
-      },
-      paymentStatus: "PAID",
-    },
-  });
-
-  // Tính % thay đổi doanh thu
-  const revenueChange =
-    yesterdayRevenue > 0
-      ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100
-      : 0;
-
-  // Số bệnh nhân hôm nay (visits)
-  const todayPatients = await Visit.count({
-    where: {
-      checkInTime: {
-        [Op.gte]: today,
-        [Op.lt]: tomorrow,
-      },
-    },
-  });
-
-  // Số bệnh nhân hôm qua
-  const yesterdayPatients = await Visit.count({
-    where: {
-      checkInTime: {
-        [Op.gte]: yesterday,
-        [Op.lt]: today,
-      },
-    },
-  });
-
-  // Tính % thay đổi bệnh nhân
-  const patientsChange =
-    yesterdayPatients > 0
-      ? ((todayPatients - yesterdayPatients) / yesterdayPatients) * 100
-      : 0;
-
-  // Số lịch hẹn hôm nay
-  const todayAppointments = await Appointment.count({
-    where: {
-      appointmentDate: {
-        [Op.gte]: today,
-        [Op.lt]: tomorrow,
-      },
-      status: {
-        [Op.in]: ["SCHEDULED", "CONFIRMED"],
-      },
-    },
-  });
-
-  // Số lịch hẹn hôm qua
-  const yesterdayAppointments = await Appointment.count({
-    where: {
-      appointmentDate: {
-        [Op.gte]: yesterday,
-        [Op.lt]: today,
-      },
-      status: {
-        [Op.in]: ["SCHEDULED", "CONFIRMED"],
-      },
-    },
-  });
-
-  // Tính % thay đổi lịch hẹn
-  const appointmentsChange =
-    yesterdayAppointments > 0
-      ? ((todayAppointments - yesterdayAppointments) / yesterdayAppointments) *
-        100
-      : 0;
-
-  // Số bác sĩ đang trực (có lịch hẹn hoặc visit hôm nay)
-  const activeDoctors = await Doctor.count({
-    include: [
-      {
-        model: Visit,
-        as: "visits",
-        where: {
-          checkInTime: {
-            [Op.gte]: today,
-            [Op.lt]: tomorrow,
-          },
-        },
-        required: true,
-      },
-    ],
-    distinct: true,
-  });
-
-  // Tổng số bác sĩ
-  const totalDoctors = await Doctor.count();
-
-  // Top 5 bệnh phổ biến trong tuần
-  const weekAgo = new Date(today);
-  weekAgo.setDate(weekAgo.getDate() - 7);
-
-  const topDiseases = await Visit.findAll({
-    attributes: [
-      "diseaseCategoryId",
-      [fn("COUNT", col("Visit.id")), "count"],
-    ],
-    where: {
-      checkInTime: {
-        [Op.gte]: weekAgo,
-      },
-      diseaseCategoryId: {
-        [Op.ne]: null,
-      },
-    },
-    group: ["diseaseCategoryId", "diseaseCategory.id", "diseaseCategory.categoryName"],
-    include: [
-      {
-        model: require("../models/DiseaseCategory").default,
-        as: "diseaseCategory",
-        attributes: ["categoryName"],
-      },
-    ],
-    order: [[literal("count"), "DESC"]],
-    limit: 5,
-    raw: false,
-  });
-
-  // Doanh thu theo ngày trong tuần qua (cho chart)
+  // Generate chart data for last 7 days
   const dailyRevenue = [];
   for (let i = 6; i >= 0; i--) {
     const date = new Date(today);
@@ -170,50 +33,27 @@ export const getDashboardDataService = async () => {
 
     const revenue = await Invoice.sum("totalAmount", {
       where: {
-        createdAt: {
-          [Op.gte]: date,
-          [Op.lt]: nextDate,
-        },
+        createdAt: { [Op.gte]: date, [Op.lt]: nextDate },
         paymentStatus: "PAID",
       },
     });
 
     dailyRevenue.push({
+      name: date.toLocaleDateString("vi-VN", { weekday: "short" }),
       date: date.toISOString().split("T")[0],
       revenue: revenue || 0,
     });
   }
 
   return {
-    summary: {
-      revenue: {
-        today: todayRevenue || 0,
-        yesterday: yesterdayRevenue || 0,
-        changePercent: parseFloat(revenueChange.toFixed(2)),
-      },
-      patients: {
-        today: todayPatients,
-        yesterday: yesterdayPatients,
-        changePercent: parseFloat(patientsChange.toFixed(2)),
-      },
-      appointments: {
-        today: todayAppointments,
-        yesterday: yesterdayAppointments,
-        changePercent: parseFloat(appointmentsChange.toFixed(2)),
-      },
-      doctors: {
-        active: activeDoctors,
-        total: totalDoctors,
-        percentage: totalDoctors > 0 ? (activeDoctors / totalDoctors) * 100 : 0,
-      },
-    },
+    stats,
+    overview,
+    recentActivities,
+    quickStats,
+    alerts,
     charts: {
-      dailyRevenue,
-      topDiseases: topDiseases.map((item: any) => ({
-        disease: item.diseaseCategory?.categoryName || "Unknown",
-        count: parseInt(item.getDataValue("count")),
-      })),
-    },
+      dailyRevenue
+    }
   };
 };
 
@@ -285,513 +125,228 @@ export const getDashboardAppointmentsByDateService = async (date: string) => {
 /**
  * Dashboard stats overview
  * GET /api/dashboard/stats
- * Cache: 5 minutes (stats change frequently)
  */
 export const getDashboardStatsService = async () => {
-  // Try cache first
-  const cached = await CacheService.get(CacheKeys.DASHBOARD_STATS);
-  if (cached) {
-    return cached;
-  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Tổng số bệnh nhân
-  const totalPatients = await Patient.count();
+  const [
+    totalPatients,
+    totalDoctors,
+    totalAppointments,
+    totalRevenue,
+    todayAppointments,
+    todayPatientsCount,
+    todayRevenueCount,
+    pendingAppointments,
+    completedAppointments,
+  ] = await Promise.all([
+    Patient.count(),
+    Doctor.count(),
+    Appointment.count(),
+    Invoice.sum("totalAmount", { where: { paymentStatus: "PAID" } }),
+    Appointment.count({ where: { date: { [Op.gte]: today, [Op.lt]: tomorrow } } }),
+    Visit.count({ where: { checkInTime: { [Op.gte]: today, [Op.lt]: tomorrow } } }),
+    Invoice.sum("totalAmount", { where: { paymentStatus: "PAID", createdAt: { [Op.gte]: today, [Op.lt]: tomorrow } } }),
+    Appointment.count({ where: { status: "WAITING" } }),
+    Appointment.count({ where: { status: "COMPLETED" } }),
+  ]);
 
-  // Tổng số bác sĩ
-  const totalDoctors = await Doctor.count();
-
-  // Tổng số lịch hẹn
-  const totalAppointments = await Appointment.count();
-
-  // Tổng doanh thu (all time)
-  const totalRevenue = await Invoice.sum("totalAmount", {
-    where: {
-      paymentStatus: "PAID",
-    },
-  });
-
-  // Doanh thu tháng này
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  const monthRevenue = await Invoice.sum("totalAmount", {
-    where: {
-      createdAt: {
-        [Op.gte]: startOfMonth,
-      },
-      paymentStatus: "PAID",
-    },
-  });
-
-  // Doanh thu tháng trước
-  const startOfLastMonth = new Date(startOfMonth);
-  startOfLastMonth.setMonth(startOfLastMonth.getMonth() - 1);
-
-  const lastMonthRevenue = await Invoice.sum("totalAmount", {
-    where: {
-      createdAt: {
-        [Op.gte]: startOfLastMonth,
-        [Op.lt]: startOfMonth,
-      },
-      paymentStatus: "PAID",
-    },
-  });
-
-  // % thay đổi doanh thu tháng
-  const monthRevenueChange =
-    lastMonthRevenue > 0
-      ? ((monthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
-      : 0;
-
-  const result = {
-    overview: {
-      totalPatients,
-      totalDoctors,
-      totalAppointments,
-      totalRevenue: totalRevenue || 0,
-    },
-    monthly: {
-      currentMonth: monthRevenue || 0,
-      lastMonth: lastMonthRevenue || 0,
-      changePercent: parseFloat(monthRevenueChange.toFixed(2)),
-    },
+  return {
+    totalPatients,
+    totalDoctors,
+    totalAppointments,
+    totalRevenue: totalRevenue || 0,
+    todayAppointments,
+    todayPatients: todayPatientsCount,
+    todayRevenue: todayRevenueCount || 0,
+    pendingAppointments,
+    completedAppointments,
   };
-
-  // Cache for 5 minutes
-  await CacheService.set(CacheKeys.DASHBOARD_STATS, result, 300);
-
-  return result;
 };
 
 /**
  * Dashboard Overview Service
  * GET /api/dashboard/overview
- * Cache: 5 minutes
  */
 export const getDashboardOverviewService = async () => {
-  // Try cache first
-  const cached = await CacheService.get(CacheKeys.DASHBOARD_OVERVIEW);
-  if (cached) {
-    return cached;
-  }
   const today = new Date();
-  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
 
-  // Tổng số bệnh nhân
-  const totalPatients = await Patient.count();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
 
-  // Lịch hẹn hôm nay
-  const todayAppointments = await Appointment.count({
-    where: {
-      date: {
-        [Op.gte]: startOfToday,
-        [Op.lt]: endOfToday,
-      },
-    },
-  });
-
-  // Lịch hẹn đang chờ (PENDING)
-  const pendingAppointments = await Appointment.count({
-    where: {
-      status: "PENDING",
-    },
-  });
-
-  // Doanh thu tháng này
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay());
+  
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const monthlyRevenue = await Invoice.sum("totalAmount", {
-    where: {
-      createdAt: {
-        [Op.gte]: startOfMonth,
-      },
-      paymentStatus: "PAID",
-    },
-  });
 
-  // Hóa đơn chưa thanh toán
-  const unpaidInvoices = await Invoice.count({
-    where: {
-      paymentStatus: "UNPAID",
-    },
-  });
+  const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
 
-  // Bác sĩ đang hoạt động
-  const activeDoctors = await Doctor.count({
-    include: [
-      {
-        model: User,
-        as: "user",
-        where: { isActive: true },
-        attributes: [],
-      },
-    ],
-  });
+  const [
+    todayRev, yesterdayRev, weekRev, monthRev, lastMonthRev,
+    todayApt, yesterdayApt, weekApt, monthApt,
+    todayPat, yesterdayPat, weekPat, monthPat,
+    medicationStock
+  ] = await Promise.all([
+    Invoice.sum("totalAmount", { where: { paymentStatus: "PAID", createdAt: { [Op.gte]: today, [Op.lt]: tomorrow } } }),
+    Invoice.sum("totalAmount", { where: { paymentStatus: "PAID", createdAt: { [Op.gte]: yesterday, [Op.lt]: today } } }),
+    Invoice.sum("totalAmount", { where: { paymentStatus: "PAID", createdAt: { [Op.gte]: startOfWeek } } }),
+    Invoice.sum("totalAmount", { where: { paymentStatus: "PAID", createdAt: { [Op.gte]: startOfMonth } } }),
+    Invoice.sum("totalAmount", { where: { paymentStatus: "PAID", createdAt: { [Op.gte]: startOfLastMonth, [Op.lte]: endOfLastMonth } } }),
+    
+    Appointment.count({ where: { date: { [Op.gte]: today, [Op.lt]: tomorrow } } }),
+    Appointment.count({ where: { date: { [Op.gte]: yesterday, [Op.lt]: today } } }),
+    Appointment.count({ where: { date: { [Op.gte]: startOfWeek } } }),
+    Appointment.count({ where: { date: { [Op.gte]: startOfMonth } } }),
 
-  const result = {
-    patients: {
-      total: totalPatients,
+    Visit.count({ where: { checkInTime: { [Op.gte]: today, [Op.lt]: tomorrow } } }),
+    Visit.count({ where: { checkInTime: { [Op.gte]: yesterday, [Op.lt]: today } } }),
+    Visit.count({ where: { checkInTime: { [Op.gte]: startOfWeek } } }),
+    Visit.count({ where: { checkInTime: { [Op.gte]: startOfMonth } } }),
+
+    require("../models/Medicine").default.count()
+  ]);
+
+  const revChange = yesterdayRev > 0 ? ((todayRev - yesterdayRev) / yesterdayRev) * 100 : 0;
+  const aptChange = yesterdayApt > 0 ? ((todayApt - yesterdayApt) / yesterdayApt) * 100 : 0;
+  const patChange = yesterdayPat > 0 ? ((todayPat - yesterdayPat) / yesterdayPat) * 100 : 0;
+
+  // Calculate target: e.g., 10% more than last month, or a default 50M
+  const targetRevenue = lastMonthRev ? lastMonthRev * 1.1 : 50000000;
+  const performancePercentage = targetRevenue > 0 ? Math.min(100, Math.floor((monthRev / targetRevenue) * 100)) : 0;
+
+  return {
+    revenue: {
+      today: todayRev || 0,
+      thisWeek: weekRev || 0,
+      thisMonth: monthRev || 0,
+      targetMonth: Math.round(targetRevenue),
+      performance: performancePercentage,
+      change: parseFloat(revChange.toFixed(2))
     },
     appointments: {
-      today: todayAppointments,
-      pending: pendingAppointments,
+      today: todayApt,
+      thisWeek: weekApt,
+      thisMonth: monthApt,
+      change: parseFloat(aptChange.toFixed(2))
     },
-    revenue: {
-      thisMonth: monthlyRevenue || 0,
+    patients: {
+      today: todayPat,
+      thisWeek: weekPat,
+      thisMonth: monthPat,
+      change: parseFloat(patChange.toFixed(2))
     },
-    invoices: {
-      unpaid: unpaidInvoices,
-    },
-    doctors: {
-      active: activeDoctors,
-    },
+    medicationStock: medicationStock || 0,
+    medicationChange: 0
   };
-
-  // Cache for 5 minutes
-  await CacheService.set(CacheKeys.DASHBOARD_OVERVIEW, result, 300);
-
-  return result;
 };
 
 /**
  * Recent Activities Service
  * GET /api/dashboard/recent-activities
- * Cache: 2 minutes (activities change frequently)
  */
 export const getRecentActivitiesService = async (limit: number = 10) => {
-  // Try cache first (cache key includes limit)
-  const cacheKey = `${CacheKeys.DASHBOARD_RECENT_ACTIVITIES}:${limit}`;
-  const cached = await CacheService.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-  // Lịch hẹn gần đây
-  const recentAppointments = await Appointment.findAll({
-    limit,
-    order: [["createdAt", "DESC"]],
-    include: [
-      {
-        model: Patient,
-        as: "patient",
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["fullName"],
-          },
-        ],
-      },
-      {
-        model: Doctor,
-        as: "doctor",
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["fullName"],
-          },
-        ],
-      },
-    ],
-  });
+  const [recentInvoices, recentAppointments, recentVisits] = await Promise.all([
+    Invoice.findAll({
+      limit: 5,
+      order: [["createdAt", "DESC"]],
+      include: [{ model: Patient, as: "patient", include: [{ model: User, as: "user", attributes: ["fullName"] }] }]
+    }),
+    Appointment.findAll({
+      limit: 5,
+      order: [["createdAt", "DESC"]],
+      include: [{ model: Patient, as: "patient", attributes: ["fullName"] }]
+    }),
+    Visit.findAll({
+      limit: 5,
+      order: [["createdAt", "DESC"]],
+      include: [{ model: Patient, as: "patient", attributes: ["fullName"] }]
+    })
+  ]);
 
-  // Hóa đơn gần đây
-  const recentInvoices = await Invoice.findAll({
-    limit,
-    order: [["createdAt", "DESC"]],
-    include: [
-      {
-        model: Patient,
-        as: "patient",
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["fullName"],
-          },
-        ],
-      },
-    ],
-  });
-
-  // Bệnh nhân mới
-  const recentPatients = await Patient.findAll({
-    limit,
-    order: [["id", "DESC"]],
-    include: [
-      {
-        model: User,
-        as: "user",
-        attributes: ["fullName", "email", "createdAt"],
-      },
-    ],
-  });
-
-  const result = {
-    appointments: recentAppointments.map((apt: any) => ({
-      id: apt.id,
-      appointmentCode: apt.appointmentCode,
-      date: apt.date,
-      status: apt.status,
-      patientName: apt.patient?.user?.fullName || "N/A",
-      doctorName: apt.doctor?.user?.fullName || "N/A",
-      createdAt: apt.createdAt,
+  const activities = [
+    ...recentInvoices.map((inv: any) => ({
+      id: `inv-${inv.id}`,
+      type: "invoice",
+      description: `Hóa đơn mới: ${inv.patient?.user?.fullName || "Bệnh nhân"} (${(inv.totalAmount || 0).toLocaleString()}đ)`,
+      timestamp: inv.createdAt,
+      user: { id: 0, fullName: "Hệ thống" }
     })),
-    invoices: recentInvoices.map((inv: any) => ({
-      id: inv.id,
-      invoiceCode: inv.invoiceCode,
-      totalAmount: inv.totalAmount,
-      paymentStatus: inv.paymentStatus,
-      patientName: inv.patient?.user?.fullName || "N/A",
-      createdAt: inv.createdAt,
+    ...recentAppointments.map((apt: any) => ({
+      id: `apt-${apt.id}`,
+      type: "appointment",
+      description: `Lịch hẹn mới: ${apt.patient?.fullName || "Bệnh nhân"}`,
+      timestamp: apt.createdAt,
+      user: { id: 0, fullName: "Hệ thống" }
     })),
-    patients: recentPatients.map((pat: any) => ({
-      id: pat.id,
-      patientCode: pat.patientCode,
-      fullName: pat.user?.fullName || "N/A",
-      email: pat.user?.email || "N/A",
-      createdAt: pat.user?.createdAt,
-    })),
-  };
+    ...recentVisits.map((v: any) => ({
+      id: `visit-${v.id}`,
+      type: "visit",
+      description: `Lượt khám mới: ${v.patient?.fullName || "Bệnh nhân"}`,
+      timestamp: v.createdAt,
+      user: { id: 0, fullName: "Hệ thống" }
+    }))
+  ];
 
-  // Cache for 2 minutes (activities change frequently)
-  await CacheService.set(cacheKey, result, 120);
-
-  return result;
+  return activities
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, limit);
 };
 
 /**
  * Quick Statistics Service
  * GET /api/dashboard/quick-stats
- * Cache: 5 minutes
  */
 export const getQuickStatsService = async () => {
-  // Try cache first
-  const cached = await CacheService.get(CacheKeys.DASHBOARD_QUICK_STATS);
-  if (cached) {
-    return cached;
-  }
-  const Specialty = (await import("../models/Specialty")).default;
-  const DiseaseCategory = (await import("../models/DiseaseCategory")).default;
+  const Medicine = (await import("../models/Medicine")).default;
+  const today = new Date();
 
-  // Top 5 bác sĩ có nhiều lịch hẹn nhất
-  const topDoctors = await Appointment.findAll({
-    attributes: [
-      "doctorId",
-      [fn("COUNT", col("Appointment.id")), "appointmentCount"],
-    ],
-    group: ["doctorId", "doctor.id", "doctor->user.id", "doctor->specialty.id"],
-    include: [
-      {
-        model: Doctor,
-        as: "doctor",
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["fullName"],
-          },
-          {
-            model: Specialty,
-            as: "specialty",
-            attributes: ["name"],
-          },
-        ],
-      },
-    ],
-    order: [[fn("COUNT", col("Appointment.id")), "DESC"]],
-    limit: 5,
-    raw: false,
-  });
+  const [lowStock, expiring, unpaid, pending, visits] = await Promise.all([
+    Medicine.count({ where: { quantity: { [Op.lte]: literal("minStockLevel") } } }),
+    Medicine.count({ where: { expiryDate: { [Op.lte]: new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000) } } }),
+    Invoice.count({ where: { paymentStatus: "UNPAID" } }),
+    Appointment.count({ where: { status: "WAITING" } }),
+    Visit.count({ where: { checkInTime: { [Op.gte]: new Date(today.setHours(0,0,0,0)) } } })
+  ]);
 
-  // Top 5 bệnh phổ biến
-  const topDiseases = await Visit.findAll({
-    attributes: [
-      "diseaseCategoryId",
-      [fn("COUNT", col("Visit.id")), "visitCount"],
-    ],
-    where: {
-      diseaseCategoryId: {
-        [Op.ne]: null,
-      },
-    },
-    group: ["diseaseCategoryId", "DiseaseCategory.id"],
-    include: [
-      {
-        model: DiseaseCategory,
-        attributes: ["name", "code"],
-      },
-    ],
-    order: [[fn("COUNT", col("Visit.id")), "DESC"]],
-    limit: 5,
-    raw: false,
-  });
-
-  // Tỷ lệ hoàn thành lịch hẹn (7 ngày qua)
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-  const totalRecentAppointments = await Appointment.count({
-    where: {
-      createdAt: {
-        [Op.gte]: sevenDaysAgo,
-      },
-    },
-  });
-
-  const completedRecentAppointments = await Appointment.count({
-    where: {
-      createdAt: {
-        [Op.gte]: sevenDaysAgo,
-      },
-      status: "COMPLETED",
-    },
-  });
-
-  const completionRate =
-    totalRecentAppointments > 0
-      ? (completedRecentAppointments / totalRecentAppointments) * 100
-      : 0;
-
-  const result = {
-    topDoctors: topDoctors.map((item: any) => ({
-      doctorId: item.doctorId,
-      doctorName: item.doctor?.user?.fullName || "N/A",
-      specialty: item.doctor?.specialty?.name || "N/A",
-      appointmentCount: parseInt(item.getDataValue("appointmentCount")),
-    })),
-    topDiseases: topDiseases.map((item: any) => ({
-      diseaseCategoryId: item.diseaseCategoryId,
-      diseaseName: item.DiseaseCategory?.name || "N/A",
-      diseaseCode: item.DiseaseCategory?.code || "N/A",
-      visitCount: parseInt(item.getDataValue("visitCount")),
-    })),
-    appointmentStats: {
-      last7Days: {
-        total: totalRecentAppointments,
-        completed: completedRecentAppointments,
-        completionRate: parseFloat(completionRate.toFixed(2)),
-      },
-    },
+  return {
+    lowStockMedicines: lowStock,
+    expiringMedicines: expiring,
+    unpaidInvoices: unpaid,
+    pendingAppointments: pending,
+    todayVisits: visits
   };
-
-  // Cache for 5 minutes
-  await CacheService.set(CacheKeys.DASHBOARD_QUICK_STATS, result, 300);
-
-  return result;
 };
 
 /**
  * System Alerts Service
  * GET /api/dashboard/alerts
- * Cache: 5 minutes (alerts change frequently)
  */
 export const getSystemAlertsService = async () => {
-  // Try cache first
-  const cached = await CacheService.get(CacheKeys.DASHBOARD_ALERTS);
-  if (cached) {
-    return cached;
-  }
   const Medicine = (await import("../models/Medicine")).default;
-  const DoctorShift = (await import("../models/DoctorShift")).default;
-  const Shift = (await import("../models/Shift")).default;
-
   const today = new Date();
 
-  // Thuốc sắp hết hạn (30 ngày)
-  const expiryDate = new Date(today);
-  expiryDate.setDate(expiryDate.getDate() + 30);
-
-  const expiringMedicines = await Medicine.count({
-    where: {
-      expiryDate: {
-        [Op.gte]: today,
-        [Op.lte]: expiryDate,
-      },
-    },
+  // Low stock alert
+  const lowStockCount = await Medicine.count({
+    where: { quantity: { [Op.lte]: literal("minStockLevel") } }
   });
 
-  // Thuốc đã hết hạn
-  const expiredMedicines = await Medicine.count({
-    where: {
-      expiryDate: {
-        [Op.lt]: today,
-      },
-    },
-  });
+  const alerts = [];
+  if (lowStockCount > 0) {
+    alerts.push({
+      id: 1,
+      type: "warning",
+      message: `Có ${lowStockCount} loại thuốc sắp hết hàng.`,
+      timestamp: new Date().toISOString(),
+      actionUrl: "/pharmacy"
+    });
+  }
 
-  // Thuốc sắp hết tồn kho (dưới 10)
-  const lowStockMedicines = await Medicine.count({
-    where: {
-      quantity: {
-        [Op.lte]: 10,
-      },
-      expiryDate: {
-        [Op.gte]: today,
-      },
-    },
-  });
-
-  // Lịch trực thiếu người (7 ngày tới)
-  const nextWeek = new Date(today);
-  nextWeek.setDate(nextWeek.getDate() + 7);
-
-  // Get all shifts
-  const allShifts = await Shift.count();
-
-  // Get assigned shifts
-  const assignedShifts = await DoctorShift.count({
-    where: {
-      workDate: {
-        [Op.gte]: today.toISOString().split("T")[0],
-        [Op.lte]: nextWeek.toISOString().split("T")[0],
-      },
-    },
-  });
-
-  // Số ngày trong 7 ngày tới
-  const daysInPeriod = 7;
-  const totalSlotsNeeded = allShifts * daysInPeriod;
-  const unassignedSlots = totalSlotsNeeded - assignedShifts;
-
-  // Hóa đơn quá hạn (chưa thanh toán quá 30 ngày)
-  const thirtyDaysAgo = new Date(today);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  const overdueInvoices = await Invoice.count({
-    where: {
-      paymentStatus: "UNPAID",
-      createdAt: {
-        [Op.lte]: thirtyDaysAgo,
-      },
-    },
-  });
-
-  const result = {
-    medicine: {
-      expiring: expiringMedicines,
-      expired: expiredMedicines,
-      lowStock: lowStockMedicines,
-    },
-    shifts: {
-      unassignedSlots,
-      totalSlotsNeeded,
-      assignedSlots: assignedShifts,
-    },
-    invoices: {
-      overdue: overdueInvoices,
-    },
-    totalAlerts:
-      expiringMedicines +
-      expiredMedicines +
-      lowStockMedicines +
-      (unassignedSlots > 0 ? 1 : 0) +
-      overdueInvoices,
-  };
-
-  // Cache for 5 minutes
-  await CacheService.set(CacheKeys.DASHBOARD_ALERTS, result, 300);
-
-  return result;
+  return alerts;
 };
