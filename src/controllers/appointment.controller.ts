@@ -88,6 +88,9 @@ export const createAppointment = async (req: Request, res: Response) => {
       DOCTOR_NOT_ON_DUTY: "Bác sĩ không trực ca này",
       SHIFT_FULL: "Ca khám đã đủ lượt",
       DAY_FULL: "Bác sĩ đã đủ 40 lịch trong ngày",
+      CANNOT_BOOK_PAST_DATE: "Không thể đặt lịch cho ngày trong quá khứ",
+      DOCTOR_NOT_AVAILABLE: "Bác sĩ hiện không tiếp nhận bệnh nhân",
+      PATIENT_BLOCKED_DUE_TO_NO_SHOWS: "Tài khoản bị tạm khóa do vi phạm nội quy (vắng mặt nhiều lần)",
     };
 
     return res.status(400).json({
@@ -287,25 +290,33 @@ export const updateAppointment = async (req: Request, res: Response) => {
     const { doctorId, shiftId, date, symptomInitial } = req.body;
 
     const Appointment = (await import("../models/Appointment")).default;
-    const appointment = await Appointment.findByPk(id);
+    const DoctorShift = (await import("../models/DoctorShift")).default;
+    const Shift = (await import("../models/Shift")).default;
+    const { AppointmentStatus } = await import("../models/Appointment");
+    const { Op, Transaction } = await import("sequelize");
+    const { sequelize } = await import("../models");
+    const { BOOKING_CONFIG } = await import("../config/booking.config");
 
-    if (!appointment) {
+    // Get old data BEFORE transaction (for audit log and permission check)
+    const existingAppt = await Appointment.findByPk(id);
+    if (!existingAppt) {
       return res.status(404).json({
         success: false,
         message: "APPOINTMENT_NOT_FOUND",
       });
     }
 
-    if (appointment.status !== "WAITING") {
+    if (existingAppt.status !== AppointmentStatus.WAITING) {
       return res.status(400).json({
         success: false,
         message: "CAN_ONLY_UPDATE_WAITING_APPOINTMENTS",
       });
     }
 
+    // Permission check (before transaction)
     const role = req.user!.roleId;
     if (role === RoleCode.PATIENT) {
-      if (appointment.patientId !== req.user!.patientId) {
+      if (existingAppt.patientId !== req.user!.patientId) {
         return res.status(403).json({
           success: false,
           message: "FORBIDDEN",
@@ -314,124 +325,156 @@ export const updateAppointment = async (req: Request, res: Response) => {
     }
 
     const oldData = {
-      doctorId: appointment.doctorId,
-      shiftId: appointment.shiftId,
-      date: appointment.date,
-      symptomInitial: appointment.symptomInitial,
+      doctorId: existingAppt.doctorId,
+      shiftId: existingAppt.shiftId,
+      date: existingAppt.date,
+      symptomInitial: existingAppt.symptomInitial,
     };
 
-    const isDoctorChanged = doctorId !== undefined && Number(doctorId) !== appointment.doctorId;
-    const isShiftChanged = shiftId !== undefined && Number(shiftId) !== appointment.shiftId;
-    const isDateChanged = date !== undefined && new Date(date).getTime() !== new Date(appointment.date).getTime();
-    const isRescheduled = isDoctorChanged || isShiftChanged || isDateChanged;
-
-    if (isDoctorChanged || isShiftChanged || isDateChanged) {
-      const { Op } = await import("sequelize");
-      const { BOOKING_CONFIG } = await import("../config/booking.config");
-
-      const newDoctorId = doctorId !== undefined ? Number(doctorId) : appointment.doctorId;
-      const newShiftId = shiftId !== undefined ? Number(shiftId) : appointment.shiftId;
-      const newDate = date !== undefined ? new Date(date) : appointment.date;
-
-      const dayCount = await Appointment.count({
-        where: {
-          doctorId: newDoctorId,
-          date: newDate,
-          status: { [Op.ne]: "CANCELLED" },
-          id: { [Op.ne]: id },
-        },
-      });
-
-      if (dayCount >= BOOKING_CONFIG.MAX_APPOINTMENTS_PER_DAY) {
-        return res.status(400).json({
-          success: false,
-          message: "DAY_FULL",
+    // Wrap entire update logic in transaction
+    const result = await sequelize.transaction(
+      { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+      async (t) => {
+        // Lock appointment row
+        const appointment = await Appointment.findByPk(id, {
+          transaction: t,
+          lock: t.LOCK.UPDATE,
         });
-      }
 
-      const shiftCount = await Appointment.count({
-        where: {
-          doctorId: newDoctorId,
-          shiftId: newShiftId,
-          date: newDate,
-          status: { [Op.ne]: "CANCELLED" },
-          id: { [Op.ne]: id },
-        },
-      });
-
-      if (shiftCount >= BOOKING_CONFIG.MAX_SLOTS_PER_SHIFT) {
-        return res.status(400).json({
-          success: false,
-          message: "SHIFT_FULL",
-        });
-      }
-
-      const Shift = (await import("../models/Shift")).default;
-      const patientAppointments = await Appointment.findAll({
-        where: {
-          patientId: appointment.patientId,
-          date: newDate,
-          status: {
-            [Op.in]: ["WAITING", "CHECKED_IN", "IN_PROGRESS"],
-          },
-          id: { [Op.ne]: id },
-        },
-        include: [
-          {
-            model: Shift,
-            as: "shift",
-            attributes: ["startTime", "endTime"],
-          },
-        ],
-      });
-
-      if (patientAppointments.length > 0) {
-        const newShift = await Shift.findByPk(newShiftId);
-        if (!newShift) {
-          return res.status(400).json({
-            success: false,
-            message: "SHIFT_NOT_FOUND",
-          });
+        if (!appointment) throw new Error("APPOINTMENT_NOT_FOUND");
+        if (appointment.status !== AppointmentStatus.WAITING) {
+          throw new Error("CAN_ONLY_UPDATE_WAITING_APPOINTMENTS");
         }
 
-        for (const existingAppt of patientAppointments) {
-          const existingShift = (existingAppt as any).shift;
-          if (!existingShift) continue;
+        // Determine if rescheduling
+        const newDoctorId = doctorId !== undefined ? Number(doctorId) : appointment.doctorId;
+        const newShiftId = shiftId !== undefined ? Number(shiftId) : appointment.shiftId;
+        const newDate = date !== undefined ? new Date(date) : appointment.date;
 
-          const newStart = newShift.startTime;
-          const newEnd = newShift.endTime;
-          const existingStart = existingShift.startTime;
-          const existingEnd = existingShift.endTime;
+        const isRescheduled =
+          newDoctorId !== appointment.doctorId ||
+          newShiftId !== appointment.shiftId ||
+          newDate.getTime() !== appointment.date.getTime();
 
-          if (newStart < existingEnd && existingStart < newEnd) {
-            return res.status(400).json({
-              success: false,
-              message: "PATIENT_ALREADY_HAS_OVERLAPPING_APPOINTMENT",
-            });
+        if (isRescheduled) {
+          const newDateStr = newDate.toISOString().split("T")[0];
+
+          // Lock DoctorShift (serialize bookings for this shift)
+          const ds = await DoctorShift.findOne({
+            where: {
+              doctorId: newDoctorId,
+              shiftId: newShiftId,
+              workDate: newDateStr,
+            },
+            transaction: t,
+            lock: t.LOCK.UPDATE,
+          });
+
+          if (!ds) throw new Error("DOCTOR_NOT_ON_DUTY");
+
+          // Check daily capacity (exclude current appointment)
+          const dayCount = await Appointment.count({
+            where: {
+              doctorId: newDoctorId,
+              date: newDateStr,
+              status: { [Op.ne]: AppointmentStatus.CANCELLED },
+              id: { [Op.ne]: id },
+            },
+            transaction: t,
+          });
+
+          if (dayCount >= BOOKING_CONFIG.MAX_APPOINTMENTS_PER_DAY) {
+            throw new Error("DAY_FULL");
+          }
+
+          // Check shift capacity
+          const shiftCount = await Appointment.count({
+            where: {
+              doctorId: newDoctorId,
+              shiftId: newShiftId,
+              date: newDateStr,
+              status: { [Op.ne]: AppointmentStatus.CANCELLED },
+              id: { [Op.ne]: id },
+            },
+            transaction: t,
+          });
+
+          if (shiftCount >= BOOKING_CONFIG.MAX_SLOTS_PER_SHIFT) {
+            throw new Error("SHIFT_FULL");
+          }
+
+          // Check patient overlap
+          const patientAppointments = await Appointment.findAll({
+            where: {
+              patientId: appointment.patientId,
+              date: newDateStr,
+              status: {
+                [Op.in]: [
+                  AppointmentStatus.WAITING,
+                  AppointmentStatus.CHECKED_IN,
+                  AppointmentStatus.IN_PROGRESS,
+                ],
+              },
+              id: { [Op.ne]: id },
+            },
+            include: [
+              {
+                model: Shift,
+                as: "shift",
+                attributes: ["startTime", "endTime"],
+              },
+            ],
+            transaction: t,
+          });
+
+          if (patientAppointments.length > 0) {
+            const newShift = await Shift.findByPk(newShiftId, { transaction: t });
+            if (!newShift) throw new Error("SHIFT_NOT_FOUND");
+
+            for (const existingAppt of patientAppointments) {
+              const existingShift = (existingAppt as any).shift;
+              if (!existingShift) continue;
+
+              if (
+                newShift.startTime < existingShift.endTime &&
+                existingShift.startTime < newShift.endTime
+              ) {
+                throw new Error("PATIENT_ALREADY_HAS_OVERLAPPING_APPOINTMENT");
+              }
+            }
           }
         }
+
+        // Apply updates
+        if (doctorId !== undefined) appointment.doctorId = Number(doctorId);
+        if (shiftId !== undefined) appointment.shiftId = Number(shiftId);
+        if (date !== undefined) appointment.date = new Date(date);
+        if (symptomInitial !== undefined) {
+          appointment.symptomInitial = symptomInitial;
+        }
+
+        await appointment.save({ transaction: t });
+
+        return { appointment, isRescheduled };
       }
-    }
+    );
 
-    if (doctorId !== undefined) appointment.doctorId = Number(doctorId);
-    if (shiftId !== undefined) appointment.shiftId = Number(shiftId);
-    if (date !== undefined) appointment.date = new Date(date);
-    if (symptomInitial !== undefined) appointment.symptomInitial = symptomInitial;
-
-    await appointment.save();
-
+    // Audit log (outside transaction)
     const newData = {
-      doctorId: appointment.doctorId,
-      shiftId: appointment.shiftId,
-      date: appointment.date,
-      symptomInitial: appointment.symptomInitial,
+      doctorId: result.appointment.doctorId,
+      shiftId: result.appointment.shiftId,
+      date: result.appointment.date,
+      symptomInitial: result.appointment.symptomInitial,
     };
-    await auditLogService.logUpdate(req, "appointments", appointment.id, oldData, newData)
-      .catch(err => console.error("Failed to log appointment update audit:", err));
 
-    if (isRescheduled) {
+    await auditLogService
+      .logUpdate(req, "appointments", result.appointment.id, oldData, newData)
+      .catch((err) => console.error("Failed to log appointment update audit:", err));
+
+    // Send notification if rescheduled
+    if (result.isRescheduled) {
       try {
-        await sendAppointmentRescheduleNotification(appointment.id, {
+        await sendAppointmentRescheduleNotification(result.appointment.id, {
           doctorId: oldData.doctorId,
           shiftId: oldData.shiftId,
           date: oldData.date,
@@ -441,18 +484,25 @@ export const updateAppointment = async (req: Request, res: Response) => {
       }
     }
 
-    const displayStatus = getDisplayStatus({ status: appointment.status }, null);
+    const displayStatus = getDisplayStatus(
+      { status: result.appointment.status },
+      null
+    );
 
     return res.json({
       success: true,
       message: "APPOINTMENT_UPDATED",
       data: {
-        ...appointment.toJSON(),
+        ...result.appointment.toJSON(),
         displayStatus,
       },
     });
   } catch (e: any) {
-    return res.status(500).json({ success: false, message: e.message });
+    console.error("Error updating appointment:", e);
+    return res.status(500).json({
+      success: false,
+      message: e.message || "INTERNAL_SERVER_ERROR",
+    });
   }
 };
 

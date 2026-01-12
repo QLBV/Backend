@@ -1,5 +1,6 @@
 import { ShiftTemplate, Doctor, Shift, Specialty, User } from "../models";
 import { AppError } from "../utils/AppError";
+import { checkTimeOverlap } from "./doctorShift.service";
 
 export class ShiftTemplateService {
   /**
@@ -47,6 +48,47 @@ export class ShiftTemplateService {
         "This doctor already has a template for this shift and day",
         409
       );
+    }
+
+    // Check for overlapping templates
+    // Get all active templates for this doctor on this day of week
+    const existingTemplates = await ShiftTemplate.findAll({
+      where: {
+        doctorId: data.doctorId,
+        dayOfWeek: data.dayOfWeek,
+        isActive: true,
+      },
+      include: [
+        {
+          model: Shift,
+          as: "shift",
+          attributes: ["id", "name", "startTime", "endTime"],
+        },
+      ],
+    });
+
+    // Check if any existing template has overlapping time with the new shift
+    for (const existingTemplate of existingTemplates) {
+      const existingShift = existingTemplate.shift;
+      if (!existingShift) continue;
+
+      // Skip if it's the same shift (shouldn't happen due to duplicate check above)
+      if (existingShift.id === data.shiftId) continue;
+
+      if (
+        checkTimeOverlap(
+          shift.startTime,
+          shift.endTime,
+          existingShift.startTime,
+          existingShift.endTime
+        )
+      ) {
+        throw new AppError(
+          "OVERLAPPING_TEMPLATE",
+          `Template for ${shift.name} (${shift.startTime}-${shift.endTime}) overlaps with existing template for ${existingShift.name} (${existingShift.startTime}-${existingShift.endTime}) on this day`,
+          409
+        );
+      }
     }
 
     // Create template
@@ -187,6 +229,48 @@ export class ShiftTemplateService {
           "This doctor already has a template for this shift and day",
           409
         );
+      }
+
+      // Check for overlapping templates on the new day of week
+      const shift = await Shift.findByPk(template.shiftId);
+      if (!shift) {
+        throw new AppError("SHIFT_NOT_FOUND", "Shift not found", 404);
+      }
+
+      const existingTemplates = await ShiftTemplate.findAll({
+        where: {
+          doctorId: template.doctorId,
+          dayOfWeek: data.dayOfWeek,
+          isActive: true,
+        },
+        include: [
+          {
+            model: Shift,
+            as: "shift",
+            attributes: ["id", "name", "startTime", "endTime"],
+          },
+        ],
+      });
+
+      for (const existingTemplate of existingTemplates) {
+        const existingShift = existingTemplate.shift;
+        if (!existingShift) continue;
+        if (existingShift.id === template.shiftId) continue;
+
+        if (
+          checkTimeOverlap(
+            shift.startTime,
+            shift.endTime,
+            existingShift.startTime,
+            existingShift.endTime
+          )
+        ) {
+          throw new AppError(
+            "OVERLAPPING_TEMPLATE",
+            `Template for ${shift.name} (${shift.startTime}-${shift.endTime}) would overlap with existing template for ${existingShift.name} (${existingShift.startTime}-${existingShift.endTime}) on this day`,
+            409
+          );
+        }
       }
     }
 

@@ -2,6 +2,7 @@ import { Transaction } from "sequelize";
 import { ShiftTemplate, DoctorShift, sequelize } from "../models";
 import { DoctorShiftStatus } from "../models/DoctorShift";
 import { AppError } from "../utils/AppError";
+import { validateNoOverlappingShifts } from "./doctorShift.service";
 
 export class ScheduleGenerationService {
   /**
@@ -71,6 +72,22 @@ export class ScheduleGenerationService {
             console.log(
               `Skipping existing: Doctor ${template.doctorId}, Shift ${template.shiftId} on ${dateStr}`
             );
+            continue;
+          }
+
+          // Validate no overlapping shifts before creating
+          try {
+            await validateNoOverlappingShifts(
+              template.doctorId,
+              template.shiftId,
+              dateStr,
+              transaction
+            );
+          } catch (error: any) {
+            console.warn(
+              `⚠️  Skipping Doctor ${template.doctorId}, Shift ${template.shiftId} on ${dateStr}: ${error.message}`
+            );
+            skippedCount++;
             continue;
           }
 
@@ -178,6 +195,22 @@ export class ScheduleGenerationService {
           });
 
           if (existing) {
+            skippedCount++;
+            continue;
+          }
+
+          // Validate no overlapping shifts before creating
+          try {
+            await validateNoOverlappingShifts(
+              template.doctorId,
+              template.shiftId,
+              dateStr,
+              transaction
+            );
+          } catch (error: any) {
+            console.warn(
+              `⚠️  Skipping Doctor ${template.doctorId}, Shift ${template.shiftId} on ${dateStr}: ${error.message}`
+            );
             skippedCount++;
             continue;
           }

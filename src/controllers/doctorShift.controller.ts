@@ -6,6 +6,8 @@ import User from "../models/User";
 import Specialty from "../models/Specialty";
 import Employee from "../models/Employee";
 import { cancelDoctorShiftAndReschedule } from "../services/appointmentReschedule.service";
+import { assignDoctorToShiftService } from "../services/doctorShift.service";
+import { auditLogService } from "../services/auditLog.service";
 
 export const assignDoctorToShift = async (req: Request, res: Response) => {
   try {
@@ -20,7 +22,7 @@ export const assignDoctorToShift = async (req: Request, res: Response) => {
       });
     }
 
-    // Bonus: check format YYYY-MM-DD
+    // Check format YYYY-MM-DD
     if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
       return res.status(400).json({
         success: false,
@@ -28,29 +30,61 @@ export const assignDoctorToShift = async (req: Request, res: Response) => {
       });
     }
 
-    // Bonus: check doctor/shift exists (ăn điểm)
-    const [doctor, shift] = await Promise.all([
-      Doctor.findByPk(doctorId),
-      Shift.findByPk(shiftId),
-    ]);
-    if (!doctor)
-      return res
-        .status(404)
-        .json({ success: false, message: "Doctor not found" });
-    if (!shift)
-      return res
-        .status(404)
-        .json({ success: false, message: "Shift not found" });
-
-    // Tạo trực tiếp, nếu trùng DB sẽ chặn
-    const doctorShift = await DoctorShift.create({
+    // Call service layer (handles transaction + validation)
+    const doctorShift = await assignDoctorToShiftService(
       doctorId,
       shiftId,
-      workDate,
-    });
+      workDate
+    );
 
-    return res.status(201).json({ success: true, data: doctorShift });
+    // Audit log
+    await auditLogService
+      .logCreate(req, "doctor_shifts", doctorShift.id, {
+        doctorId: doctorShift.doctorId,
+        shiftId: doctorShift.shiftId,
+        workDate: doctorShift.workDate,
+      })
+      .catch((err) => console.error("Failed to log audit:", err));
+
+    return res.status(201).json({
+      success: true,
+      message: "DOCTOR_ASSIGNED_TO_SHIFT",
+      data: doctorShift,
+    });
   } catch (error: any) {
+    // Handle overlap error
+    if (error.code === "DOCTOR_SHIFT_OVERLAP") {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    // Handle doctor not found
+    if (error.code === "DOCTOR_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    // Handle shift not found
+    if (error.code === "SHIFT_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Shift not found",
+      });
+    }
+
+    // Handle inactive doctor
+    if (error.code === "DOCTOR_INACTIVE") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot assign inactive doctor to shift",
+      });
+    }
+
+    // Handle duplicate constraint from database
     if (error?.name === "SequelizeUniqueConstraintError") {
       return res.status(409).json({
         success: false,
@@ -58,10 +92,10 @@ export const assignDoctorToShift = async (req: Request, res: Response) => {
       });
     }
 
+    console.error("Error assigning doctor to shift:", error);
     return res.status(500).json({
       success: false,
-      message: "Assign doctor to shift failed",
-      error: error?.message || error,
+      message: error.message || "INTERNAL_SERVER_ERROR",
     });
   }
 };
