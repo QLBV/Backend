@@ -266,29 +266,70 @@ export const getShiftsByDoctor = async (req: Request, res: Response) => {
 
 export const getDoctorsOnDuty = async (req: Request, res: Response) => {
   try {
-    const shiftId = req.query.shiftId ? Number(req.query.shiftId) : undefined;
-    const workDate = req.query.workDate
-      ? String(req.query.workDate)
-      : undefined;
+    let shiftId = req.query.shiftId ? Number(req.query.shiftId) : undefined;
+    let workDate = req.query.workDate ? String(req.query.workDate) : undefined;
 
+    // Automatic detection if no specific shift/date provided
     if (!shiftId || !workDate) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing shiftId or workDate" });
+      // Use local time for shift detection (VN Timezone)
+      const now = new Date();
+      // Add 7 hours if server is UTC to match VN (optional but good for consistency)
+      const vnTime = new Date(now.getTime() + (now.getTimezoneOffset() == 0 ? 7 * 60 * 60 * 1000 : 0));
+      
+      const currentTime = vnTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      const currentDate = vnTime.toISOString().split('T')[0];
+
+      if (!workDate) workDate = currentDate;
+      
+      if (!shiftId) {
+        const allShifts = await Shift.findAll();
+        const activeShift = allShifts.find(s => currentTime >= s.startTime && currentTime <= s.endTime);
+        
+        if (!activeShift) {
+          return res.json({ success: true, data: [], message: "No active shift at this time" });
+        }
+        shiftId = activeShift.id;
+      }
     }
 
-    const doctors = await DoctorShift.findAll({
-      where: { shiftId, workDate },
+    const doctorShifts = await DoctorShift.findAll({
+      where: { 
+        shiftId, 
+        workDate,
+        status: "ACTIVE"
+      },
       include: [
-        { model: Doctor, as: "doctor" },
+        { 
+          model: Doctor, 
+          as: "doctor",
+          include: [
+            { model: User, as: "user", attributes: ["fullName", "avatar"] },
+            { model: Specialty, as: "specialty", attributes: ["name"] }
+          ]
+        },
         { model: Shift, as: "shift" },
       ],
     });
-    return res.json({ success: true, data: doctors });
-  } catch (error) {
-    return res
-      .status(500)
-      .json({ success: false, message: "Get doctors on duty failed", error });
+
+    // Flatten data for frontend ShiftService expectations
+    const formattedDoctors = doctorShifts.map((ds: any) => ({
+      id: ds.doctor.id,
+      doctorCode: ds.doctor.doctorCode,
+      fullName: ds.doctor.user?.fullName || "Bác sĩ",
+      avatar: ds.doctor.user?.avatar || null,
+      specialty: ds.doctor.specialty?.name || "Đang cập nhật",
+      workDate: ds.workDate,
+      shift: ds.shift
+    }));
+
+    return res.json({ success: true, data: formattedDoctors });
+  } catch (error: any) {
+    console.error("Error in getDoctorsOnDuty:", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Get doctors on duty failed", 
+      error: error.message 
+    });
   }
 };
 

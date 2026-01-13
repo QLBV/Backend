@@ -11,9 +11,15 @@ import { CacheService, CacheKeys } from "./cache.service";
  * Dashboard realtime data
  * GET /api/dashboard
  */
-export const getDashboardDataService = async () => {
+export const getDashboardDataService = async (days: number = 7, month?: number, year?: number) => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const filterYear = year || today.getFullYear();
+  const filterMonth = month !== undefined ? month : today.getMonth() + 1; // 1-indexed
+
+  // Base date for calculating relative spans
+  const baseDate = new Date(filterYear, filterMonth - 1, 1);
+  const nextMonth = new Date(filterYear, filterMonth, 1);
+  const daysInMonth = new Date(filterYear, filterMonth, 0).getDate();
 
   const [stats, overview, recentActivities, quickStats, alerts] = await Promise.all([
     getDashboardStatsService(),
@@ -23,27 +29,82 @@ export const getDashboardDataService = async () => {
     getSystemAlertsService(),
   ]);
 
-  // Generate chart data for last 7 days
+  // Generate chart data
   const dailyRevenue = [];
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    const nextDate = new Date(date);
-    nextDate.setDate(nextDate.getDate() + 1);
+  
+  if (month !== undefined) {
+    // If a specific month is selected, show data for that entire month
+    for (let i = 1; i <= daysInMonth; i++) {
+        const date = new Date(filterYear, filterMonth - 1, i);
+        const nextDate = new Date(filterYear, filterMonth - 1, i + 1);
 
-    const revenue = await Invoice.sum("totalAmount", {
-      where: {
-        createdAt: { [Op.gte]: date, [Op.lt]: nextDate },
-        paymentStatus: "PAID",
-      },
-    });
+        const revenue = await Invoice.sum("totalAmount", {
+            where: {
+                createdAt: { [Op.gte]: date, [Op.lt]: nextDate },
+                paymentStatus: "PAID",
+            },
+        });
 
-    dailyRevenue.push({
-      name: date.toLocaleDateString("vi-VN", { weekday: "short" }),
-      date: date.toISOString().split("T")[0],
-      revenue: revenue || 0,
-    });
+        dailyRevenue.push({
+            name: `${i}/${filterMonth}`,
+            date: date.toISOString().split("T")[0],
+            revenue: revenue || 0,
+        });
+    }
+  } else {
+    // Traditional "last X days" view
+    const todayStart = new Date();
+    todayStart.setHours(0,0,0,0);
+    for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(todayStart);
+        date.setDate(date.getDate() - i);
+        const nextDate = new Date(date);
+        nextDate.setDate(nextDate.getDate() + 1);
+
+        const revenue = await Invoice.sum("totalAmount", {
+            where: {
+                createdAt: { [Op.gte]: date, [Op.lt]: nextDate },
+                paymentStatus: "PAID",
+            },
+        });
+
+        dailyRevenue.push({
+            name: date.toLocaleDateString("vi-VN", { 
+                weekday: days <= 7 ? "short" : undefined, 
+                day: "2-digit", 
+                month: "2-digit" 
+            }),
+            date: date.toISOString().split("T")[0],
+            revenue: revenue || 0,
+        });
+    }
   }
+
+  // Appointment status distribution for today (always relevant)
+  const todayStart = new Date();
+  todayStart.setHours(0,0,0,0);
+  const todayStatusDist = await Appointment.findAll({
+    attributes: [
+      'status',
+      [fn('COUNT', col('id')), 'count']
+    ],
+    where: {
+      date: { [Op.gte]: todayStart, [Op.lt]: new Date(todayStart.getTime() + 24 * 60 * 60 * 1000) }
+    },
+    group: ['status']
+  });
+
+  // Appointment status distribution for the SELECTED month
+  const monthlyStatusDist = await Appointment.findAll({
+    attributes: [
+      'status',
+      [fn('COUNT', col('id')), 'count']
+    ],
+    where: {
+      date: { [Op.gte]: baseDate, [Op.lt]: nextMonth }
+    },
+    group: ['status']
+  });
 
   return {
     stats,
@@ -52,7 +113,15 @@ export const getDashboardDataService = async () => {
     quickStats,
     alerts,
     charts: {
-      dailyRevenue
+      dailyRevenue,
+      todayStatusDistribution: todayStatusDist.map((item: any) => ({
+        status: item.status,
+        count: parseInt(item.get('count')) || 0
+      })),
+      monthlyStatusDistribution: monthlyStatusDist.map((item: any) => ({
+        status: item.status,
+        count: parseInt(item.get('count')) || 0
+      }))
     }
   };
 };
@@ -65,7 +134,7 @@ export const getDashboardDataService = async () => {
 export const getDashboardAppointmentsByDateService = async (date: string) => {
   // Try cache first
   const cacheKey = CacheKeys.DASHBOARD_APPOINTMENTS(date);
-  const cached = await CacheService.get(cacheKey);
+  const cached = await CacheService.get<any[]>(cacheKey);
   if (cached) {
     return cached;
   }
@@ -349,4 +418,24 @@ export const getSystemAlertsService = async () => {
   }
 
   return alerts;
+};
+
+/**
+ * Landing Page Stats Service
+ * GET /api/dashboard/public/landing-stats
+ */
+export const getLandingStatsService = async () => {
+  const [patientCount, doctorCount, visitCount] = await Promise.all([
+    Patient.count(),
+    Doctor.count(),
+    Visit.count()
+  ]);
+
+  return {
+    patientCount,
+    doctorCount,
+    visitCount,
+    experienceYears: 15, // Hardcoded
+    satisfactionRate: 98 // Hardcoded
+  };
 };

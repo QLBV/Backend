@@ -146,23 +146,114 @@ export const setupPatientProfileService = async (
   }
 };
 
+/* ================= CREATE PATIENT (ADMIN/RECEPTIONIST) ================= */
+
+export const createPatientService = async (
+  data: SetupPatientProfileInput
+) => {
+  const transaction = await sequelize.transaction();
+  try {
+    // Validate CCCD format (12 chữ số) ONLY IF provided
+    if (data.cccd && data.cccd.trim()) {
+      if (!/^\d{12}$/.test(data.cccd.trim())) {
+        throw new Error("CCCD_INVALID_FORMAT");
+      }
+
+      // Kiểm tra CCCD không trùng
+      const existingCCCD = await Patient.findOne({
+        where: {
+          cccd: data.cccd.trim()
+        },
+        transaction,
+      });
+
+      if (existingCCCD) {
+        throw new Error("CCCD_ALREADY_EXISTS");
+      }
+    }
+
+    // Validate dateOfBirth
+    const dob = new Date(data.dateOfBirth);
+    if (isNaN(dob.getTime())) {
+      throw new Error("DOB_INVALID_FORMAT");
+    }
+    if (dob > new Date()) {
+      throw new Error("DOB_CANNOT_BE_FUTURE");
+    }
+
+    // Tạo Patient
+    const patient = await Patient.create(
+      {
+        userId: undefined, // Create without User
+        fullName: data.fullName.trim(),
+        gender: data.gender,
+        dateOfBirth: dob,
+        cccd: data.cccd && data.cccd.trim() ? data.cccd.trim() : undefined,
+        avatar: null,
+        isActive: true,
+      },
+      { transaction }
+    );
+
+    // Tạo patientCode
+    const patientCode = "BN" + String(patient.id).padStart(6, "0");
+    await patient.update({ patientCode }, { transaction });
+
+    // Chuẩn hoá và tạo profiles mới
+    const profiles = data.profiles.map((p) => ({
+      patientId: patient.id,
+      type: p.type,
+      value: p.value.trim(),
+      city: p.city?.trim() || undefined,
+      ward: p.ward?.trim() || undefined,
+      isPrimary: p.isPrimary ?? false,
+    }));
+
+    if (profiles.length > 0) {
+      await PatientProfile.bulkCreate(profiles, { transaction });
+    }
+
+    // Reload patient với profiles
+    await patient.reload({
+      include: [{ model: PatientProfile, as: "profiles" }],
+      transaction,
+    });
+
+    await transaction.commit();
+
+    return patient;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
 /* ================= READ ================= */
 
-export const getPatientsService = async (page = 1, limit = 10, cccd?: string) => {
+export const getPatientsService = async (page = 1, limit = 10, search?: string) => {
   const offset = (page - 1) * limit;
   const where: any = { isActive: true };
 
-  // Filter by CCCD if provided
-  if (cccd) {
-    where.cccd = cccd;
+  // Filter if search/cccd provided
+  if (search) {
+    where[Op.or] = [
+      { cccd: { [Op.like]: `%${search}%` } },
+      { fullName: { [Op.like]: `%${search}%` } },
+      { patientCode: { [Op.like]: `%${search}%` } },
+      { phone: { [Op.like]: `%${search}%` } },
+    ];
   }
 
-  return Patient.findAll({
+  return Patient.findAndCountAll({
     where,
-    include: [{ model: PatientProfile, as: "profiles" }],
+    include: [
+      { model: PatientProfile, as: "profiles" },
+      { model: require("../models/User").default, as: "user", attributes: ["email"] },
+    ],
     limit,
     offset,
     order: [["createdAt", "DESC"]],
+    distinct: true,
   });
 };
 

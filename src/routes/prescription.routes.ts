@@ -3,6 +3,7 @@ import {
   createPrescription,
   updatePrescription,
   cancelPrescription,
+  lockPrescription,
   getPrescriptionById,
   getPrescriptionsByPatient,
   getPrescriptionByVisit,
@@ -48,6 +49,13 @@ router.post(
   validateNumericId("id"),
   requireRole(RoleCode.DOCTOR),
   cancelPrescription
+);
+// Lock prescription (make non-editable)
+router.post(
+  "/:id/lock",
+  validateNumericId("id"),
+  requireRole(RoleCode.DOCTOR),
+  lockPrescription
 );
 // Dispense prescription
 router.put(

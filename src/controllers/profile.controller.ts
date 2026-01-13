@@ -291,9 +291,25 @@ export const uploadMyAvatar = async (req: Request, res: Response) => {
     }
 
     // Update avatar URL
-    const avatarUrl = `/uploads/users/${req.file.filename}`;
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
     user.avatar = avatarUrl;
     await user.save();
+
+    // Sync to Patient or Employee model
+    try {
+      if (user.roleId === 3) {
+        // Patient
+        const Patient = require("../models/Patient").default;
+        await Patient.update({ avatar: avatarUrl }, { where: { userId } });
+      } else if ([1, 2, 4].includes(user.roleId)) {
+        // Admin, Doctor, Receptionist
+        const Employee = require("../models/Employee").default;
+        await Employee.update({ avatar: avatarUrl }, { where: { userId } });
+      }
+    } catch (syncError) {
+      console.error("Failed to sync avatar to specific profile:", syncError);
+      // Don't fail the request if sync fails, main user avatar is updated
+    }
 
     return res.json({
       success: true,

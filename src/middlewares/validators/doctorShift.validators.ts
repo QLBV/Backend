@@ -35,6 +35,7 @@ export const validateAssignDoctorShift = [
  */
 export const validateRescheduleShift = [
   body("replacementDoctorId")
+    .optional({ nullable: true })
     .isInt({ min: 1 })
     .withMessage("Replacement doctor ID must be a positive number"),
 

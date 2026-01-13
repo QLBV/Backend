@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  createPatient,
   getPatients,
   getPatientById,
   updatePatient,
@@ -33,6 +34,12 @@ router.post(
   requireRole(RoleCode.PATIENT),
   setupPatientValidator,
   setupPatientProfile
+);
+
+router.post(
+  "/",
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
+  createPatient
 );
 
 router.get(

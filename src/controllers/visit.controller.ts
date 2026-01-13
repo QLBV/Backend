@@ -130,7 +130,7 @@ export const startExamination = async (req: Request, res: Response) => {
 
 export const completeVisit = async (req: Request, res: Response) => {
   try {
-    const { diagnosis, note, examinationFee = 100000 } = req.body;
+    const { diagnosis, note, vitalSigns, examinationFee = 100000 } = req.body;
     const createdBy = req.user!.userId;
 
     // Validate examinationFee if provided
@@ -148,6 +148,7 @@ export const completeVisit = async (req: Request, res: Response) => {
     const oldData = oldVisit ? {
       diagnosis: oldVisit.diagnosis,
       note: oldVisit.note,
+      vitalSigns: oldVisit.vitalSigns,
       status: oldVisit.status,
     } : null;
 
@@ -156,7 +157,8 @@ export const completeVisit = async (req: Request, res: Response) => {
       diagnosis,
       fee,
       createdBy,
-      note
+      note,
+      vitalSigns
     );
 
     // Fetch the updated appointment to include displayStatus
@@ -359,6 +361,11 @@ export const getVisitById = async (req: Request, res: Response) => {
     const User = (await import("../models/User")).default;
     const Diagnosis = (await import("../models/Diagnosis")).default;
     const Appointment = (await import("../models/Appointment")).default;
+    const Prescription = (await import("../models/Prescription")).default;
+    const PrescriptionDetail = (await import("../models/PrescriptionDetail")).default;
+    const Medicine = (await import("../models/Medicine")).default;
+    const Specialty = (await import("../models/Specialty")).default;
+    const Shift = (await import("../models/Shift")).default;
     const { RoleCode } = await import("../constant/role");
 
     const visit = await Visit.findByPk(req.params.id, {
@@ -371,14 +378,40 @@ export const getVisitById = async (req: Request, res: Response) => {
         {
           model: Doctor,
           as: "doctor",
-          include: [{ model: User, as: "user", attributes: ["fullName", "email"] }],
+          include: [
+            { model: User, as: "user", attributes: ["fullName", "email"] },
+            { model: Specialty, as: "specialty", attributes: ["id", "name"] },
+          ],
         },
         { model: Diagnosis, as: "diagnoses" },
         {
           model: Appointment,
           as: "appointment",
           required: false,
+          include: [
+            { model: Shift, as: "shift", attributes: ["id", "name", "startTime", "endTime"] },
+          ],
         },
+        {
+          model: Prescription,
+          as: "prescription",
+          required: false,
+          include: [
+            {
+              model: PrescriptionDetail,
+              as: "details",
+              include: [
+                { model: Medicine, as: "Medicine", attributes: ["id", "name", "unit", "salePrice"] },
+              ],
+            },
+          ],
+        },
+        {
+          model: (await import("../models/Invoice")).default,
+          as: "invoice",
+          required: false,
+          attributes: ["id", "paymentStatus", "totalAmount"]
+        }
       ],
     });
 

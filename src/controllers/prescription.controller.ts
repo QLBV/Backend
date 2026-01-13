@@ -7,6 +7,7 @@ import {
   getPrescriptionsByPatientService,
   getPrescriptionByVisitService,
   getPrescriptionsService,
+  lockPrescriptionService,
 } from "../services/prescription.service";
 import { getInvoiceByIdService } from "../services/invoice.service";
 import { generatePrescriptionPDF } from "../utils/pdfGenerator";
@@ -242,6 +243,76 @@ export const cancelPrescription = async (req: Request, res: Response) => {
 };
 
 /**
+ * Lock prescription (make it non-editable)
+ * POST /api/prescriptions/:id/lock
+ * Role: DOCTOR (own only)
+ */
+export const lockPrescription = async (req: Request, res: Response) => {
+  try {
+    const doctorId = (req.user as any).doctorId || req.user!.userId;
+    const { id } = req.params;
+
+    // Verify the prescription belongs to this doctor
+    const existingPrescription = await Prescription.findByPk(Number(id));
+    if (!existingPrescription) {
+      return res.status(404).json({
+        success: false,
+        message: "Prescription not found",
+      });
+    }
+
+    if (existingPrescription.doctorId !== doctorId) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to lock this prescription",
+      });
+    }
+
+    const prescription = await lockPrescriptionService(Number(id));
+
+    // AUDIT LOG: Log prescription lock
+    await auditLogService.logUpdate(req, "prescriptions", prescription.id,
+      { status: "DRAFT" },
+      { status: prescription.status, lockedBy: req.user!.userId }
+    ).catch(err => console.error("Failed to log prescription lock audit:", err));
+
+    return res.json({
+      success: true,
+      message: "Prescription locked successfully. It can no longer be edited.",
+      data: prescription,
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message || "Failed to lock prescription";
+
+    if (errorMessage === "PRESCRIPTION_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Prescription not found",
+      });
+    }
+
+    if (errorMessage === "PRESCRIPTION_ALREADY_LOCKED") {
+      return res.status(400).json({
+        success: false,
+        message: "Prescription is already locked",
+      });
+    }
+
+    if (errorMessage === "PRESCRIPTION_CANCELLED") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot lock a cancelled prescription",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: errorMessage,
+    });
+  }
+};
+
+/**
  * Get all prescriptions with pagination and filtering
  * GET /api/prescriptions
  * Role: DOCTOR (own only), ADMIN (all)
@@ -460,6 +531,7 @@ export const exportPrescriptionPDF = async (req: Request, res: Response) => {
         },
         {
           model: Patient,
+          as: "patient",
           include: [
             {
               model: User,
@@ -467,13 +539,13 @@ export const exportPrescriptionPDF = async (req: Request, res: Response) => {
             },
             {
               model: PatientProfile,
-              as: "profile",
+              as: "profiles",
             },
           ],
         },
         {
           model: Doctor,
-          as: "Doctor",
+          as: "doctor",
           include: [
             {
               model: User,
@@ -487,6 +559,7 @@ export const exportPrescriptionPDF = async (req: Request, res: Response) => {
         },
         {
           model: Visit,
+          as: "visit",
           include: [
             {
               model: DiseaseCategory,
@@ -504,21 +577,26 @@ export const exportPrescriptionPDF = async (req: Request, res: Response) => {
     }
 
     // Prepare data for PDF
-    const patient = prescription.get("Patient") as any;
-    const doctor = prescription.get("Doctor") as any;
-    const visit = prescription.get("Visit") as any;
+    const patient = prescription.get("patient") as any;
+    const doctor = prescription.get("doctor") as any;
+    const visit = prescription.get("visit") as any;
     const details = prescription.get("details") as any[];
+
+    const profiles = patient?.profiles || [];
+    const phoneProfile = profiles.find((p: any) => p.type === "phone");
+    const addressProfile = profiles.find((p: any) => p.type === "address");
 
     const pdfData = {
       prescriptionCode: prescription.prescriptionCode,
-      patientName: patient?.user?.fullName || "N/A",
-      patientPhone: undefined, // Phone number not available in User model
-      patientAge: patient?.profile?.dateOfBirth
-        ? new Date().getFullYear() -
-          new Date(patient.profile.dateOfBirth).getFullYear()
+      patientName: patient?.fullName || patient?.user?.fullName || "N/A",
+      patientPhone: phoneProfile?.value || "N/A",
+      patientAddress: addressProfile?.value || "N/A",
+      patientGender: patient?.gender,
+      patientAge: patient?.dateOfBirth
+        ? new Date().getFullYear() - new Date(patient.dateOfBirth).getFullYear()
         : undefined,
       doctorName: doctor?.user?.fullName || "N/A",
-      doctorSpecialty: doctor?.specialty?.name || "N/A",
+      doctorSpecialty: doctor?.specialty?.name || doctor?.specialty || "N/A",
       visitDate: visit?.checkInTime || prescription.createdAt,
       diagnosis: visit?.diagnosis,
       symptoms: visit?.symptoms,

@@ -16,7 +16,11 @@ import {
  */
 export const getDashboardData = async (req: Request, res: Response) => {
   try {
-    const data = await getDashboardDataService();
+    const days = req.query.days ? parseInt(req.query.days as string) : 7;
+    const month = req.query.month ? parseInt(req.query.month as string) : undefined;
+    const year = req.query.year ? parseInt(req.query.year as string) : undefined;
+    
+    const data = await getDashboardDataService(days, month, year);
 
     return res.json({
       success: true,
@@ -177,6 +181,30 @@ export const getSystemAlerts = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: error?.message || "Failed to get system alerts",
+    });
+  }
+};
+
+/**
+ * Public Landing Page Stats
+ * GET /api/dashboard/public/landing-stats
+ * Role: PUBLIC
+ */
+export const getLandingStats = async (req: Request, res: Response) => {
+  try {
+    // Dynamically import to resolve circular dependency if needed, though service import is at top
+    const { getLandingStatsService } = await import("../services/dashboard.service");
+    const stats = await getLandingStatsService();
+
+    return res.json({
+      success: true,
+      message: "Landing stats retrieved successfully",
+      data: stats,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get landing stats",
     });
   }
 };

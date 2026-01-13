@@ -7,12 +7,16 @@ import {
   getRecentActivities,
   getQuickStats,
   getSystemAlerts,
+  getLandingStats,
 } from "../controllers/dashboard.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
 import { RoleCode } from "../constant/role";
 
 const router = express.Router();
+
+// GET /api/dashboard/public/landing-stats
+router.get("/public/landing-stats", getLandingStats);
 
 /**
  * All dashboard routes require authentication and ADMIN role

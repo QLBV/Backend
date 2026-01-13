@@ -7,7 +7,7 @@ import Appointment from "../models/Appointment";
 import Visit from "../models/Visit";
 import MedicineExport from "../models/MedicineExport";
 
-export const generatePrescriptionCode = async (): Promise<string> => {
+export const generatePrescriptionCode = async (transaction?: any): Promise<string> => {
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
 
@@ -19,6 +19,7 @@ export const generatePrescriptionCode = async (): Promise<string> => {
       },
     },
     order: [["prescriptionCode", "DESC"]],
+    transaction,
   });
 
   let sequence = 1;
@@ -192,7 +193,7 @@ export const generateVisitCode = async (): Promise<string> => {
  * Generate export code with format: EXP-YYYYMMDD-00001
  * Sequential counter resets daily
  */
-export const generateExportCode = async (): Promise<string> => {
+export const generateExportCode = async (transaction?: any): Promise<string> => {
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
 
@@ -204,6 +205,7 @@ export const generateExportCode = async (): Promise<string> => {
       },
     },
     order: [["exportCode", "DESC"]],
+    transaction,
   });
 
   let sequence = 1;

@@ -42,9 +42,9 @@ export const setupAssociations = () => {
   Specialty.hasMany(Employee, { foreignKey: "specialtyId", as: "employees" });
 
   // Prescription associations
-  Prescription.belongsTo(Visit, { foreignKey: "visitId" });
-  Prescription.belongsTo(Doctor, { foreignKey: "doctorId" });
-  Prescription.belongsTo(Patient, { foreignKey: "patientId" });
+  Prescription.belongsTo(Visit, { foreignKey: "visitId", as: "visit" });
+  Prescription.belongsTo(Doctor, { foreignKey: "doctorId", as: "doctor" });
+  Prescription.belongsTo(Patient, { foreignKey: "patientId", as: "patient" });
   Prescription.hasMany(PrescriptionDetail, {
     foreignKey: "prescriptionId",
     as: "details",
@@ -61,7 +61,7 @@ export const setupAssociations = () => {
 
   // Visit associations (additional to existing ones)
   Visit.belongsTo(DiseaseCategory, { foreignKey: "diseaseCategoryId" });
-  Visit.hasOne(Prescription, { foreignKey: "visitId" });
+  Visit.hasOne(Prescription, { foreignKey: "visitId", as: "prescription" });
 
   // Invoice associations
   Invoice.belongsTo(Visit, { foreignKey: "visitId", as: "visit" });

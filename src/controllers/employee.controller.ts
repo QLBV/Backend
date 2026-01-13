@@ -8,6 +8,9 @@ import { Op } from "sequelize";
 export const getAllEmployees = async (req: Request, res: Response) => {
   try {
     const { search, roleId, specialtyId } = req.query;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
     
     const where: any = {};
     const userWhere: any = {
@@ -31,7 +34,7 @@ export const getAllEmployees = async (req: Request, res: Response) => {
       where.specialtyId = specialtyId;
     }
 
-    const employees = await Employee.findAll({
+    const { count, rows: employees } = await Employee.findAndCountAll({
       where,
       include: [
         {
@@ -47,12 +50,20 @@ export const getAllEmployees = async (req: Request, res: Response) => {
           attributes: ["name"]
         }
       ],
-      order: [["createdAt", "DESC"]]
+      order: [["createdAt", "DESC"]],
+      limit,
+      offset
     });
 
     return res.json({
       success: true,
-      data: employees
+      data: employees,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit)
+      }
     });
   } catch (error: any) {
     console.error("Get all employees error:", error);

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import {
   setupPatientProfileService,
+  createPatientService,
   getPatientsService,
   getPatientByIdService,
   getPatientByCccdService,
@@ -55,7 +56,7 @@ const formatPatient = (patient: any) => {
     updatedAt: patient.updatedAt,
     // Extract common fields from profiles for easier access
     phone: phoneProfile?.value || null,
-    email: emailProfile?.value || null,
+    email: emailProfile?.value || patient.user?.email || null,
     address: addressString,
     profiles,
     // Health information
@@ -227,6 +228,129 @@ export const setupPatientProfile = async (req: any, res: Response) => {
   }
 };
 
+/* ================= CREATE Patient (Admin/Recep) ================= */
+
+export const createPatient = async (req: any, res: Response) => {
+  try {
+    const { fullName, gender, dateOfBirth, cccd, profiles } = req.body;
+
+    // Log để debug
+    console.log("📝 Create patient request:", {
+      fullName,
+      gender,
+      dateOfBirth,
+      cccd,
+      profilesCount: profiles?.length || 0,
+    });
+
+    // Validate required fields (CCCD optional)
+    if (!fullName || !gender || !dateOfBirth) {
+      return res.status(400).json({
+        success: false,
+        message: "fullName, gender, and dateOfBirth are required",
+      });
+    }
+
+    // Validate gender
+    if (!["MALE", "FEMALE", "OTHER"].includes(gender)) {
+      return res.status(400).json({
+        success: false,
+        message: "Gender must be 'MALE', 'FEMALE', or 'OTHER'",
+      });
+    }
+
+    if (!profiles || !Array.isArray(profiles)) {
+      // Allow empty profiles for createPatient? No, let's enforce at least one profile or just empty array
+      // Actually setupPatientProfile enforced non-empty. Let's enforce it here too or handle it in service.
+      // Service assumes array.
+    }
+
+    // Validate each profile if exists
+    if (profiles && Array.isArray(profiles)) {
+      for (const profile of profiles) {
+        if (!profile.type || !profile.value) {
+          return res.status(400).json({
+            success: false,
+            message: "Each profile must have 'type' and 'value'",
+          });
+        }
+
+        if (!["phone", "email", "address"].includes(profile.type)) {
+          return res.status(400).json({
+            success: false,
+            message: "Profile type must be 'phone', 'email', or 'address'",
+          });
+        }
+
+        // Validate email format
+        if (profile.type === "email") {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(profile.value.trim())) {
+            return res.status(400).json({
+              success: false,
+              message: "Invalid email format",
+            });
+          }
+        }
+
+        // Validate phone format (Vietnamese)
+        if (profile.type === "phone") {
+          const phoneRegex = /^(?:\+84|0)[1-9]\d{8,9}$/;
+          const cleanPhone = profile.value.replace(/\s/g, "");
+          if (!phoneRegex.test(cleanPhone)) {
+            return res.status(400).json({
+              success: false,
+              message: "Invalid Vietnamese phone number",
+            });
+          }
+        }
+      }
+    }
+
+    const patient = await createPatientService({
+      fullName,
+      gender,
+      dateOfBirth,
+      cccd,
+      profiles: profiles || [],
+    });
+
+    if (!patient) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to create patient",
+      });
+    }
+
+    console.log("✅ Patient created successfully:", {
+      patientId: patient.id,
+      patientCode: patient.patientCode,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Patient created successfully",
+      data: formatPatient(patient),
+    });
+  } catch (error: any) {
+    console.error("❌ Error creating patient:", error.message);
+
+    const errorMessages: { [key: string]: string } = {
+      CCCD_ALREADY_EXISTS: "This CCCD is already registered",
+      CCCD_INVALID_FORMAT: "CCCD must be exactly 12 digits",
+      DOB_INVALID_FORMAT: "Invalid date of birth format",
+      DOB_CANNOT_BE_FUTURE: "Date of birth cannot be in the future",
+    };
+
+    const message = errorMessages[error.message] || error.message;
+
+    res.status(400).json({
+      success: false,
+      message,
+    });
+  }
+};
+
 /* ================= READ ================= */
 
 export const getPatients = async (req: Request, res: Response) => {
@@ -234,11 +358,12 @@ export const getPatients = async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const cccd = req.query.cccd as string | undefined;
+    const search = req.query.search as string | undefined;
 
-    const patients = await getPatientsService(page, limit, cccd);
+    const { rows, count } = await getPatientsService(page, limit, cccd || search);
 
     // Check if searching by CCCD but no results found
-    if (cccd && patients.length === 0) {
+    if (cccd && count === 0) {
       return res.status(404).json({
         success: false,
         message: `Không tìm thấy bệnh nhân với CCCD: ${cccd}`,
@@ -247,10 +372,14 @@ export const getPatients = async (req: Request, res: Response) => {
 
     return res.json({
       success: true,
-      page,
-      limit,
-      ...(cccd && { cccd }), // Include cccd in response if provided
-      patients: patients.map(formatPatient),
+      patients: rows.map(formatPatient),
+      pagination: {
+        page,
+        limit,
+        total: count,
+        totalPages: Math.ceil(count / limit),
+      },
+      ...(cccd && { cccd }),
     });
   } catch (error) {
     console.error(error);
@@ -454,7 +583,10 @@ export const getPatientMedicalHistory = async (req: Request, res: Response) => {
         {
           model: Doctor,
           as: "doctor",
-          include: [{ model: User, as: "user", attributes: ["fullName", "email"] }],
+          include: [
+            { model: User, as: "user", attributes: ["fullName", "email"] },
+            { model: (await import("../models/Specialty")).default, as: "specialty", attributes: ["name"] }
+          ],
         },
         { model: Diagnosis, as: "diagnoses" },
       ],
@@ -467,8 +599,15 @@ export const getPatientMedicalHistory = async (req: Request, res: Response) => {
       include: [
         {
           model: Doctor,
-          as: "Doctor",
-          include: [{ model: User, as: "user", attributes: ["fullName"] }],
+          as: "doctor",
+          include: [
+            { model: User, as: "user", attributes: ["fullName"] },
+            { model: (await import("../models/Specialty")).default, as: "specialty", attributes: ["name"] }
+          ],
+        },
+        {
+          model: (await import("../models/PrescriptionDetail")).default,
+          as: "details",
         },
       ],
       order: [["createdAt", "DESC"]],
@@ -526,10 +665,10 @@ export const getPatientPrescriptions = async (req: Request, res: Response) => {
         },
         {
           model: Doctor,
-          as: "Doctor",
+          as: "doctor",
           include: [{ model: User, as: "user", attributes: ["fullName", "email"] }],
         },
-        { model: Visit },
+        { model: Visit, as: "visit" },
       ],
       order: [["createdAt", "DESC"]],
     });

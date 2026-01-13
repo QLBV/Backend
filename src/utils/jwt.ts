@@ -18,13 +18,14 @@ export const generateAccessToken = (payload: JwtPayload): string => {
   });
 };
 
-export const generateRefreshToken = (payload: JwtPayload): string => {
-  if (!process.env.JWT_REFRESH_SECRET) {
+export const generateRefreshToken = (payload: JwtPayload, expiresIn: string = "7d"): string => {
+  const secret = process.env.JWT_REFRESH_SECRET;
+  if (!secret) {
     throw new Error("JWT_REFRESH_SECRET not defined");
   }
 
-  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: "7d",
+  return jwt.sign(payload, secret, {
+    expiresIn: expiresIn as jwt.SignOptions["expiresIn"],
   });
 };
 

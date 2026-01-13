@@ -15,7 +15,11 @@ import {
   getPatientsByGenderReportPDF,
   getProfitReportExcel,
   getAppointmentReport,
+  getAppointmentReportPDF,
+  getAppointmentReportExcel,
   getPatientStatistics,
+  getPatientStatisticsPDF,
+  getPatientStatisticsExcel,
 } from "@controllers/report.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
@@ -75,5 +79,17 @@ router.get("/top-medicines/pdf", verifyToken, requireRole(RoleCode.ADMIN), getTo
 
 // GET /api/reports/patients-by-gender/pdf
 router.get("/patients-by-gender/pdf", verifyToken, requireRole(RoleCode.ADMIN), getPatientsByGenderReportPDF);
+
+// GET /api/reports/appointments/pdf
+router.get("/appointments/pdf", verifyToken, requireRole(RoleCode.ADMIN), getAppointmentReportPDF);
+
+// GET /api/reports/appointments/excel
+router.get("/appointments/excel", verifyToken, requireRole(RoleCode.ADMIN), getAppointmentReportExcel);
+
+// GET /api/reports/patient-statistics/pdf
+router.get("/patient-statistics/pdf", verifyToken, requireRole(RoleCode.ADMIN), getPatientStatisticsPDF);
+
+// GET /api/reports/patient-statistics/excel
+router.get("/patient-statistics/excel", verifyToken, requireRole(RoleCode.ADMIN), getPatientStatisticsExcel);
 
 export default router;

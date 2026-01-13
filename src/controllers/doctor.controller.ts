@@ -129,22 +129,60 @@ export const deleteDoctor = async (req: Request, res: Response) => {
 
 export const getAllSpecialties = async (req: Request, res: Response) => {
   try {
-    // Try to get from cache first
-    const cachedSpecialties = await CacheService.get(CacheKeys.SPECIALTIES);
-    if (cachedSpecialties) {
-      return res.json({ success: true, data: cachedSpecialties });
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const search = (req.query.search as string) || "";
+    const offset = (page - 1) * limit;
+
+    // If no pagination and no search, try cache
+    console.log("GET ALL SPECIALTIES:", { page, limit, search, query: req.query });
+    if (!req.query.page && !req.query.limit && !search) {
+      const cachedSpecialties = await CacheService.get(CacheKeys.SPECIALTIES);
+      if (cachedSpecialties) {
+        return res.json({ success: true, data: cachedSpecialties });
+      }
     }
 
-    // If not cached, fetch from database
-    const specialties = await Specialty.findAll({
+    const whereClause: any = {};
+    if (search) {
+      whereClause[require("sequelize").Op.or] = [
+        { name: { [require("sequelize").Op.like]: `%${search}%` } },
+        { description: { [require("sequelize").Op.like]: `%${search}%` } }
+      ];
+    }
+    
+    // Filter by isActive if provided (e.g., ?active=true or ?active=false)
+    if (req.query.active === "true") {
+      whereClause.isActive = true;
+    } else if (req.query.active === "false") {
+      whereClause.isActive = false;
+    }
+
+    const { count, rows } = await Specialty.findAndCountAll({
+      where: whereClause,
       order: [["name", "ASC"]],
+      limit: req.query.limit ? limit : undefined,
+      offset: req.query.page ? offset : undefined,
     });
 
-    // Cache for 1 hour (specialties rarely change)
-    await CacheService.set(CacheKeys.SPECIALTIES, specialties, 3600);
+    const totalPages = Math.ceil(count / limit);
 
-    return res.json({ success: true, data: specialties });
+    const responseData = req.query.page || req.query.limit || search ? {
+      specialties: rows,
+      total: count,
+      page,
+      limit,
+      totalPages
+    } : rows;
+
+    // Cache ONLY if it's the full list
+    if (!req.query.page && !req.query.limit && !search) {
+      await CacheService.set(CacheKeys.SPECIALTIES, rows, 3600);
+    }
+
+    return res.json({ success: true, data: responseData });
   } catch (error) {
+    console.error("Get specialties error:", error);
     return res
       .status(500)
       .json({ success: false, message: "Get specialties failed", error });
@@ -211,5 +249,26 @@ export const getDoctorsBySpecialty = async (req: Request, res: Response) => {
       success: false,
       message: "Failed to get doctors by specialty",
     });
+  }
+};
+
+export const getPublicDoctorsList = async (req: Request, res: Response) => {
+  try {
+    const doctors = await Doctor.findAll({
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "fullName", "email", "avatar"],
+          where: { isActive: true }, 
+        },
+        { model: Specialty, as: "specialty", attributes: ["id", "name"] },
+      ],
+    });
+    return res.json({ success: true, data: doctors });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Get public doctors failed", error });
   }
 };

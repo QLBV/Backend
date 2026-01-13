@@ -13,6 +13,8 @@ import {
   generateRevenueReportExcel,
   generateExpenseReportExcel,
   generateProfitReportExcel,
+  generateAppointmentReportExcel,
+  generatePatientStatisticsExcel,
 } from "../services/reportExcel.service";
 import {
   generateRevenueReportPDF,
@@ -20,6 +22,8 @@ import {
   generateProfitReportPDF,
   generateTopMedicinesReportPDF,
   generatePatientsByGenderReportPDF,
+  generateAppointmentReportPDF,
+  generatePatientStatisticsPDF,
 } from "../services/reportPDF.service";
 
 export const getRevenueReport = async (req: Request, res: Response) => {
@@ -227,5 +231,57 @@ export const getPatientStatistics = async (req: Request, res: Response) => {
     return res.json({ success: true, data });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getAppointmentReportPDF = async (req: Request, res: Response) => {
+  try {
+    const { year, month } = req.query;
+    await generateAppointmentReportPDF(res, {
+      year: Number(year) || new Date().getFullYear(),
+      month: month ? Number(month) : undefined,
+    });
+  } catch (error: any) {
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+};
+
+export const getAppointmentReportExcel = async (req: Request, res: Response) => {
+  try {
+    const { year, month } = req.query;
+    await generateAppointmentReportExcel(res, {
+      year: Number(year) || new Date().getFullYear(),
+      month: month ? Number(month) : undefined,
+    });
+  } catch (error: any) {
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+};
+
+export const getPatientStatisticsPDF = async (req: Request, res: Response) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const month = req.query.month ? parseInt(req.query.month as string) : undefined;
+    await generatePatientStatisticsPDF(res, { year, month });
+  } catch (error: any) {
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+};
+
+export const getPatientStatisticsExcel = async (req: Request, res: Response) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const month = req.query.month ? parseInt(req.query.month as string) : undefined;
+    await generatePatientStatisticsExcel(res, { year, month });
+  } catch (error: any) {
+    if (!res.headersSent) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
   }
 };

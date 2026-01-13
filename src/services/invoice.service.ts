@@ -166,6 +166,8 @@ export const formatInvoice = (invoice: any) => {
   if (data.visit) {
     data.visit.visitDate =
       data.visit.visitDate || data.visit.checkInTime || data.visit.createdAt;
+    data.visit.diagnosis = data.visit.diagnosis; // Ensure diagnosis is preserved
+    data.visit.symptoms = data.visit.symptoms; // Ensure symptoms are preserved
     attachUserName(data.visit.doctor);
     attachPatientUser(data.visit.patient);
   }
@@ -373,6 +375,28 @@ export const getInvoiceByIdService = async (invoiceId: number) => {
     throw new Error("Invoice not found");
   }
 
+  // SELF-HEALING: Check and fix data consistency
+  if (invoice.payments) {
+    const calculatedPaid = invoice.payments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+    // Use a small epsilon for float comparison
+    if (Math.abs(Number(invoice.paidAmount) - calculatedPaid) > 0.1) {
+       console.warn(`[Auto-Fix] Invoice ${invoiceId}: Fixing paidAmount mismatch. stored=${invoice.paidAmount}, calculated=${calculatedPaid}`);
+       
+       invoice.paidAmount = calculatedPaid;
+       
+       // Re-evaluate payment status
+       if (invoice.paidAmount <= 0) {
+         invoice.paymentStatus = PaymentStatus.UNPAID;
+       } else if (invoice.paidAmount < Number(invoice.totalAmount)) {
+         invoice.paymentStatus = PaymentStatus.PARTIALLY_PAID;
+       } else {
+         invoice.paymentStatus = PaymentStatus.PAID;
+       }
+
+       await invoice.save();
+    }
+  }
+
   return formatInvoice(invoice);
 };
 
@@ -497,7 +521,10 @@ export const addPaymentService = async (
     );
 
     // Cập nhật Invoice.paidAmount
-    invoice.paidAmount += paymentData.amount;
+    // Ensure we treating values as numbers to avoid string concatenation
+    const currentPaid = Number(invoice.paidAmount);
+    const newPayment = Number(paymentData.amount);
+    invoice.paidAmount = currentPaid + newPayment;
 
     // Cập nhật Invoice.paymentStatus
     if (invoice.paidAmount === 0) {
@@ -611,19 +638,50 @@ export const getInvoiceStatisticsService = async (filters: {
     where.doctorId = filters.doctorId;
   }
 
+  /*
+   * Switch to in-memory calculation to ensure accuracy and avoid DB grouping nuances.
+   * Fetch minimal attributes for all matching invoices.
+   */
   const invoices = await Invoice.findAll({
     where,
-    attributes: [
-      "paymentStatus",
-      [sequelize.fn("COUNT", sequelize.col("id")), "count"],
-      [sequelize.fn("SUM", sequelize.col("totalAmount")), "totalAmount"],
-      [sequelize.fn("SUM", sequelize.col("paidAmount")), "paidAmount"],
-    ],
-    group: ["paymentStatus"],
+    attributes: ['id', 'paymentStatus', 'totalAmount', 'paidAmount'],
     raw: true,
   });
 
-  return invoices;
+  const stats = {
+    totalRevenue: 0,
+    totalInvoices: 0,
+    paidInvoices: 0,
+    unpaidInvoices: 0,
+    partiallyPaidInvoices: 0,
+    averageInvoiceAmount: 0,
+  };
+
+  let totalInvoiceAmount = 0;
+
+  invoices.forEach((item: any) => {
+    const itemTotalAmount = parseFloat(item.totalAmount || 0);
+    const itemPaidAmount = parseFloat(item.paidAmount || 0);
+    const paymentStatus = item.paymentStatus;
+
+    stats.totalInvoices++;
+    totalInvoiceAmount += itemTotalAmount;
+    stats.totalRevenue += itemPaidAmount;
+
+    if (paymentStatus === PaymentStatus.PAID) {
+      stats.paidInvoices++;
+    } else if (paymentStatus === PaymentStatus.UNPAID) {
+      stats.unpaidInvoices++;
+    } else if (paymentStatus === PaymentStatus.PARTIALLY_PAID) {
+      stats.partiallyPaidInvoices++;
+    }
+  });
+
+  stats.averageInvoiceAmount = stats.totalInvoices > 0
+    ? totalInvoiceAmount / stats.totalInvoices
+    : 0;
+
+  return stats;
 };
 
 /**

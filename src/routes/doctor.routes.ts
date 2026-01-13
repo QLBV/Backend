@@ -6,6 +6,7 @@ import {
   updateDoctor,
   deleteDoctor,
   getAllSpecialties,
+  getPublicDoctorsList,
 } from "../controllers/doctor.controller";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
 import { RoleCode } from "../constant/role";
@@ -14,9 +15,12 @@ import { getShiftsByDoctor } from "../controllers/doctorShift.controller";
 
 const router = Router();
 
+// Public routes
+router.get("/public-list", getPublicDoctorsList);
+
 router.use(verifyToken);
-// Get all doctors (Admin only)
-router.get("/", requireRole(RoleCode.ADMIN), getAllDoctors);
+// Get all doctors (Admin, Receptionist, Doctor)
+router.get("/", requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR), getAllDoctors);
 
 //  Get shifts by doctor ID
 router.get("/:doctorId/shifts", getShiftsByDoctor);

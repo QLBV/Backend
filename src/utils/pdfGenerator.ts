@@ -266,8 +266,17 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
         { label: "Số điện thoại", value: pdfData.patientPhone || "N/A" },
       ];
 
+      if (pdfData.patientGender) {
+        const genderLabel = pdfData.patientGender === "MALE" ? "Nam" : (pdfData.patientGender === "FEMALE" ? "Nữ" : "Khác");
+        patientItems.push({ label: "Giới tính", value: genderLabel });
+      }
+
       if (pdfData.patientAge) {
         patientItems.push({ label: "Tuổi", value: `${pdfData.patientAge} tuổi` });
+      }
+
+      if (pdfData.patientAddress && pdfData.patientAddress !== "N/A") {
+        patientItems.push({ label: "Địa chỉ", value: pdfData.patientAddress });
       }
 
       drawInfoBox(doc, fonts, "THÔNG TIN BỆNH NHÂN", patientItems);
@@ -321,60 +330,24 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
       if (pdfData.medicines && pdfData.medicines.length > 0) {
         drawSectionHeader(doc, fonts, "ĐƠN THUỐC", "💊");
 
+        const { drawMedicineCard } = await import("./medicalPDFTemplate");
+
         pdfData.medicines.forEach((medicine: any, index: number) => {
-          // Medicine name
-          setFont(doc, fonts, true);
-          doc.fontSize(11).text(
-            `${index + 1}. ${medicine.medicineName}`,
-            SPACING.pageMargin + 10,
-            doc.y
-          );
+          const dosage = [];
+          if (medicine.dosageMorning > 0) dosage.push(`Sáng: ${medicine.dosageMorning}`);
+          if (medicine.dosageNoon > 0) dosage.push(`Trưa: ${medicine.dosageNoon}`);
+          if (medicine.dosageAfternoon > 0) dosage.push(`Chiều: ${medicine.dosageAfternoon}`);
+          if (medicine.dosageEvening > 0) dosage.push(`Tối: ${medicine.dosageEvening}`);
 
-          setFont(doc, fonts, false);
-          doc.fontSize(10);
-
-          // Quantity (NO PRICE)
-          doc.text(
-            `   Số lượng: ${medicine.quantity} ${medicine.unit || "viên"}`,
-            SPACING.pageMargin + 15,
-            doc.y
-          );
-
-          // Dosage
-          if (
-            medicine.dosageMorning ||
-            medicine.dosageNoon ||
-            medicine.dosageAfternoon ||
-            medicine.dosageEvening
-          ) {
-            const dosage = [];
-            if (medicine.dosageMorning > 0)
-              dosage.push(`Sáng: ${medicine.dosageMorning}`);
-            if (medicine.dosageNoon > 0)
-              dosage.push(`Trưa: ${medicine.dosageNoon}`);
-            if (medicine.dosageAfternoon > 0)
-              dosage.push(`Chiều: ${medicine.dosageAfternoon}`);
-            if (medicine.dosageEvening > 0)
-              dosage.push(`Tối: ${medicine.dosageEvening}`);
-
-            doc.text(
-              `   Liều dùng: ${dosage.join(", ")}`,
-              SPACING.pageMargin + 15,
-              doc.y
-            );
-          }
-
-          // Instructions
-          if (medicine.instruction) {
-            doc.text(
-              `   Hướng dẫn: ${medicine.instruction}`,
-              SPACING.pageMargin + 15,
-              doc.y,
-              { width: 470 }
-            );
-          }
-
-          doc.moveDown(0.7);
+          drawMedicineCard(doc, fonts, {
+            index: index + 1,
+            name: medicine.medicineName,
+            quantity: medicine.quantity,
+            unit: medicine.unit,
+            dosage: dosage.join(", "),
+            days: medicine.days,
+            instruction: medicine.instruction,
+          });
         });
 
         doc.moveDown(0.5);

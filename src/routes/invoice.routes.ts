@@ -73,7 +73,7 @@ router.get(
 router.get(
   "/:id",
   validateNumericId("id"),
-  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR),
+  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR, RoleCode.PATIENT),
   getInvoiceById // Authorization check inside controller
 );
 
@@ -105,7 +105,7 @@ router.get(
 router.get(
   "/:id/pdf",
   validateNumericId("id"),
-  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST),
+  requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.PATIENT),
   exportInvoicePDF // Authorization check inside controller
 );
 

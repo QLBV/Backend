@@ -12,7 +12,7 @@ import {
 import jwt from "jsonwebtoken";
 import { TokenBlacklistService } from "../config/redis.config";
 
-/* ================= REGISTER ================= */
+/*ĐĂNG KÝ TÀI KHOẢN */
 export const register = async (req: Request, res: Response) => {
   try {
     const { email, password, fullName, roleId = RoleCode.PATIENT } = req.body;
@@ -58,9 +58,9 @@ export const register = async (req: Request, res: Response) => {
   }
 };
 
-/* ================= LOGIN  ================= */
+/*ĐĂNG NHẬP*/
 export const login = async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  const { email, password, remember } = req.body;
 
   const user = await User.findOne({ where: { email } });
   if (!user) {
@@ -78,7 +78,7 @@ export const login = async (req: Request, res: Response) => {
     });
   }
 
-  // Check if account is active
+  // Kiểm tra tài khoản có đang hoạt động không
   if (!user.isActive) {
     return res.status(403).json({
       success: false,
@@ -94,7 +94,7 @@ export const login = async (req: Request, res: Response) => {
     patientId = patient ? patient.id : null;
   }
 
-  // Handle staff/doctor roles
+  // Xử lý các role nhân viên/bác sĩ
   if ([RoleCode.DOCTOR, RoleCode.RECEPTIONIST, RoleCode.ADMIN].includes(user.roleId)) {
     const Employee = require("../models/Employee").default;
     const employee = await Employee.findOne({ where: { userId: user.id } });
@@ -103,7 +103,7 @@ export const login = async (req: Request, res: Response) => {
       if (user.roleId === RoleCode.DOCTOR) {
         let doctor = await Doctor.findOne({ where: { userId: user.id } });
         if (!doctor) {
-          // AUTO-RECONCILE: Create missing doctor record for compatibility
+          // TỰ ĐỘNG ĐỒNG BỘ: Tạo bản ghi doctor nếu thiếu để đảm bảo tương thích
           doctor = await Doctor.create({
             userId: user.id,
             doctorCode: employee.employeeCode,
@@ -116,13 +116,13 @@ export const login = async (req: Request, res: Response) => {
         }
         doctorId = doctor.id;
       } else {
-        // For other staff, use employeeId as doctorId in payload for some generic staff checks
+        // Với các nhân viên khác, dùng employeeId làm doctorId cho một số kiểm tra chung
         doctorId = employee.id;
       }
     }
   }
 
-  // JWT payload - only include necessary fields for token
+  // JWT payload - chỉ bao gồm các trường cần thiết cho token
   const jwtPayload = {
     userId: user.id,
     roleId: user.roleId,
@@ -130,7 +130,7 @@ export const login = async (req: Request, res: Response) => {
     doctorId,
   };
 
-  // User data for response - include all user info
+  // Dữ liệu user cho response - bao gồm tất cả thông tin user
   const userData = {
     email: user.email,
     fullName: user.fullName,
@@ -140,18 +140,21 @@ export const login = async (req: Request, res: Response) => {
     doctorId,
   };
 
+  // Xác định thời gian hết hạn token dựa trên tùy chọn "ghi nhớ đăng nhập"
+  const expiresIn = remember ? "30d" : "1d";
+
   return res.json({
     success: true,
     message: "LOGIN_SUCCESS",
     tokens: {
       accessToken: generateAccessToken(jwtPayload),
-      refreshToken: generateRefreshToken(jwtPayload),
+      refreshToken: generateRefreshToken(jwtPayload, expiresIn),
     },
     user: userData,
   });
 };
 
-/* ================= REFRESH TOKEN ================= */
+/* REFRESH TOKEN */
 export const refreshToken = async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
@@ -196,10 +199,10 @@ export const refreshToken = async (req: Request, res: Response) => {
   }
 };
 
-/* ================= LOGOUT ================= */
+/* ĐĂNG XUẤT */
 export const logout = async (req: Request, res: Response) => {
   try {
-    // Get token from request (stored by verifyToken middleware)
+    // Lấy token từ request (đã được lưu bởi middleware verifyToken)
     const token = (req as any).token;
 
     if (!token) {
@@ -209,7 +212,7 @@ export const logout = async (req: Request, res: Response) => {
       });
     }
 
-    // Decode to get expiration time
+    // Giải mã để lấy thời gian hết hạn
     const decoded = jwt.decode(token) as { exp: number };
     if (!decoded || !decoded.exp) {
       return res.status(400).json({
@@ -218,12 +221,12 @@ export const logout = async (req: Request, res: Response) => {
       });
     }
 
-    // Calculate remaining TTL in seconds
+    // Tính thời gian còn lại (TTL) theo giây
     const now = Math.floor(Date.now() / 1000);
     const ttl = decoded.exp - now;
 
     if (ttl > 0) {
-      // Add to blacklist with TTL
+      // Thêm vào danh sách đen với TTL
       await TokenBlacklistService.addToBlacklist(token, ttl);
     }
 
@@ -241,7 +244,7 @@ export const logout = async (req: Request, res: Response) => {
 };
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import { sendEmail } from "../utils/email"; // đã tồn tại trong project
+import { sendEmail } from "../utils/email"; // Hàm gửi email
 
 export const forgotPassword = async (req: Request, res: Response) => {
   const { email } = req.body;
@@ -260,7 +263,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     .digest("hex");
 
   user.passwordResetToken = hashedToken;
-  user.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 phút
+  user.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // Hết hạn sau 15 phút
   await user.save();
 
   const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;

@@ -37,15 +37,17 @@ const rateLimitWindowMs =
     ? rateLimitWindowMsEnv
     : 15 * 60 * 1000;
 const rateLimitMax =
-  Number.isFinite(rateLimitMaxEnv) && rateLimitMaxEnv > 0 ? rateLimitMaxEnv : 600;
+  Number.isFinite(rateLimitMaxEnv) && rateLimitMaxEnv > 0 ? rateLimitMaxEnv : 5000;
 
 const app: Application = express();
-// Ensure we read real client IPs when running behind a reverse proxy (affects rate limiting)
+
+// Đảm bảo đọc đúng IP client khi chạy sau reverse proxy (ảnh hưởng rate limiting)
 app.set("trust proxy", 1);
-// Morgan logging
+
+// Ghi log HTTP requests với Morgan
 app.use(morgan("dev"));
 
-// LOGGING FIRST - Before anything else!
+// LOGGING - Ghi log request/response đầu tiên trước tất cả middleware
 app.use((req, res, next) => {
   const start = Date.now();
   console.log(`\n📥 INCOMING: ${req.method} ${req.url}`);
@@ -61,13 +63,15 @@ app.use((req, res, next) => {
 });
 
 // Security Middlewares
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 app.use(cors(corsOptions));
 
 // Rate Limiting
 const limiter = rateLimit({
-  windowMs: rateLimitWindowMs, // configurable via RATE_LIMIT_WINDOW_MS
-  max: rateLimitMax, // configurable via RATE_LIMIT_MAX_REQUESTS
+  windowMs: rateLimitWindowMs, // Cấu hình qua RATE_LIMIT_WINDOW_MS
+  max: rateLimitMax, // Cấu hình qua RATE_LIMIT_MAX_REQUESTS
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -77,16 +81,16 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 
-// Body Parser
+// Parser body cho JSON và URL-encoded
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
-// Initialize Passport for OAuth
+// Khởi tạo Passport cho xác thực OAuth
 app.use(passport.initialize());
 
-// Health Check Route
+// Route kiểm tra sức khỏe hệ thống (Health Check)
 app.get("/", (req: Request, res: Response) => {
   res.json({
     success: true,
@@ -100,7 +104,7 @@ app.get("/", (req: Request, res: Response) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/auth/oauth", oauthRoutes);
 app.use("/api/profile", profileRoutes);
-app.use("/api/patients", patientRoutes); // Placeholder, replace with actual patientRoutes
+app.use("/api/patients", patientRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/appointments", appointmentRoutes);

@@ -19,6 +19,7 @@ import {
 } from "../utils/pdfGenerator";
 import * as auditLogService from "../services/auditLog.service";
 import Invoice from "../models/Invoice";
+import Patient from "../models/Patient";
 import { RoleCode } from "../constant/role";
 
 /**
@@ -128,7 +129,6 @@ export const getInvoiceById = async (req: Request, res: Response) => {
 
     // PATIENT can only view their own invoices
     if (user.roleId === RoleCode.PATIENT) {
-      const Patient = (await import("../models/Patient")).default;
       const patient = await Patient.findOne({
         where: { userId: user.userId },
       });
@@ -352,7 +352,7 @@ export const exportInvoicePDF = async (req: Request, res: Response) => {
     // Authorization check - Patient chỉ xem được invoice của mình
     const user = (req as any).user;
     if (user.roleId === 3) {
-      const patient = await (req as any).models.Patient.findOne({
+      const patient = await Patient.findOne({
         where: { userId: user.userId },
       });
 
@@ -398,7 +398,7 @@ export const getInvoicesByPatient = async (req: Request, res: Response) => {
     const user = (req as any).user;
     if (user.roleId === 3) {
       // PATIENT role
-      const patient = await (req as any).models.Patient.findOne({
+      const patient = await Patient.findOne({
         where: { userId: user.userId },
       });
 

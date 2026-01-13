@@ -5,6 +5,8 @@ import Appointment from "./Appointment";
 import Doctor from "./Doctor";
 import Patient from "./Patient";
 
+export type VisitStatus = "WAITING" | "EXAMINING" | "EXAMINED" | "COMPLETED" | "CANCELLED";
+
 export default class Visit extends Model {
   declare id: number;
   declare visitCode: string;
@@ -17,7 +19,7 @@ export default class Visit extends Model {
   declare diseaseCategoryId?: number;
   declare diagnosis?: string;
   declare note?: string;
-  declare status: "EXAMINING" | "EXAMINED" | "COMPLETED";
+  declare status: VisitStatus;
   declare doctorSignature?: string;
   declare signedAt?: Date;
   declare vitalSigns?: {
@@ -27,6 +29,7 @@ export default class Visit extends Model {
     respiratoryRate?: number;
     weight?: number;
     height?: number;
+    spo2?: number;
   };
 }
 
@@ -51,8 +54,8 @@ Visit.init(
       allowNull: true,
     },
     status: {
-      type: DataTypes.ENUM("EXAMINING", "EXAMINED", "COMPLETED"),
-      defaultValue: "EXAMINING",
+      type: DataTypes.ENUM("WAITING", "EXAMINING", "EXAMINED", "COMPLETED"),
+      defaultValue: "WAITING",
     },
     doctorSignature: {
       type: DataTypes.TEXT,

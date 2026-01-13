@@ -106,45 +106,55 @@ export function drawMedicalHeader(
 ): void {
   const startY = SPACING.pageMargin;
 
-  // Logo placeholder (có thể thêm logo sau)
-  doc
-    .rect(SPACING.pageMargin, startY, 60, 60)
-    .lineWidth(1)
-    .stroke(COLORS.border);
-
-  // Clinic name
+  // Left side: Clinic Info
   setFont(doc, fonts, true);
   doc
-    .fontSize(FONTS.sizes.heading1)
+    .fontSize(10)
     .fillColor(COLORS.primary)
-    .text(info.clinicName, 120, startY, {
-      width: LAYOUT.contentWidth - 70,
+    .text(info.clinicName, SPACING.pageMargin, startY, {
+      width: 250,
       align: "left",
     });
 
-  // Contact info
   setFont(doc, fonts, false);
   doc
-    .fontSize(FONTS.sizes.small)
+    .fontSize(8)
     .fillColor(COLORS.text)
-    .text(info.address, 120, startY + 20);
+    .text(info.address, SPACING.pageMargin, startY + 15, { width: 250 })
+    .text(`SĐT: ${info.phone}`, SPACING.pageMargin, startY + 28, { width: 250 });
 
-  doc.text(`Điện thoại: ${info.phone}`, 120, startY + 33);
+  // Right side: National Motto (Required for official VN documents)
+  setFont(doc, fonts, true);
+  doc
+    .fontSize(9)
+    .text("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", 300, startY, {
+      width: 250,
+      align: "center",
+    })
+    .text("Độc lập - Tự do - Hạnh phúc", 300, startY + 12, {
+      width: 250,
+      align: "center",
+    });
 
-  if (info.email) {
-    doc.text(`Email: ${info.email}`, 120, startY + 46);
-  }
+  // Small line under motto
+  const mottoLineY = startY + 25;
+  doc
+    .moveTo(375, mottoLineY)
+    .lineTo(475, mottoLineY)
+    .lineWidth(0.5)
+    .strokeColor(COLORS.text)
+    .stroke();
 
-  // Horizontal line
-  doc.y = startY + 70;
+  // Horizontal primary line
+  doc.y = startY + 50;
   doc
     .moveTo(SPACING.pageMargin, doc.y)
     .lineTo(LAYOUT.pageWidth - SPACING.pageMargin, doc.y)
-    .lineWidth(2)
+    .lineWidth(1.5)
     .strokeColor(COLORS.primary)
     .stroke();
 
-  doc.moveDown(1);
+  doc.moveDown(2);
 
   // Document title
   setFont(doc, fonts, true);
@@ -407,6 +417,7 @@ export function drawMedicineCard(
     quantity: number;
     unit?: string;
     dosage?: string;
+    days?: number;
     instruction?: string;
     price?: number;
     totalPrice?: number;
@@ -449,6 +460,11 @@ export function drawMedicineCard(
   if (medicine.dosage) {
     detailY += 15;
     doc.text(`Liều dùng: ${medicine.dosage}`, SPACING.pageMargin + 10, detailY);
+  }
+
+  if (medicine.days) {
+    detailY += 15;
+    doc.text(`Uống trong: ${medicine.days} ngày`, SPACING.pageMargin + 10, detailY);
   }
 
   if (medicine.instruction) {

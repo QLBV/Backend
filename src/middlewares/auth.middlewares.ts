@@ -20,7 +20,7 @@ export const verifyToken = async (
   const token = authHeader.split(" ")[1];
 
   try {
-    // Check if token is blacklisted (logged out)
+    // Kiểm tra token có trong danh sách đen không (đã đăng xuất)
     const isBlacklisted = await TokenBlacklistService.isBlacklisted(token);
     if (isBlacklisted) {
       return res.status(401).json({
@@ -34,12 +34,12 @@ export const verifyToken = async (
       process.env.JWT_SECRET as string
     ) as JwtUserPayload;
 
-    // ✅ Luôn gán payload trước
+    // Luôn gán payload trước
     req.user = decoded;
-    // Store token in request for potential logout
+    // Lưu token vào request để xử lý đăng xuất sau này
     (req as any).token = token;
 
-    // ✅ Bổ sung patientId/doctorId từ DB theo role
+    // Bổ sung patientId/doctorId từ DB theo role
     if (decoded.roleId === RoleCode.PATIENT) {
       const patient = await Patient.findOne({
         where: { userId: decoded.userId },

@@ -24,8 +24,15 @@ export const startExaminationService = async (visitId: number) => {
     }
 
     // 2. Validate visit status
-    if (visit.status !== "EXAMINING") {
-      throw new Error("VISIT_NOT_IN_EXAMINING_STATUS");
+    // Allow starting examination if status is WAITING or already EXAMINING (idempotent)
+    if (visit.status === "EXAMINED" || visit.status === "COMPLETED") {
+      throw new Error("VISIT_ALREADY_COMPLETED");
+    }
+
+    // Update visit status to EXAMINING if it's currently WAITING
+    if (visit.status === "WAITING") {
+      visit.status = "EXAMINING";
+      await visit.save({ transaction: t });
     }
 
     // 3. Find and update appointment status
@@ -39,16 +46,18 @@ export const startExaminationService = async (visitId: number) => {
     }
 
     // STATE MACHINE: Validate appointment transition to IN_PROGRESS
-    AppointmentStateMachine.validateTransition(
-      appointment.status as AppointmentStatus,
-      AppointmentStatus.IN_PROGRESS
-    );
+    // Only attempt transition if not already IN_PROGRESS to avoid errors
+    if (appointment.status !== AppointmentStatus.IN_PROGRESS) {
+      AppointmentStateMachine.validateTransition(
+        appointment.status as AppointmentStatus,
+        AppointmentStatus.IN_PROGRESS
+      );
 
-    // Update appointment to IN_PROGRESS
-    appointment.status = AppointmentStatus.IN_PROGRESS;
-    await appointment.save({ transaction: t });
+      // Update appointment to IN_PROGRESS
+      appointment.status = AppointmentStatus.IN_PROGRESS;
+      await appointment.save({ transaction: t });
+    }
 
-    // Visit status remains EXAMINING
     return visit;
   });
 };
@@ -130,7 +139,8 @@ export const completeVisitService = async (
   diagnosis: string,
   examinationFee: number,
   createdBy: number,
-  note?: string
+  note?: string,
+  vitalSigns?: any
 ) => {
   return sequelize.transaction(async (t) => {
     // 1. Lấy visit
@@ -146,6 +156,9 @@ export const completeVisitService = async (
     // 2. Cập nhật visit với doctor signature
     visit.diagnosis = diagnosis;
     visit.note = note;
+    if (vitalSigns) {
+      visit.vitalSigns = vitalSigns;
+    }
     // Mark as EXAMINED after doctor saves examination
     visit.status = "EXAMINED";
 
@@ -157,6 +170,7 @@ export const completeVisitService = async (
       doctorId: visit.doctorId,
       patientId: visit.patientId,
       diagnosis,
+      vitalSigns: visit.vitalSigns,
       timestamp: new Date().toISOString(),
     };
     visit.doctorSignature = crypto

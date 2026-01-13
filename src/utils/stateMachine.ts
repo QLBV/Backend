@@ -108,6 +108,7 @@ export class VisitStateMachine {
     VisitStatus,
     VisitStatus[]
   > = {
+    WAITING: ["EXAMINING", "EXAMINED", "CANCELLED"],
     EXAMINING: ["EXAMINED", "CANCELLED"],
     EXAMINED: ["COMPLETED"],
     COMPLETED: [], // Terminal state - immutable

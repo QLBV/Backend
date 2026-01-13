@@ -5,12 +5,14 @@
  * Handles the mapping between Appointment.status and Visit.status to show consistent status information
  */
 
+import { VisitStatus } from "../models/Visit";
+
 interface AppointmentLike {
   status: "WAITING" | "CHECKED_IN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
 }
 
 interface VisitLike {
-  status: "EXAMINING" | "EXAMINED" | "COMPLETED";
+  status: VisitStatus;
 }
 
 /**

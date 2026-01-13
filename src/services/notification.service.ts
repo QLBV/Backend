@@ -7,6 +7,10 @@ import User from "../models/User";
 import Specialty from "../models/Specialty";
 import { sendEmail } from "./email.service";
 import { emailTemplates } from "../templates/emailTemplates";
+import {
+  calculateAppointmentTime,
+  formatShiftTime,
+} from "../utils/appointmentTimeCalculator";
 
 /**
  * Interface cho việc tạo notification
@@ -91,12 +95,17 @@ export async function sendAppointmentConfirmation(
     });
 
     // 3. Build email template
+    const appointmentTime = calculateAppointmentTime(shift.startTime, appointment.slotNumber);
+    const shiftTime = formatShiftTime(shift.startTime, shift.endTime);
+
     const emailHtml = emailTemplates.appointmentConfirmation({
       patientName: patientUser.fullName,
       doctorName: doctorUser.fullName,
       doctorSpecialty: specialty?.name || "Chưa xác định",
       appointmentDate: appointment.date.toString(),
       shiftName: shift.name,
+      shiftTime: shiftTime,
+      appointmentTime: appointmentTime,
       slotNumber: appointment.slotNumber,
       appointmentId: appointment.id,
     });
@@ -175,11 +184,16 @@ export async function sendAppointmentCancellation(
     });
 
     // 3. Build email template
+    const appointmentTime = calculateAppointmentTime(shift.startTime, appointment.slotNumber);
+    const shiftTime = formatShiftTime(shift.startTime, shift.endTime);
+
     const emailHtml = emailTemplates.appointmentCancellation({
       patientName: patientUser.fullName,
       doctorName: doctorUser.fullName,
       appointmentDate: appointment.date.toString(),
       shiftName: shift.name,
+      shiftTime: shiftTime,
+      appointmentTime: appointmentTime,
       reason,
       appointmentId: appointment.id,
     });
@@ -273,6 +287,9 @@ export async function sendDoctorChangeNotification(
     });
 
     // 4. Build email template
+    const appointmentTime = calculateAppointmentTime(shift.startTime, appointment.slotNumber);
+    const shiftTime = formatShiftTime(shift.startTime, shift.endTime);
+
     const emailHtml = emailTemplates.doctorChanged({
       patientName: patientUser.fullName,
       oldDoctorName: oldDoctorUser.fullName,
@@ -280,6 +297,8 @@ export async function sendDoctorChangeNotification(
       newDoctorSpecialty: specialty?.name || "Chưa xác định",
       appointmentDate: appointment.date.toString(),
       shiftName: shift.name,
+      shiftTime: shiftTime,
+      appointmentTime: appointmentTime,
       slotNumber: appointment.slotNumber,
       reason,
       appointmentId: appointment.id,
@@ -353,7 +372,8 @@ export async function sendAppointmentRescheduleNotification(
     });
     const oldShift = await Shift.findByPk(oldDetails.shiftId);
 
-    if (!oldDoctor || !oldDoctor.user || !oldShift) {
+    const oldDoctorData = oldDoctor as any;
+    if (!oldDoctor || !oldDoctorData.user || !oldShift) {
       console.error("Missing old doctor/shift data for reschedule", appointmentId);
       return;
     }
@@ -366,13 +386,23 @@ export async function sendAppointmentRescheduleNotification(
       relatedAppointmentId: appointmentId,
     });
 
+    // Tính giờ khám cho lịch cũ và mới
+    const oldAppointmentTime = calculateAppointmentTime(oldShift.startTime, appointment.slotNumber);
+    const newAppointmentTime = calculateAppointmentTime(shift.startTime, appointment.slotNumber);
+    const oldShiftTime = formatShiftTime(oldShift.startTime, oldShift.endTime);
+    const newShiftTime = formatShiftTime(shift.startTime, shift.endTime);
+
     const emailHtml = emailTemplates.appointmentRescheduled({
       patientName: patientUser.fullName,
       oldDate: oldDetails.date.toString(),
       newDate: appointment.date.toString(),
       oldShiftName: oldShift.name,
       newShiftName: shift.name,
-      oldDoctorName: (oldDoctor as any).user.fullName,
+      oldShiftTime: oldShiftTime,
+      newShiftTime: newShiftTime,
+      oldAppointmentTime: oldAppointmentTime,
+      newAppointmentTime: newAppointmentTime,
+      oldDoctorName: oldDoctorData.user.fullName,
       newDoctorName: newDoctorUser.fullName,
       appointmentId: appointment.id,
     });
