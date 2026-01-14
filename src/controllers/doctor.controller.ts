@@ -134,15 +134,9 @@ export const getAllSpecialties = async (req: Request, res: Response) => {
     const search = (req.query.search as string) || "";
     const offset = (page - 1) * limit;
 
-<<<<<<< HEAD
-    // If no pagination and no search, try cache
-    console.log("GET ALL SPECIALTIES:", { page, limit, search, query: req.query });
-    if (!req.query.page && !req.query.limit && !search) {
-=======
     // If no pagination and no search and no active filter, try cache
     console.log("GET ALL SPECIALTIES:", { page, limit, search, query: req.query });
     if (!req.query.page && !req.query.limit && !search && !req.query.active) {
->>>>>>> 5d95913 (Refactor controllers, update middleware, and improve error handling)
       const cachedSpecialties = await CacheService.get(CacheKeys.SPECIALTIES);
       if (cachedSpecialties) {
         return res.json({ success: true, data: cachedSpecialties });
@@ -182,11 +176,7 @@ export const getAllSpecialties = async (req: Request, res: Response) => {
     } : rows;
 
     // Cache ONLY if it's the full list
-<<<<<<< HEAD
-    if (!req.query.page && !req.query.limit && !search) {
-=======
     if (!req.query.page && !req.query.limit && !search && !req.query.active) {
->>>>>>> 5d95913 (Refactor controllers, update middleware, and improve error handling)
       await CacheService.set(CacheKeys.SPECIALTIES, rows, 3600);
     }
 
