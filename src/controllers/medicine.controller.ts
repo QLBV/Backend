@@ -10,6 +10,13 @@ import {
   getMedicineExportHistoryService,
   markMedicineAsExpiredService,
   removeMedicineService,
+  getExpiringMedicinesService,
+  autoMarkExpiredMedicinesService,
+  exportMedicineService,
+  getAllMedicineImportsService,
+  getAllMedicineExportsService,
+  getMedicineImportByIdService,
+  getMedicineExportByIdService,
 } from "../services/medicine.service";
 
 /**
@@ -114,18 +121,26 @@ export const importMedicine = async (req: Request, res: Response) => {
  */
 export const getAllMedicines = async (req: Request, res: Response) => {
   try {
-    const { status, group, lowStock, search } = req.query;
+    const { status, group, lowStock, search, page, limit } = req.query;
 
-    const medicines = await getAllMedicinesService({
+    const result = await getAllMedicinesService({
       status: status as any,
       group: group as string,
       lowStock: lowStock === "true",
       search: search as string,
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
     });
 
     return res.json({
       success: true,
-      data: medicines,
+      data: result.medicines,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -303,6 +318,266 @@ export const removeMedicine = async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         message: "Cannot remove medicine with remaining stock",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: errorMessage,
+    });
+  }
+};
+
+/**
+ * Get medicines expiring soon (within specified days)
+ * GET /api/medicines/expiring?days=30
+ * Role: ADMIN
+ */
+export const getExpiringMedicines = async (req: Request, res: Response) => {
+  try {
+    const days = req.query.days ? Number(req.query.days) : 30;
+    const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+
+    // Validate days parameter
+    if (isNaN(days) || days < 1 || days > 365) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid days parameter. Must be between 1 and 365.",
+      });
+    }
+
+    const result = await getExpiringMedicinesService(days, { page, limit });
+
+    return res.json({
+      success: true,
+      message: `Found ${result.total} medicine(s) expiring within ${days} day(s)`,
+      data: result.medicines,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get expiring medicines",
+    });
+  }
+};
+
+/**
+ * Manually trigger auto-mark expired medicines
+ * POST /api/medicines/auto-mark-expired
+ * Role: ADMIN
+ */
+export const autoMarkExpired = async (req: Request, res: Response) => {
+  try {
+    const result = await autoMarkExpiredMedicinesService();
+
+    return res.json({
+      success: true,
+      message: `Marked ${result.markedCount} medicine(s) as expired`,
+      data: {
+        count: result.markedCount,
+        medicines: result.medicines,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to auto-mark expired medicines",
+    });
+  }
+};
+
+/**
+ * Manual export medicine stock
+ * POST /api/medicines/:id/export
+ * Role: ADMIN
+ */
+export const exportMedicine = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { quantity, reason, note } = req.body;
+    const userId = req.user!.userId;
+
+    if (!quantity || !reason) {
+      return res.status(400).json({
+        success: false,
+        message: "QUANTITY_AND_REASON_REQUIRED",
+      });
+    }
+
+    const result = await exportMedicineService({
+      medicineId: Number(id),
+      quantity,
+      reason,
+      userId,
+      note,
+    });
+
+    return res.json({
+      success: true,
+      message: "Medicine exported successfully",
+      data: result,
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message || "Failed to export medicine";
+
+    if (errorMessage === "MEDICINE_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Medicine not found",
+      });
+    }
+
+    if (errorMessage === "MEDICINE_NOT_ACTIVE") {
+      return res.status(400).json({
+        success: false,
+        message: "Medicine is not active",
+      });
+    }
+
+    if (errorMessage.includes("INSUFFICIENT_STOCK")) {
+      return res.status(400).json({
+        success: false,
+        message: errorMessage,
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: errorMessage,
+    });
+  }
+};
+
+/**
+ * Get all medicine imports
+ * GET /api/medicine-imports
+ * Role: ADMIN
+ */
+export const getAllMedicineImports = async (req: Request, res: Response) => {
+  try {
+    const { page, limit, medicineId, startDate, endDate } = req.query;
+
+    const result = await getAllMedicineImportsService({
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      medicineId: medicineId ? parseInt(medicineId as string) : undefined,
+      startDate: startDate ? new Date(startDate as string) : undefined,
+      endDate: endDate ? new Date(endDate as string) : undefined,
+    });
+
+    return res.json({
+      success: true,
+      data: result.imports,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get medicine imports",
+    });
+  }
+};
+
+/**
+ * Get all medicine exports
+ * GET /api/medicine-exports
+ * Role: ADMIN
+ */
+export const getAllMedicineExports = async (req: Request, res: Response) => {
+  try {
+    const { page, limit, medicineId, reason, startDate, endDate } = req.query;
+
+    const result = await getAllMedicineExportsService({
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      medicineId: medicineId ? parseInt(medicineId as string) : undefined,
+      reason: reason as string,
+      startDate: startDate ? new Date(startDate as string) : undefined,
+      endDate: endDate ? new Date(endDate as string) : undefined,
+    });
+
+    return res.json({
+      success: true,
+      data: result.exports,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get medicine exports",
+    });
+  }
+};
+
+/**
+ * Get medicine import by ID
+ * GET /api/medicine-imports/:id
+ * Role: ADMIN
+ */
+export const getMedicineImportById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const importRecord = await getMedicineImportByIdService(Number(id));
+
+    return res.json({
+      success: true,
+      data: importRecord,
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message || "Failed to get medicine import";
+
+    if (errorMessage === "IMPORT_RECORD_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Medicine import not found",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: errorMessage,
+    });
+  }
+};
+
+/**
+ * Get medicine export by ID
+ * GET /api/medicine-exports/:id
+ * Role: ADMIN
+ */
+export const getMedicineExportById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const exportRecord = await getMedicineExportByIdService(Number(id));
+
+    return res.json({
+      success: true,
+      data: exportRecord,
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message || "Failed to get medicine export";
+
+    if (errorMessage === "EXPORT_RECORD_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Medicine export not found",
       });
     }
 

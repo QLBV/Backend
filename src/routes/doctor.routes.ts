@@ -6,39 +6,35 @@ import {
   updateDoctor,
   deleteDoctor,
   getAllSpecialties,
+  getPublicDoctorsList,
 } from "../controllers/doctor.controller";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
 import { RoleCode } from "../constant/role";
-import { verifyToken } from "@/middlewares/auth.middlewares";
-import { getShiftsByDoctor } from "@/controllers/doctorShift.controller";
+import { verifyToken } from "../middlewares/auth.middlewares";
+import { getShiftsByDoctor } from "../controllers/doctorShift.controller";
 
 const router = Router();
+
+// Public routes
+router.get("/public-list", getPublicDoctorsList);
+
 router.use(verifyToken);
+// Get all doctors (Admin, Receptionist, Doctor)
+router.get("/", requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR), getAllDoctors);
 
-router.get("/", 
-  requireRole(RoleCode.ADMIN), 
-  getAllDoctors);
+//  Get shifts by doctor ID
+router.get("/:doctorId/shifts", getShiftsByDoctor);
 
-router.get("/:id", 
-  requireRole(RoleCode.ADMIN), 
-  getDoctorById);
+// Get doctor by ID (Admin only)
+router.get("/:id", requireRole(RoleCode.ADMIN), getDoctorById);
 
-router.post("/", 
-  requireRole(RoleCode.ADMIN), 
-  createDoctorController);
+// Create new doctor (Admin only)
+router.post("/", requireRole(RoleCode.ADMIN), createDoctorController);
 
-router.put("/:id", 
-  requireRole(RoleCode.ADMIN), 
-  updateDoctor);
+// Update doctor (Admin only)
+router.put("/:id", requireRole(RoleCode.ADMIN), updateDoctor);
 
-router.delete("/:id", 
-  requireRole(RoleCode.ADMIN), 
-  deleteDoctor);
-
-router.get("/specialties", 
-  getAllSpecialties);
-
-router.get("/:doctorId/shifts", 
-  getShiftsByDoctor);
+// Delete doctor (Admin only)
+router.delete("/:id", requireRole(RoleCode.ADMIN), deleteDoctor);
 
 export default router;

@@ -4,6 +4,7 @@ import {
   getUnreadCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  deleteNotification,
 } from "../services/notification.service";
 
 /**
@@ -109,6 +110,37 @@ export async function markAllAsRead(req: Request, res: Response) {
     return res.status(500).json({
       success: false,
       message: error.message || "Lỗi khi đánh dấu tất cả đọc",
+    });
+  }
+}
+
+/**
+ * DELETE /api/notifications/:id
+ * Xóa thông báo
+ */
+export async function deleteNotificationController(req: Request, res: Response) {
+  try {
+    const userId = req.user!.userId;
+    const notificationId = parseInt(req.params.id, 10);
+
+    const success = await deleteNotification(notificationId, userId);
+
+    if (!success) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy thông báo hoặc không có quyền",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Đã xóa thông báo",
+    });
+  } catch (error: any) {
+    console.error("Error in deleteNotificationController:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Lỗi khi xóa thông báo",
     });
   }
 }

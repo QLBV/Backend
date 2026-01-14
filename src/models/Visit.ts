@@ -5,25 +5,41 @@ import Appointment from "./Appointment";
 import Doctor from "./Doctor";
 import Patient from "./Patient";
 
+export type VisitStatus = "WAITING" | "EXAMINING" | "EXAMINED" | "COMPLETED" | "CANCELLED";
+
 export default class Visit extends Model {
   declare id: number;
+  declare visitCode: string;
   declare appointmentId: number;
   declare patientId: number;
   declare doctorId: number;
   declare checkInTime: Date;
+  declare checkOutTime?: Date;
   declare symptoms?: string;
   declare diseaseCategoryId?: number;
   declare diagnosis?: string;
   declare note?: string;
-  declare status: "EXAMINING" | "COMPLETED";
+  declare status: VisitStatus;
+  declare doctorSignature?: string;
+  declare signedAt?: Date;
+  declare vitalSigns?: {
+    bloodPressure?: string;
+    heartRate?: number;
+    temperature?: number;
+    respiratoryRate?: number;
+    weight?: number;
+    height?: number;
+    spo2?: number;
+  };
 }
 
 Visit.init(
   {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    appointmentId: { type: DataTypes.INTEGER, allowNull: false, unique: true },
-    patientId: { type: DataTypes.INTEGER, allowNull: false },
-    doctorId: { type: DataTypes.INTEGER, allowNull: false },
+    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+    visitCode: { type: DataTypes.STRING(20), allowNull: false, unique: true },
+    appointmentId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false, unique: true },
+    patientId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    doctorId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     checkInTime: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
@@ -32,18 +48,29 @@ Visit.init(
     diseaseCategoryId: { type: DataTypes.INTEGER.UNSIGNED },
     diagnosis: { type: DataTypes.TEXT },
     note: { type: DataTypes.TEXT },
+    checkOutTime: { type: DataTypes.DATE, allowNull: true },
+    vitalSigns: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
     status: {
-      type: DataTypes.ENUM("EXAMINING", "COMPLETED"),
-      defaultValue: "EXAMINING",
+      type: DataTypes.ENUM("WAITING", "EXAMINING", "EXAMINED", "COMPLETED"),
+      defaultValue: "WAITING",
+    },
+    doctorSignature: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: "Digital signature or hash of doctor's approval (for compliance)",
+    },
+    signedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      comment: "Timestamp when doctor signed the diagnosis",
     },
   },
   {
     sequelize,
     tableName: "visits",
+    timestamps: true,
   }
 );
-
-// Associations
-Visit.belongsTo(Appointment, { foreignKey: "appointmentId" });
-Visit.belongsTo(Patient, { foreignKey: "patientId" });
-Visit.belongsTo(Doctor, { foreignKey: "doctorId" });

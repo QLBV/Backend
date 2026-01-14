@@ -33,6 +33,10 @@ class DoctorShift
   public status!: DoctorShiftStatus;
   public replacedBy?: number | null;
   public cancelReason?: string | null;
+
+  // Associations
+  public shift?: Shift;
+  public doctor?: Doctor;
 }
 
 DoctorShift.init(
@@ -78,8 +82,5 @@ DoctorShift.init(
     indexes: [{ unique: true, fields: ["doctorId", "shiftId", "workDate"] }],
   }
 );
-
-DoctorShift.belongsTo(Doctor, { foreignKey: "doctorId", as: "doctor" });
-DoctorShift.belongsTo(Shift, { foreignKey: "shiftId", as: "shift" });
 
 export default DoctorShift;

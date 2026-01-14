@@ -1,11 +1,24 @@
-import { Transaction } from "sequelize";
+﻿import { Transaction, Op } from "sequelize";
 import { sequelize } from "../models";
 import Prescription, { PrescriptionStatus } from "../models/Prescription";
 import PrescriptionDetail from "../models/PrescriptionDetail";
 import Medicine from "../models/Medicine";
 import MedicineExport from "../models/MedicineExport";
 import Visit from "../models/Visit";
-import { generatePrescriptionCode } from "../utils/codeGenerator";
+import Patient from "../models/Patient";
+import Doctor from "../models/Doctor";
+import User from "../models/User";
+import PatientProfile from "../models/PatientProfile";
+import Specialty from "../models/Specialty";
+import Appointment from "../models/Appointment";
+import Invoice, { PaymentStatus } from "../models/Invoice";
+import InvoiceItem, { ItemType } from "../models/InvoiceItem";
+import {
+  generatePrescriptionCode,
+  generateExportCode,
+  generateInvoiceCode,
+} from "../utils/codeGenerator";
+// import { createInvoiceFromVisit } from "./invoice.service";
 
 interface MedicineInput {
   medicineId: number;
@@ -15,6 +28,7 @@ interface MedicineInput {
   dosageAfternoon: number;
   dosageEvening: number;
   instruction?: string;
+  days?: number;
 }
 
 interface CreatePrescriptionInput {
@@ -55,8 +69,28 @@ export const createPrescriptionService = async (
       if (visit.doctorId !== doctorId) {
         throw new Error("UNAUTHORIZED_VISIT");
       }
-      if (visit.status !== "COMPLETED") {
-        throw new Error("VISIT_NOT_COMPLETED");
+      // Visit must be at least EXAMINED (diagnosis saved) to create prescription
+      if (
+        visit.status !== "EXAMINING" &&
+        visit.status !== "EXAMINED" &&
+        visit.status !== "COMPLETED"
+      ) {
+        throw new Error("VISIT_NOT_EXAMINED");
+      }
+
+      // Ensure appointment is in the correct state (doctor has started the exam)
+      const appointment = await Appointment.findByPk(visit.appointmentId, {
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+      if (!appointment) {
+        throw new Error("APPOINTMENT_NOT_FOUND");
+      }
+      if (appointment.status === "CHECKED_IN") {
+        appointment.status = "IN_PROGRESS";
+        await appointment.save({ transaction: t });
+      } else if (appointment.status !== "IN_PROGRESS") {
+        throw new Error("APPOINTMENT_NOT_IN_PROGRESS");
       }
 
       // 2. Check if prescription already exists for this visit
@@ -69,7 +103,9 @@ export const createPrescriptionService = async (
       }
 
       // 3. Generate prescription code
-      const prescriptionCode = await generatePrescriptionCode();
+      const prescriptionCode = await generatePrescriptionCode(t);
+      const doctorUser = await Doctor.findByPk(doctorId, { transaction: t });
+      const doctorUserId = doctorUser?.userId || doctorId;
 
       // 4. Create prescription (totalAmount will be calculated)
       const prescription = await Prescription.create(
@@ -132,13 +168,16 @@ export const createPrescriptionService = async (
             dosageAfternoon: item.dosageAfternoon,
             dosageEvening: item.dosageEvening,
             instruction: item.instruction,
+            days: item.days || 1,
           },
           { transaction: t }
         );
 
         // 📊 Create audit trail
+        const exportCode = await generateExportCode(t);
         await MedicineExport.create(
           {
+            exportCode,
             medicineId: medicine.id,
             quantity: item.quantity,
             exportDate: new Date(),
@@ -152,6 +191,101 @@ export const createPrescriptionService = async (
       // 6. Update total amount
       prescription.totalAmount = totalAmount;
       await prescription.save({ transaction: t });
+
+      // 7. Mark visit as EXAMINED (confirmed) and set checkout time
+      if (visit.status !== "COMPLETED") {
+        // Ensure it is marked as EXAMINED if not already (redundant if completeVisit called, but safe)
+        if (visit.status !== "EXAMINED") {
+           visit.status = "EXAMINED";
+        }
+        visit.checkOutTime = visit.checkOutTime ?? new Date();
+        await visit.save({ transaction: t });
+      }
+
+      // 7b. Update appointment status to COMPLETED (examination + prescription done)
+      appointment.status = "COMPLETED" as any;
+      await appointment.save({ transaction: t });
+
+      // 8. Ensure invoice exists and sync medicine charges
+      let invoice = await Invoice.findOne({
+        where: { visitId: visit.id },
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+
+      if (!invoice) {
+        // Create invoice directly to avoid complex dependencies
+        const invoiceCode = await generateInvoiceCode();
+        
+        invoice = await Invoice.create(
+          {
+            invoiceCode,
+            visitId: visit.id,
+            patientId: visit.patientId, // Ensure consistency with visit
+            doctorId: visit.doctorId,
+            examinationFee: 100000,
+            medicineTotalAmount: 0,
+            discount: 0,
+            totalAmount: 100000,
+            paymentStatus: PaymentStatus.UNPAID,
+            paidAmount: 0,
+            createdBy: doctorUserId,
+          },
+          { transaction: t }
+        );
+
+        // Create InvoiceItem for examination
+        await InvoiceItem.create(
+          {
+            invoiceId: invoice.id,
+            itemType: ItemType.EXAMINATION,
+            description: `Khám bệnh`,
+            quantity: 1,
+            unitPrice: 100000,
+            subtotal: 100000,
+          },
+          { transaction: t }
+        );
+      }
+
+      if (invoice) {
+        await InvoiceItem.destroy({
+          where: { invoiceId: invoice.id, itemType: ItemType.MEDICINE },
+          transaction: t,
+        });
+
+        const details = await PrescriptionDetail.findAll({
+          where: { prescriptionId: prescription.id },
+          transaction: t,
+        });
+
+        let medicineTotalAmount = 0;
+
+        for (const detail of details) {
+          const subtotal = Number(detail.quantity) * Number(detail.unitPrice);
+          medicineTotalAmount += subtotal;
+
+          await InvoiceItem.create(
+            {
+              invoiceId: invoice.id,
+              itemType: ItemType.MEDICINE,
+              prescriptionDetailId: detail.id,
+              medicineName: detail.medicineName,
+              quantity: detail.quantity,
+              unitPrice: detail.unitPrice,
+              subtotal,
+            },
+            { transaction: t }
+          );
+        }
+
+        invoice.medicineTotalAmount = medicineTotalAmount;
+        invoice.totalAmount =
+          Number(invoice.examinationFee) +
+          Number(invoice.medicineTotalAmount) -
+          Number(invoice.discount || 0);
+        await invoice.save({ transaction: t });
+      }
 
       return prescription;
     }
@@ -197,7 +331,21 @@ export const updatePrescriptionService = async (
 
       // 2. If medicines are being updated, restore old stock and apply new
       if (input.medicines && input.medicines.length > 0) {
-        // Restore previous stock
+        // 1.5 Sync with Invoice - Clear old medicine charges FIRST to avoid FK constraint errors
+        const invoice = await Invoice.findOne({
+          where: { visitId: prescription.visitId },
+          transaction: t,
+          lock: t.LOCK.UPDATE,
+        });
+
+        if (invoice) {
+          await InvoiceItem.destroy({
+            where: { invoiceId: invoice.id, itemType: ItemType.MEDICINE },
+            transaction: t,
+          });
+        }
+
+        // 2. Clear old Details and restore stock
         const oldDetails = await PrescriptionDetail.findAll({
           where: { prescriptionId },
           transaction: t,
@@ -214,7 +362,7 @@ export const updatePrescriptionService = async (
           }
         }
 
-        // Delete old details and exports
+        // Delete old details and stock exports
         await PrescriptionDetail.destroy({
           where: { prescriptionId },
           transaction: t,
@@ -224,8 +372,9 @@ export const updatePrescriptionService = async (
           transaction: t,
         });
 
-        // Apply new medicines (same logic as create)
+        // 3. Apply new medicines (same logic as create)
         let totalAmount = 0;
+        const newDetails = [];
 
         for (const item of input.medicines) {
           const medicine = await Medicine.findByPk(item.medicineId, {
@@ -253,7 +402,7 @@ export const updatePrescriptionService = async (
           const itemTotal = medicine.salePrice * item.quantity;
           totalAmount += itemTotal;
 
-          await PrescriptionDetail.create(
+          const detail = await PrescriptionDetail.create(
             {
               prescriptionId: prescription.id,
               medicineId: medicine.id,
@@ -266,12 +415,16 @@ export const updatePrescriptionService = async (
               dosageAfternoon: item.dosageAfternoon,
               dosageEvening: item.dosageEvening,
               instruction: item.instruction,
+              days: item.days || 1,
             },
             { transaction: t }
           );
+          newDetails.push(detail);
 
+          const exportCode = await generateExportCode(t);
           await MedicineExport.create(
             {
+              exportCode,
               medicineId: medicine.id,
               quantity: item.quantity,
               exportDate: new Date(),
@@ -283,6 +436,36 @@ export const updatePrescriptionService = async (
         }
 
         prescription.totalAmount = totalAmount;
+
+        // 4. Sync new charges back to Invoice
+        if (invoice) {
+          let medicineTotalAmount = 0;
+
+          for (const detail of newDetails) {
+            const subtotal = Number(detail.quantity) * Number(detail.unitPrice);
+            medicineTotalAmount += subtotal;
+
+            await InvoiceItem.create(
+              {
+                invoiceId: invoice.id,
+                itemType: ItemType.MEDICINE,
+                prescriptionDetailId: detail.id,
+                medicineName: detail.medicineName,
+                quantity: detail.quantity,
+                unitPrice: detail.unitPrice,
+                subtotal,
+              },
+              { transaction: t }
+            );
+          }
+
+          invoice.medicineTotalAmount = medicineTotalAmount;
+          invoice.totalAmount =
+            Number(invoice.examinationFee) +
+            Number(invoice.medicineTotalAmount) -
+            Number(invoice.discount || 0);
+          await invoice.save({ transaction: t });
+        }
       }
 
       // 3. Update note if provided
@@ -409,6 +592,44 @@ export const getPrescriptionByIdService = async (prescriptionId: number) => {
       {
         model: PrescriptionDetail,
         as: "details",
+        include: [
+          {
+            model: Medicine,
+            as: "Medicine",
+            attributes: ["name", "unit"],
+          },
+        ],
+      },
+      {
+        model: Doctor,
+        as: "doctor",
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["fullName", "email", "avatar"],
+          },
+          {
+            model: Specialty,
+            as: "specialty",
+            attributes: ["name"],
+          },
+        ],
+      },
+      {
+        model: Patient,
+        as: "patient",
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["fullName", "email", "avatar"],
+          },
+        ],
+      },
+      {
+        model: Visit,
+        as: "visit",
       },
     ],
   });
@@ -417,7 +638,21 @@ export const getPrescriptionByIdService = async (prescriptionId: number) => {
     throw new Error("PRESCRIPTION_NOT_FOUND");
   }
 
-  return prescription;
+  // Transform to format expected by FE (if needed)
+  const prescriptionData = prescription.toJSON();
+
+  // Populate medicineName if missing in details and present in included medicine model
+  if ((prescriptionData as any).details) {
+    (prescriptionData as any).details = (prescriptionData as any).details.map((detail: any) => {
+      if (!detail.medicineName && detail.Medicine) {
+        detail.medicineName = detail.Medicine.name;
+        detail.unit = detail.Medicine.unit;
+      }
+      return detail;
+    });
+  }
+
+  return prescriptionData;
 };
 
 /**
@@ -430,6 +665,27 @@ export const getPrescriptionsByPatientService = async (patientId: number) => {
       {
         model: PrescriptionDetail,
         as: "details",
+      },
+      {
+        model: Doctor,
+        as: "doctor",
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["id", "fullName", "email", "avatar"],
+          },
+          {
+            model: Specialty,
+            as: "specialty",
+            attributes: ["id", "name"],
+          },
+        ],
+      },
+      {
+        model: Visit,
+        as: "visit",
+        attributes: ["id", "checkInTime", "diagnosis", "symptoms"],
       },
     ],
     order: [["createdAt", "DESC"]],
@@ -453,4 +709,95 @@ export const getPrescriptionByVisitService = async (visitId: number) => {
   });
 
   return prescription;
+};
+
+/**
+ * Get all prescriptions with pagination and filtering
+ */
+export const getPrescriptionsService = async (params?: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  patientId?: number;
+  doctorId?: number;
+}) => {
+  const page = params?.page || 1;
+  const limit = params?.limit || 20;
+  const offset = (page - 1) * limit;
+
+  const where: any = {};
+
+  if (params?.status) {
+    where.status = params.status;
+  }
+
+  if (params?.patientId) {
+    where.patientId = params.patientId;
+  }
+
+  if (params?.doctorId) {
+    where.doctorId = params.doctorId;
+  }
+
+  const { rows: prescriptions, count: total } =
+    await Prescription.findAndCountAll({
+      where,
+      include: [
+        {
+          model: PrescriptionDetail,
+          as: "details",
+          include: [
+            {
+              model: Medicine,
+              as: "Medicine",
+              attributes: ["id", "name", "medicineCode"],
+              required: false,
+            },
+          ],
+        },
+        {
+          model: Patient,
+          as: "patient",
+          include: [
+            {
+              model: User,
+              as: "user",
+              attributes: ["id", "fullName", "email", "avatar"],
+            },
+          ],
+        },
+        {
+          model: Doctor,
+          as: "doctor",
+          include: [
+            {
+              model: User,
+              as: "user",
+              attributes: ["id", "fullName", "email", "avatar"],
+            },
+            {
+              model: Specialty,
+              as: "specialty",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+        {
+          model: Visit,
+          as: "visit",
+          attributes: ["id", "checkInTime", "diagnosis", "symptoms"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+      limit,
+      offset,
+    });
+
+  return {
+    prescriptions,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 };

@@ -4,6 +4,7 @@ import { sequelize } from ".";
 export enum PrescriptionStatus {
   DRAFT = "DRAFT",
   LOCKED = "LOCKED",
+  DISPENSED = "DISPENSED",
   CANCELLED = "CANCELLED",
 }
 
@@ -15,6 +16,8 @@ interface PrescriptionAttributes {
   patientId: number;
   totalAmount: number;
   status: PrescriptionStatus;
+  dispensedAt?: Date;
+  dispensedBy?: number;
   note?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -34,6 +37,8 @@ class Prescription
   public patientId!: number;
   public totalAmount!: number;
   public status!: PrescriptionStatus;
+  public dispensedAt?: Date;
+  public dispensedBy?: number;
   public note?: string;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -74,6 +79,14 @@ Prescription.init(
       allowNull: false,
       defaultValue: PrescriptionStatus.DRAFT,
     },
+    dispensedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    dispensedBy: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: true,
+    },
     note: {
       type: DataTypes.TEXT,
       allowNull: true,
@@ -83,6 +96,7 @@ Prescription.init(
     sequelize,
     modelName: "Prescription",
     tableName: "prescriptions",
+    timestamps: true,
   }
 );
 

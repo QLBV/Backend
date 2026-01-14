@@ -14,6 +14,7 @@ interface PrescriptionDetailAttributes {
   dosageAfternoon: number;
   dosageEvening: number;
   instruction?: string;
+  days?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -40,6 +41,7 @@ class PrescriptionDetail
   public dosageAfternoon!: number;
   public dosageEvening!: number;
   public instruction?: string;
+  public days?: number;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -99,11 +101,17 @@ PrescriptionDetail.init(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    days: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 1,
+    },
   },
   {
     sequelize,
     modelName: "PrescriptionDetail",
     tableName: "prescription_details",
+    timestamps: true,
   }
 );
 

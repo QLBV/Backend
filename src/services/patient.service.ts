@@ -116,11 +116,27 @@ export const setupPatientProfileService = async (
       await PatientProfile.bulkCreate(profiles, { transaction });
     }
 
+    // Reload patient với profiles trong transaction trước khi commit
+    await patient.reload({
+      include: [{ model: PatientProfile, as: "profiles" }],
+      transaction,
+    });
+
     await transaction.commit();
 
-    // Reload patient với profiles
+    // Reload lại sau khi commit để đảm bảo data đã được lưu
     const updatedPatient = await Patient.findByPk(patient.id, {
       include: [{ model: PatientProfile, as: "profiles" }],
+    });
+
+    if (!updatedPatient) {
+      throw new Error("Failed to reload patient after setup");
+    }
+
+    console.log("✅ Patient profile setup successfully:", {
+      patientId: updatedPatient.id,
+      patientCode: updatedPatient.patientCode,
+      profilesCount: updatedPatient.profiles?.length || 0,
     });
 
     return updatedPatient;
@@ -130,23 +146,114 @@ export const setupPatientProfileService = async (
   }
 };
 
+/* ================= CREATE PATIENT (ADMIN/RECEPTIONIST) ================= */
+
+export const createPatientService = async (
+  data: SetupPatientProfileInput
+) => {
+  const transaction = await sequelize.transaction();
+  try {
+    // Validate CCCD format (12 chữ số) ONLY IF provided
+    if (data.cccd && data.cccd.trim()) {
+      if (!/^\d{12}$/.test(data.cccd.trim())) {
+        throw new Error("CCCD_INVALID_FORMAT");
+      }
+
+      // Kiểm tra CCCD không trùng
+      const existingCCCD = await Patient.findOne({
+        where: {
+          cccd: data.cccd.trim()
+        },
+        transaction,
+      });
+
+      if (existingCCCD) {
+        throw new Error("CCCD_ALREADY_EXISTS");
+      }
+    }
+
+    // Validate dateOfBirth
+    const dob = new Date(data.dateOfBirth);
+    if (isNaN(dob.getTime())) {
+      throw new Error("DOB_INVALID_FORMAT");
+    }
+    if (dob > new Date()) {
+      throw new Error("DOB_CANNOT_BE_FUTURE");
+    }
+
+    // Tạo Patient
+    const patient = await Patient.create(
+      {
+        userId: undefined, // Create without User
+        fullName: data.fullName.trim(),
+        gender: data.gender,
+        dateOfBirth: dob,
+        cccd: data.cccd && data.cccd.trim() ? data.cccd.trim() : undefined,
+        avatar: null,
+        isActive: true,
+      },
+      { transaction }
+    );
+
+    // Tạo patientCode
+    const patientCode = "BN" + String(patient.id).padStart(6, "0");
+    await patient.update({ patientCode }, { transaction });
+
+    // Chuẩn hoá và tạo profiles mới
+    const profiles = data.profiles.map((p) => ({
+      patientId: patient.id,
+      type: p.type,
+      value: p.value.trim(),
+      city: p.city?.trim() || undefined,
+      ward: p.ward?.trim() || undefined,
+      isPrimary: p.isPrimary ?? false,
+    }));
+
+    if (profiles.length > 0) {
+      await PatientProfile.bulkCreate(profiles, { transaction });
+    }
+
+    // Reload patient với profiles
+    await patient.reload({
+      include: [{ model: PatientProfile, as: "profiles" }],
+      transaction,
+    });
+
+    await transaction.commit();
+
+    return patient;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
 /* ================= READ ================= */
 
-export const getPatientsService = async (page = 1, limit = 10, cccd?: string) => {
+export const getPatientsService = async (page = 1, limit = 10, search?: string) => {
   const offset = (page - 1) * limit;
   const where: any = { isActive: true };
 
-  // Filter by CCCD if provided
-  if (cccd) {
-    where.cccd = cccd;
+  // Filter if search/cccd provided
+  if (search) {
+    where[Op.or] = [
+      { cccd: { [Op.like]: `%${search}%` } },
+      { fullName: { [Op.like]: `%${search}%` } },
+      { patientCode: { [Op.like]: `%${search}%` } },
+      { phone: { [Op.like]: `%${search}%` } },
+    ];
   }
 
-  return Patient.findAll({
+  return Patient.findAndCountAll({
     where,
-    include: [{ model: PatientProfile, as: "profiles" }],
+    include: [
+      { model: PatientProfile, as: "profiles" },
+      { model: require("../models/User").default, as: "user", attributes: ["email"] },
+    ],
     limit,
     offset,
     order: [["createdAt", "DESC"]],
+    distinct: true,
   });
 };
 
@@ -176,22 +283,66 @@ export const getPatientByCccdService = async (cccd: string) => {
 
 export const updatePatientService = async (id: number, data: any) => {
   return sequelize.transaction(async (t) => {
-    const patient = await Patient.findByPk(id, { transaction: t });
-    if (!patient || !patient.isActive) {
-      throw new Error("PATIENT_NOT_FOUND");
-    }
+    try {
+      const patient = await Patient.findByPk(id, { transaction: t });
+      if (!patient || !patient.isActive) {
+        throw new Error("PATIENT_NOT_FOUND");
+      }
 
     /* ================= UPDATE CORE ================= */
-    await patient.update(
-      {
-        fullName: data.fullName ? data.fullName.trim() : patient.fullName,
-        gender: data.gender ?? patient.gender,
-        dateOfBirth: data.dateOfBirth
-          ? new Date(data.dateOfBirth)
-          : patient.dateOfBirth,
-      },
-      { transaction: t }
-    );
+    const updateData: any = {
+      fullName: data.fullName ? data.fullName.trim() : patient.fullName,
+      gender: data.gender ?? patient.gender,
+      dateOfBirth: data.dateOfBirth
+        ? new Date(data.dateOfBirth)
+        : patient.dateOfBirth,
+    };
+
+    // Update health information fields
+    if (data.bloodType !== undefined) {
+      updateData.bloodType = data.bloodType || null;
+    }
+    if (data.height !== undefined) {
+      updateData.height = data.height ? parseFloat(data.height) : null;
+    }
+    if (data.weight !== undefined) {
+      updateData.weight = data.weight ? parseFloat(data.weight) : null;
+    }
+    if (data.chronicDiseases !== undefined) {
+      updateData.chronicDiseases = Array.isArray(data.chronicDiseases) 
+        ? data.chronicDiseases.filter((d: string) => d && d.trim()) 
+        : [];
+      // Ensure it's saved as JSON - keep empty array instead of null for consistency
+      console.log("📝 Updating chronicDiseases:", updateData.chronicDiseases);
+    }
+    if (data.allergies !== undefined) {
+      updateData.allergies = Array.isArray(data.allergies) 
+        ? data.allergies.filter((a: string) => a && a.trim()) 
+        : [];
+      // Ensure it's saved as JSON - keep empty array instead of null for consistency
+      console.log("📝 Updating allergies:", updateData.allergies);
+    }
+
+    console.log("📝 Updating patient with data:", {
+      id,
+      updateData,
+      chronicDiseases: updateData.chronicDiseases,
+      allergies: updateData.allergies,
+      updateDataKeys: Object.keys(updateData),
+    });
+
+    try {
+      await patient.update(updateData, { transaction: t });
+      console.log("✅ Patient.update() completed successfully");
+    } catch (updateError: any) {
+      console.error("❌ Patient.update() failed:", updateError.message);
+      console.error("Update error details:", {
+        code: updateError.code,
+        sqlState: updateError.sqlState,
+        sqlMessage: updateError.sqlMessage,
+      });
+      throw updateError;
+    }
 
     /* ================= UPDATE PROFILES ================= */
     if (Array.isArray(data.profiles)) {
@@ -217,10 +368,59 @@ export const updatePatientService = async (id: number, data: any) => {
     }
 
     /* ================= RETURN FULL DATA ================= */
-    return Patient.findByPk(id, {
+    const updatedPatient = await Patient.findByPk(id, {
       include: [{ model: PatientProfile, as: "profiles" }],
       transaction: t,
     });
+
+    // Ensure JSON fields are parsed correctly
+    if (updatedPatient) {
+      // Sequelize should auto-parse JSON, but ensure it's an array
+      if (updatedPatient.chronicDiseases) {
+        if (typeof updatedPatient.chronicDiseases === 'string') {
+          try {
+            (updatedPatient as any).chronicDiseases = JSON.parse(updatedPatient.chronicDiseases);
+          } catch (e) {
+            console.error("Error parsing chronicDiseases:", e);
+            (updatedPatient as any).chronicDiseases = [];
+          }
+        } else if (!Array.isArray(updatedPatient.chronicDiseases)) {
+          (updatedPatient as any).chronicDiseases = [];
+        }
+      } else {
+        (updatedPatient as any).chronicDiseases = [];
+      }
+
+      if (updatedPatient.allergies) {
+        if (typeof updatedPatient.allergies === 'string') {
+          try {
+            (updatedPatient as any).allergies = JSON.parse(updatedPatient.allergies);
+          } catch (e) {
+            console.error("Error parsing allergies:", e);
+            (updatedPatient as any).allergies = [];
+          }
+        } else if (!Array.isArray(updatedPatient.allergies)) {
+          (updatedPatient as any).allergies = [];
+        }
+      } else {
+        (updatedPatient as any).allergies = [];
+      }
+
+      console.log("✅ Updated patient with chronicDiseases:", (updatedPatient as any).chronicDiseases);
+      console.log("✅ Updated patient with allergies:", (updatedPatient as any).allergies);
+    }
+
+    return updatedPatient;
+    } catch (error: any) {
+      console.error("❌ Error in updatePatientService:", {
+        message: error.message,
+        code: error.code,
+        sqlState: error.sqlState,
+        sqlMessage: error.sqlMessage,
+        stack: error.stack,
+      });
+      throw error;
+    }
   });
 };
 

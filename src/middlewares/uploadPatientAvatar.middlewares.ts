@@ -20,4 +20,7 @@ const storage = multer.diskStorage({
   },
 });
 
-export const uploadPatientAvatar = multer({ storage });
+export const uploadPatientAvatar = multer({ 
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+});

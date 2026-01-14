@@ -5,9 +5,10 @@ interface SpecialtyAttributes {
   id: number;
   name: string;
   description?: string;
+  isActive: boolean;
 }
 
-interface SpecialtyCreationAttributes extends Optional<SpecialtyAttributes, "id"> {}
+interface SpecialtyCreationAttributes extends Optional<SpecialtyAttributes, "id" | "isActive"> {}
 
 class Specialty
   extends Model<SpecialtyAttributes, SpecialtyCreationAttributes>
@@ -16,6 +17,7 @@ class Specialty
   public id!: number;
   public name!: string;
   public description?: string;
+  public isActive!: boolean;
 }
 
 Specialty.init(
@@ -32,6 +34,10 @@ Specialty.init(
     },
     description: {
       type: DataTypes.STRING(255),
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
     },
   },
   {

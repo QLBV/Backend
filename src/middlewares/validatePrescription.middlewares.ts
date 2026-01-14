@@ -63,6 +63,13 @@ export const validateCreatePrescription = (
         message: `At least one dosage field must be greater than 0 for medicine at index ${i}`,
       });
     }
+
+    if (medicine.days && (typeof medicine.days !== "number" || medicine.days <= 0)) {
+      return res.status(400).json({
+        success: false,
+        message: `Number of days must be a positive number for medicine at index ${i}`,
+      });
+    }
   }
 
   next();
@@ -114,6 +121,13 @@ export const validateUpdatePrescription = (
         return res.status(400).json({
           success: false,
           message: `At least one dosage field must be greater than 0 for medicine at index ${i}`,
+        });
+      }
+
+      if (medicine.days && (typeof medicine.days !== "number" || medicine.days <= 0)) {
+        return res.status(400).json({
+          success: false,
+          message: `Number of days must be a positive number for medicine at index ${i}`,
         });
       }
     }

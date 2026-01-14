@@ -24,10 +24,16 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
-
+.claude/
+.cursorignore
 # Testing
 coverage/
+test-output/
 
 # Misc
 *.tmp
 *.temp
+
+# Documentation
+docs/
+.docs/

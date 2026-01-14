@@ -1,11 +1,14 @@
 import { Router } from "express";
 import {
+  createPatient,
   getPatients,
   getPatientById,
   updatePatient,
   deletePatient,
   uploadPatientAvatar,
   setupPatientProfile,
+  getPatientMedicalHistory,
+  getPatientPrescriptions,
 } from "../controllers/patient.controller";
 
 import { verifyToken } from "../middlewares/auth.middlewares";
@@ -17,7 +20,11 @@ import { requireSelfPatient } from "../middlewares/requireSelfPatient.middleware
 import {
   setupPatientValidator,
   updatePatientValidator,
-} from "@/middlewares/validators/patient.validators";
+} from "../middlewares/validators/patient.validators";
+import {
+  validateNumericId,
+  validatePagination,
+} from "../middlewares/validators/common.validators";
 
 const router = Router();
 router.use(verifyToken);
@@ -29,22 +36,53 @@ router.post(
   setupPatientProfile
 );
 
+router.post(
+  "/",
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
+  createPatient
+);
+
 router.get(
   "/",
   requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
+  validatePagination,
   getPatients
+);
+
+// Get patient's medical history
+router.get(
+  "/:id/medical-history",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.PATIENT),
+  getPatientMedicalHistory
+);
+
+// Get patient's prescriptions
+router.get(
+  "/:id/prescriptions",
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.PATIENT),
+  getPatientPrescriptions
 );
 
 router.get(
   "/:id",
-  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
+  validateNumericId("id"),
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST, RoleCode.PATIENT),
+  requireSelfPatient,
   validatePatient,
   getPatientById
 );
 
 router.put(
   "/:id",
-  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
+  validateNumericId("id"),
+  requireRole(
+    RoleCode.ADMIN,
+    RoleCode.DOCTOR,
+    RoleCode.RECEPTIONIST,
+    RoleCode.PATIENT
+  ),
   validatePatient,
   updatePatientValidator,
   updatePatient
@@ -52,6 +90,7 @@ router.put(
 
 router.delete(
   "/:id",
+  validateNumericId("id"),
   requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST),
   validatePatient,
   deletePatient
@@ -59,6 +98,7 @@ router.delete(
 
 router.post(
   "/:id/avatar",
+  validateNumericId("id"),
   requireRole(RoleCode.PATIENT),
   requireSelfPatient,
   validatePatient,

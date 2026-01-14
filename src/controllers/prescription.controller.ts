@@ -6,9 +6,12 @@ import {
   getPrescriptionByIdService,
   getPrescriptionsByPatientService,
   getPrescriptionByVisitService,
+  getPrescriptionsService,
+  lockPrescriptionService,
 } from "../services/prescription.service";
+import { getInvoiceByIdService } from "../services/invoice.service";
 import { generatePrescriptionPDF } from "../utils/pdfGenerator";
-import Prescription from "../models/Prescription";
+import Prescription, { PrescriptionStatus } from "../models/Prescription";
 import PrescriptionDetail from "../models/PrescriptionDetail";
 import Patient from "../models/Patient";
 import Doctor from "../models/Doctor";
@@ -17,6 +20,8 @@ import DiseaseCategory from "../models/DiseaseCategory";
 import User from "../models/User";
 import PatientProfile from "../models/PatientProfile";
 import Specialty from "../models/Specialty";
+import { RoleCode } from "../constant/role";
+import * as auditLogService from "../services/auditLog.service";
 
 /**
  * Create a new prescription
@@ -25,7 +30,7 @@ import Specialty from "../models/Specialty";
  */
 export const createPrescription = async (req: Request, res: Response) => {
   try {
-    const doctorId = req.user!.userId;
+    const doctorId = (req.user as any).doctorId || req.user!.userId;
     const { visitId, patientId, medicines, note } = req.body;
 
     const prescription = await createPrescriptionService(doctorId, patientId, {
@@ -34,10 +39,35 @@ export const createPrescription = async (req: Request, res: Response) => {
       note,
     });
 
+    // CRITICAL AUDIT LOG: Log prescription creation (medical record)
+    await auditLogService.logCreate(req, "prescriptions", prescription.id, {
+      prescriptionCode: prescription.prescriptionCode,
+      visitId: prescription.visitId,
+      doctorId: prescription.doctorId,
+      patientId: prescription.patientId,
+      totalAmount: prescription.totalAmount,
+      status: prescription.status,
+      medicineCount: medicines?.length || 0,
+    }).catch(err => console.error("Failed to log prescription creation audit:", err));
+
+    // Get invoice info if it was created (reuse service for full associations)
+    const Invoice = require("../models/Invoice").default;
+    const invoiceRecord = await Invoice.findOne({
+      where: { visitId },
+      attributes: ["id"],
+    });
+
+    const invoice = invoiceRecord
+      ? await getInvoiceByIdService(invoiceRecord.id)
+      : null;
+
     return res.status(201).json({
       success: true,
-      message: "Prescription created successfully",
-      data: prescription,
+      message: "Prescription created successfully. Invoice has been generated.",
+      data: {
+        prescription,
+        invoice: invoice || null,
+      },
     });
   } catch (error: any) {
     const errorMessage = error?.message || "Failed to create prescription";
@@ -65,6 +95,20 @@ export const createPrescription = async (req: Request, res: Response) => {
       });
     }
 
+    if (errorMessage === "APPOINTMENT_NOT_IN_PROGRESS") {
+      return res.status(400).json({
+        success: false,
+        message: "Appointment must be in progress before creating prescription",
+      });
+    }
+
+    if (errorMessage === "APPOINTMENT_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Appointment not found",
+      });
+    }
+
     if (errorMessage === "UNAUTHORIZED_VISIT") {
       return res.status(403).json({
         success: false,
@@ -86,14 +130,32 @@ export const createPrescription = async (req: Request, res: Response) => {
  */
 export const updatePrescription = async (req: Request, res: Response) => {
   try {
-    const doctorId = req.user!.userId;
+    const doctorId = (req.user as any).doctorId || req.user!.userId;
     const { id } = req.params;
     const { medicines, note } = req.body;
+
+    // Get old data before update
+    const oldPrescription = await Prescription.findByPk(Number(id));
+    const oldData = oldPrescription ? {
+      totalAmount: oldPrescription.totalAmount,
+      note: oldPrescription.note,
+      status: oldPrescription.status,
+    } : null;
 
     const prescription = await updatePrescriptionService(Number(id), doctorId, {
       medicines,
       note,
     });
+
+    // CRITICAL AUDIT LOG: Log prescription update (medical record change)
+    if (oldData) {
+      await auditLogService.logUpdate(req, "prescriptions", prescription.id, oldData, {
+        totalAmount: prescription.totalAmount,
+        note: prescription.note,
+        status: prescription.status,
+        medicineCount: medicines?.length || 0,
+      }).catch(err => console.error("Failed to log prescription update audit:", err));
+    }
 
     return res.json({
       success: true,
@@ -139,10 +201,16 @@ export const updatePrescription = async (req: Request, res: Response) => {
  */
 export const cancelPrescription = async (req: Request, res: Response) => {
   try {
-    const doctorId = req.user!.userId;
+    const doctorId = (req.user as any).doctorId || req.user!.userId;
     const { id } = req.params;
 
     const prescription = await cancelPrescriptionService(Number(id), doctorId);
+
+    // CRITICAL AUDIT LOG: Log prescription cancellation (medical record change)
+    await auditLogService.logUpdate(req, "prescriptions", prescription.id,
+      { status: "DRAFT" },
+      { status: prescription.status, cancelledBy: req.user!.userId }
+    ).catch(err => console.error("Failed to log prescription cancellation audit:", err));
 
     return res.json({
       success: true,
@@ -170,6 +238,124 @@ export const cancelPrescription = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: errorMessage,
+    });
+  }
+};
+
+/**
+ * Lock prescription (make it non-editable)
+ * POST /api/prescriptions/:id/lock
+ * Role: DOCTOR (own only)
+ */
+export const lockPrescription = async (req: Request, res: Response) => {
+  try {
+    const doctorId = (req.user as any).doctorId || req.user!.userId;
+    const { id } = req.params;
+
+    // Verify the prescription belongs to this doctor
+    const existingPrescription = await Prescription.findByPk(Number(id));
+    if (!existingPrescription) {
+      return res.status(404).json({
+        success: false,
+        message: "Prescription not found",
+      });
+    }
+
+    if (existingPrescription.doctorId !== doctorId) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to lock this prescription",
+      });
+    }
+
+    const prescription = await lockPrescriptionService(Number(id));
+
+    // AUDIT LOG: Log prescription lock
+    await auditLogService.logUpdate(req, "prescriptions", prescription.id,
+      { status: "DRAFT" },
+      { status: prescription.status, lockedBy: req.user!.userId }
+    ).catch(err => console.error("Failed to log prescription lock audit:", err));
+
+    return res.json({
+      success: true,
+      message: "Prescription locked successfully. It can no longer be edited.",
+      data: prescription,
+    });
+  } catch (error: any) {
+    const errorMessage = error?.message || "Failed to lock prescription";
+
+    if (errorMessage === "PRESCRIPTION_NOT_FOUND") {
+      return res.status(404).json({
+        success: false,
+        message: "Prescription not found",
+      });
+    }
+
+    if (errorMessage === "PRESCRIPTION_ALREADY_LOCKED") {
+      return res.status(400).json({
+        success: false,
+        message: "Prescription is already locked",
+      });
+    }
+
+    if (errorMessage === "PRESCRIPTION_CANCELLED") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot lock a cancelled prescription",
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: errorMessage,
+    });
+  }
+};
+
+/**
+ * Get all prescriptions with pagination and filtering
+ * GET /api/prescriptions
+ * Role: DOCTOR (own only), ADMIN (all)
+ */
+export const getPrescriptions = async (req: Request, res: Response) => {
+  try {
+    const { page, limit, status, patientId } = req.query;
+    const userRole = req.user!.roleId;
+    const userId = req.user!.userId;
+
+    // Build query parameters
+    const params: any = {
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      status: status as string,
+      patientId: patientId ? parseInt(patientId as string) : undefined,
+    };
+
+    // If user is a doctor, only show their own prescriptions
+    if (userRole === RoleCode.DOCTOR) {
+      // Find the doctor record to get doctorId
+      const doctor = await Doctor.findOne({ where: { userId } });
+      if (doctor) {
+        params.doctorId = doctor.id;
+      }
+    }
+
+    const result = await getPrescriptionsService(params);
+
+    return res.json({
+      success: true,
+      data: result.prescriptions,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to get prescriptions",
     });
   }
 };
@@ -265,6 +451,69 @@ export const getPrescriptionByVisit = async (req: Request, res: Response) => {
 };
 
 /**
+ * Dispense prescription (mark as dispensed)
+ * PUT /api/prescriptions/:id/dispense
+ * Role: RECEPTIONIST, ADMIN
+ */
+export const dispensePrescription = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { dispensedBy } = req.body;
+
+    const prescription = await Prescription.findByPk(Number(id));
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: "PRESCRIPTION_NOT_FOUND",
+      });
+    }
+
+    if (prescription.status === PrescriptionStatus.CANCELLED) {
+      return res.status(400).json({
+        success: false,
+        message: "CANNOT_DISPENSE_CANCELLED_PRESCRIPTION",
+      });
+    }
+
+    if (prescription.status === PrescriptionStatus.DISPENSED) {
+      return res.status(400).json({
+        success: false,
+        message: "PRESCRIPTION_ALREADY_DISPENSED",
+      });
+    }
+
+    // Update prescription status
+    const oldStatus = prescription.status;
+    prescription.status = PrescriptionStatus.DISPENSED;
+    prescription.dispensedAt = new Date();
+    prescription.dispensedBy = dispensedBy || req.user!.userId;
+    await prescription.save();
+
+    // AUDIT LOG: Log prescription dispensing
+    await auditLogService.logUpdate(req, "prescriptions", prescription.id,
+      { status: oldStatus },
+      {
+        status: prescription.status,
+        dispensedAt: prescription.dispensedAt,
+        dispensedBy: prescription.dispensedBy,
+      }
+    ).catch(err => console.error("Failed to log prescription dispense audit:", err));
+
+    return res.json({
+      success: true,
+      message: "Prescription dispensed successfully",
+      data: prescription,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error?.message || "Failed to dispense prescription",
+    });
+  }
+};
+
+/**
  * Export prescription as PDF
  * GET /api/prescriptions/:id/pdf
  * Role: DOCTOR, PATIENT (own only)
@@ -282,6 +531,7 @@ export const exportPrescriptionPDF = async (req: Request, res: Response) => {
         },
         {
           model: Patient,
+          as: "patient",
           include: [
             {
               model: User,
@@ -289,12 +539,13 @@ export const exportPrescriptionPDF = async (req: Request, res: Response) => {
             },
             {
               model: PatientProfile,
-              as: "profile",
+              as: "profiles",
             },
           ],
         },
         {
           model: Doctor,
+          as: "doctor",
           include: [
             {
               model: User,
@@ -308,6 +559,7 @@ export const exportPrescriptionPDF = async (req: Request, res: Response) => {
         },
         {
           model: Visit,
+          as: "visit",
           include: [
             {
               model: DiseaseCategory,
@@ -325,21 +577,26 @@ export const exportPrescriptionPDF = async (req: Request, res: Response) => {
     }
 
     // Prepare data for PDF
-    const patient = prescription.get("Patient") as any;
-    const doctor = prescription.get("Doctor") as any;
-    const visit = prescription.get("Visit") as any;
+    const patient = prescription.get("patient") as any;
+    const doctor = prescription.get("doctor") as any;
+    const visit = prescription.get("visit") as any;
     const details = prescription.get("details") as any[];
+
+    const profiles = patient?.profiles || [];
+    const phoneProfile = profiles.find((p: any) => p.type === "phone");
+    const addressProfile = profiles.find((p: any) => p.type === "address");
 
     const pdfData = {
       prescriptionCode: prescription.prescriptionCode,
-      patientName: patient?.user?.fullName || "N/A",
-      patientPhone: patient?.user?.phoneNumber || "N/A",
-      patientAge: patient?.profile?.dateOfBirth
-        ? new Date().getFullYear() -
-          new Date(patient.profile.dateOfBirth).getFullYear()
+      patientName: patient?.fullName || patient?.user?.fullName || "N/A",
+      patientPhone: phoneProfile?.value || "N/A",
+      patientAddress: addressProfile?.value || "N/A",
+      patientGender: patient?.gender,
+      patientAge: patient?.dateOfBirth
+        ? new Date().getFullYear() - new Date(patient.dateOfBirth).getFullYear()
         : undefined,
       doctorName: doctor?.user?.fullName || "N/A",
-      doctorSpecialty: doctor?.specialty?.name || "N/A",
+      doctorSpecialty: doctor?.specialty?.name || doctor?.specialty || "N/A",
       visitDate: visit?.checkInTime || prescription.createdAt,
       diagnosis: visit?.diagnosis,
       symptoms: visit?.symptoms,

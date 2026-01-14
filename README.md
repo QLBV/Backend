@@ -1,332 +1,479 @@
-# 🏥 Healthcare Management System - Backend
+<div align="center">
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](./CHANGELOG.md)
-[![Node](https://img.shields.io/badge/node-%3E%3D18.x-brightgreen.svg)](https://nodejs.org)
-[![TypeScript](https://img.shields.io/badge/typescript-5.x-blue.svg)](https://www.typescriptlang.org)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+# 🏥 HEALOS Backend API
+
+### Enterprise Healthcare Management REST API
+
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Express](https://img.shields.io/badge/Express-5.2-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
+[![Sequelize](https://img.shields.io/badge/Sequelize-6.37-52B0E7?style=for-the-badge&logo=sequelize&logoColor=white)](https://sequelize.org/)
+
+<p align="center">
+  <strong>A robust, scalable REST API powering the HEALOS Healthcare Management System.</strong>
+</p>
+
+[Features](#-features) • [Tech Stack](#-tech-stack) • [Getting Started](#-getting-started) • [API Reference](#-api-reference) • [Database](#-database)
+
+</div>
 
 ---
 
-## 🎯 Tính năng nổi bật
+## 📋 Overview
 
-- ✅ **Quản lý bác sĩ** với mã tự động (BS000001, BS000002, ...)
-- ✅ **Quản lý ca làm việc** (Sáng/Chiều/Tối)
-- ✅ **Đặt lịch khám** online/offline với validation thông minh
-- 🔥 **Reschedule tự động** khi bác sĩ nghỉ (tìm bác sĩ thay thế cùng chuyên khoa)
-- 📧 **Email notification** fancy với responsive templates
-- 🔔 **In-app notifications** real-time
-- 🎪 **Event-driven architecture** với EventEmitter
-- 🔐 **JWT Authentication** & Role-based access control
+HEALOS Backend is a **production-ready REST API** built with Node.js, Express, and TypeScript. It provides comprehensive endpoints for managing healthcare operations including patient records, appointments, prescriptions, invoices, pharmacy inventory, and employee management.
 
----
+## ✨ Features
 
-## 🚀 Quick Start
+### 🔐 Authentication & Security
+- **JWT Authentication** with access & refresh tokens
+- **OAuth 2.0** integration (Google Sign-In)
+- **Role-Based Access Control (RBAC)** - Admin, Doctor, Receptionist, Patient
+- **Password Hashing** with bcrypt
+- **Rate Limiting** to prevent abuse
+- **Helmet.js** for security headers
+- **CORS** configuration
+
+### 👥 User Management
+- User registration & login
+- Email verification
+- Password reset via email
+- Profile management
+- Role & permission management
+
+### 🗓️ Appointment System
+- Online & offline booking
+- Appointment status management
+- Doctor availability checking
+- Appointment reminders (cron jobs)
+- Visit tracking
+
+### 💊 Prescription Management
+- Create, update, lock prescriptions
+- Digital prescription generation
+- PDF export with signatures
+- Status workflow (Draft → Locked → Dispensed)
+
+### 💰 Invoice & Payments
+- Invoice generation
+- Payment tracking (Cash, Bank Transfer, QR)
+- Partial payment support
+- PDF invoice export
+- Payment history
+
+### 💊 Pharmacy & Inventory
+- Medicine CRUD operations
+- Stock management
+- Import/Export tracking
+- Low stock alerts
+- Batch & expiry tracking
+
+### 👨‍⚕️ Doctor & Staff Management
+- Doctor profiles & specialties
+- Shift scheduling
+- Attendance tracking
+- Payroll management
+- Salary calculation
+
+### 📊 Reports & Analytics
+- Financial reports (PDF/Excel)
+- Appointment statistics
+- Patient demographics
+- Medicine usage reports
+- Revenue analytics
+
+### 📧 Notifications
+- Email notifications (Nodemailer)
+- In-app notifications
+- Appointment reminders
+- System alerts
+
+## 🛠 Tech Stack
+
+### Core Framework
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| **Node.js** | 18+ | Runtime Environment |
+| **Express.js** | 5.2 | Web Framework |
+| **TypeScript** | 5.9 | Type Safety |
+
+### Database & ORM
+| Technology | Purpose |
+|------------|---------|
+| **MySQL** | Primary Database |
+| **Sequelize** | ORM & Migrations |
+| **Redis (ioredis)** | Caching & Sessions |
+
+### Security
+| Technology | Purpose |
+|------------|---------|
+| **JWT** | Token Authentication |
+| **bcrypt** | Password Hashing |
+| **Helmet** | Security Headers |
+| **express-rate-limit** | Rate Limiting |
+| **Passport.js** | OAuth Strategies |
+
+### Documentation & Export
+| Technology | Purpose |
+|------------|---------|
+| **PDFKit** | PDF Generation |
+| **ExcelJS** | Excel Export |
+| **Chart.js** | Chart Generation |
+
+### Utilities
+| Technology | Purpose |
+|------------|---------|
+| **Nodemailer** | Email Service |
+| **Winston** | Logging |
+| **Morgan** | HTTP Logging |
+| **node-cron** | Scheduled Jobs |
+| **Multer** | File Uploads |
+
+### Testing
+| Technology | Purpose |
+|------------|---------|
+| **Jest** | Testing Framework |
+| **Supertest** | HTTP Testing |
+| **ts-jest** | TypeScript Support |
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Node.js** >= 18.x
+- **MySQL** >= 8.0
+- **Redis** (optional, for caching)
+- **npm** >= 9.x
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/QLBV/Backend.git
+   cd Backend
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Environment Setup**
+   
+   Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Configure your `.env` file:
+   ```env
+   # Server
+   PORT=3000
+   NODE_ENV=development
+   
+   # Database
+   DB_HOST=localhost
+   DB_PORT=3306
+   DB_NAME=healos_db
+   DB_USER=root
+   DB_PASSWORD=your_password
+   
+   # JWT
+   JWT_SECRET=your_super_secret_key
+   JWT_EXPIRES_IN=1d
+   JWT_REFRESH_SECRET=your_refresh_secret
+   JWT_REFRESH_EXPIRES_IN=7d
+   
+   # Email (SMTP)
+   MAIL_HOST=smtp.gmail.com
+   MAIL_PORT=587
+   MAIL_USER=your_email@gmail.com
+   MAIL_PASS=your_app_password
+   
+   # Google OAuth
+   GOOGLE_CLIENT_ID=your_google_client_id
+   GOOGLE_CLIENT_SECRET=your_google_client_secret
+   
+   # Redis (optional)
+   REDIS_HOST=localhost
+   REDIS_PORT=6379
+   
+   # Frontend URL
+   FRONTEND_URL=http://localhost:5173
+   ```
+
+4. **Database Setup**
+   
+   Create the database:
+   ```bash
+   mysql -u root -p -e "CREATE DATABASE healos_db;"
+   ```
+   
+   Run migrations:
+   ```bash
+   npx sequelize-cli db:migrate
+   ```
+   
+   Seed initial data:
+   ```bash
+   npx sequelize-cli db:seed:all
+   ```
+   
+   (Optional) Seed large sample data for testing:
+   ```bash
+   npm run seed:data
+   ```
+
+5. **Start Development Server**
+   ```bash
+   npm run dev
+   ```
+   
+   The API will be available at `http://localhost:3000`
+
+### Build for Production
 
 ```bash
-# 1. Cài đặt dependencies
-npm install
-
-# 2. Tạo database MySQL
-mysql -u root -p
-CREATE DATABASE healthcare_db;
-
-# 3. Copy và cấu hình .env
-cp .env.example .env
-# Sửa các biến trong .env
-
-# 4. Chạy migration & seed
-npx sequelize-cli db:migrate
-npx sequelize-cli db:seed:all
-
-# 5. Khởi động server
-npm run dev
-# Server chạy tại http://localhost:3000
-```
-
-👉 **Chi tiết**: Xem [docs/QUICK-START.md](./docs/QUICK-START.md)
-
----
-
-## 🛠️ Tech Stack
-
-| Công nghệ | Version | Mục đích |
-|-----------|---------|----------|
-| **Node.js** | >= 18.x | Runtime environment |
-| **TypeScript** | 5.x | Type safety |
-| **Express.js** | 4.x | Web framework |
-| **MySQL** | 8.x | Database |
-| **Sequelize** | 6.x | ORM |
-| **JWT** | - | Authentication |
-| **Nodemailer** | - | Email service |
-| **EventEmitter** | Node.js built-in | Event system |
-
----
-
-## 📚 Tài liệu
-
-### **Bắt đầu**
-- 📘 [Quick Start Guide](./docs/QUICK-START.md) - Cài đặt trong 5 phút
-- 📗 [API Testing](./docs/API-TESTING.md) - Hướng dẫn test API chi tiết
-
-### **Chức năng nâng cao**
-- 🔄 [Reschedule System](./docs/RESCHEDULE-SYSTEM.md) - Logic chuyển lịch tự động
-- 📧 [Notification System](./docs/NOTIFICATION-SYSTEM.md) - Email & In-app notifications
-
-### **Kỹ thuật**
-- 🗄️ [Database Schema](./docs/DATABASE-SCHEMA.md) - Sơ đồ database đầy đủ
-- 📝 [Changelog](./CHANGELOG.md) - Lịch sử thay đổi
-
----
-
-## 📂 Cấu trúc dự án
-
-```
-Backend/
-├── src/
-│   ├── controllers/          # Request handlers
-│   │   ├── appointment.controller.ts
-│   │   ├── doctorShiftReschedule.controller.ts ⭐
-│   │   └── notification.controller.ts ⭐
-│   ├── services/             # Business logic
-│   │   ├── appointmentReschedule.service.ts ⭐
-│   │   ├── notification.service.ts ⭐
-│   │   └── email.service.ts ⭐
-│   ├── models/               # Sequelize models
-│   │   ├── DoctorShift.ts (updated) ⭐
-│   │   └── Notification.ts ⭐
-│   ├── routes/               # API routes
-│   │   ├── doctorShift.routes.ts (updated)
-│   │   └── notification.routes.ts ⭐
-│   ├── events/               # Event emitters ⭐
-│   │   └── appointmentEvents.ts
-│   ├── templates/            # Email templates ⭐
-│   │   └── emailTemplates.ts
-│   ├── middlewares/          # Auth, validation, etc.
-│   ├── config/               # Configuration
-│   └── constant/             # Constants & enums
-├── migrations/               # Database migrations
-│   ├── ...existing migrations
-│   ├── 20251225175542-add-status-to-doctor-shifts.js ⭐
-│   └── 20251225182320-create-notifications.js ⭐
-├── seeders/                  # Database seeders
-├── docs/                     # Documentation ⭐
-│   ├── README.md
-│   ├── QUICK-START.md
-│   ├── API-TESTING.md
-│   ├── RESCHEDULE-SYSTEM.md
-│   ├── NOTIFICATION-SYSTEM.md
-│   └── DATABASE-SCHEMA.md
-└── uploads/                  # File uploads
-
-⭐ = Files mới thêm/sửa đổi trong v1.0.0
-```
-
----
-
-## 🔧 Running the Application
-
-### **Development**
-```bash
-npm run dev          # Khởi động dev server (nodemon + ts-node)
-```
-
-### **Production**
-```bash
-npm run build        # Build TypeScript → JavaScript
-npm start            # Chạy production build
-```
-
-### **Database**
-```bash
-# Migration
-npx sequelize-cli db:migrate                # Chạy tất cả migrations
-npx sequelize-cli db:migrate:undo           # Rollback 1 migration
-
-# Seeding
-npx sequelize-cli db:seed:all               # Chạy tất cả seeders
-npx sequelize-cli db:seed:undo:all          # Xóa seed data
-
-# Reset database
-npx sequelize-cli db:migrate:undo:all && \
-npx sequelize-cli db:migrate && \
-npx sequelize-cli db:seed:all
-```
-
-### **TypeScript**
-```bash
-npx tsc --noEmit     # Check TypeScript errors
-```
-
----
-
-## 🧪 Testing
-
-### **Test API với curl**
-```bash
-# Health check
-curl http://localhost:3000
-
-# Login
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"admin123"}'
-
-# Test với token
-curl http://localhost:3000/api/doctors \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-### **Test với Postman/Thunder Client**
-Import collection từ `docs/API-TESTING.md`
-
----
-
-## 📊 API Endpoints
-
-### **Authentication**
-- `POST /api/auth/login` - Đăng nhập
-- `POST /api/auth/register` - Đăng ký
-
-### **Doctors & Shifts**
-- `GET /api/doctors` - Lấy danh sách bác sĩ
-- `POST /api/doctors` - Tạo bác sĩ (Admin)
-- `POST /api/doctor-shifts` - Gán bác sĩ vào ca (Admin)
-- `GET /api/doctor-shifts/on-duty` - Xem bác sĩ trực (Public)
-
-### **Reschedule** ⭐ NEW
-- `GET /api/doctor-shifts/:id/reschedule-preview` - Preview reschedule
-- `POST /api/doctor-shifts/:id/cancel-and-reschedule` - Hủy ca + reschedule
-- `POST /api/doctor-shifts/:id/restore` - Khôi phục ca đã hủy
-
-### **Appointments**
-- `POST /api/appointments` - Đặt lịch khám
-- `GET /api/appointments` - Xem lịch hẹn
-- `DELETE /api/appointments/:id` - Hủy lịch hẹn
-
-### **Notifications** ⭐ NEW
-- `GET /api/notifications` - Lấy danh sách thông báo
-- `GET /api/notifications/unread-count` - Đếm số chưa đọc
-- `PUT /api/notifications/:id/mark-read` - Đánh dấu đã đọc
-- `PUT /api/notifications/mark-all-read` - Đánh dấu tất cả đã đọc
-
-👉 **Full API docs**: [docs/API-TESTING.md](./docs/API-TESTING.md)
-
----
-
-## ⚙️ Configuration (.env)
-
-```env
-# Database
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=healthcare_db
-DB_USER=root
-DB_PASSWORD=root
-
-# JWT
-JWT_SECRET=your-secret-key-here
-JWT_EXPIRES_IN=7d
-
-# Email (Gmail SMTP) ⭐ NEW
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASSWORD=your-app-password  # App Password, không phải password Gmail
-
-# Server
-PORT=3000
-NODE_ENV=development
-CORS_ORIGIN=*
-```
-
-⚠️ **Lưu ý Email**: Phải tạo App Password từ Google Account, không dùng password thường.
-
----
-
-## 📧 Email Templates Preview
-
-### **1. Appointment Confirmation**
-![Confirmation Email](https://via.placeholder.com/600x400/667eea/ffffff?text=Appointment+Confirmation)
-- Gradient purple header
-- Info box với chi tiết lịch hẹn
-- Responsive design
-
-### **2. Appointment Cancellation**
-![Cancellation Email](https://via.placeholder.com/600x400/f5576c/ffffff?text=Appointment+Cancelled)
-- Gradient pink-red header
-- Warning box
-- Lý do hủy
-
-### **3. Doctor Changed**
-![Doctor Changed Email](https://via.placeholder.com/600x400/ffa751/ffffff?text=Doctor+Changed)
-- Gradient yellow-orange header
-- Bác sĩ cũ (gạch ngang) vs Bác sĩ mới (màu xanh)
-- Success box: Lịch hẹn vẫn giữ nguyên
-
----
-
-## 🎯 Use Cases
-
-### **Kịch bản 1: Bệnh nhân đặt lịch khám**
-```
-1. Bệnh nhân login
-2. Xem bác sĩ trực trong ngày
-3. Đặt lịch khám
-→ ✅ Lịch được tạo
-→ 📧 Email xác nhận gửi tự động
-→ 🔔 Notification in-app
-```
-
-### **Kịch bản 2: Admin hủy ca bác sĩ**
-```
-1. Admin preview reschedule
-2. Admin confirm hủy ca
-→ 🔍 Hệ thống tìm bác sĩ thay thế cùng chuyên khoa
-→ 🔄 Tự động chuyển TẤT CẢ lịch hẹn sang bác sĩ mới
-→ 📧 Gửi email cho TẤT CẢ bệnh nhân bị ảnh hưởng
-→ 🔔 Tạo notifications
-```
-
-👉 **Chi tiết**: [docs/RESCHEDULE-SYSTEM.md](./docs/RESCHEDULE-SYSTEM.md)
-
----
-
-## 🤝 Contributing
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📝 License
-
-MIT License - Copyright (c) 2025 Healthcare Management System
-
----
-
-## 👥 Team
-
-Healthcare Management System Development Team
-
----
-
-## 📞 Support
-
-- 📖 Documentation: [./docs](./docs)
-- 🐛 Issues: [GitHub Issues](https://github.com/your-repo/issues)
-- 📧 Email: support@healthcare.com
-
----
-
-**Version**: 1.0.0 | **Last Updated**: 25/12/2025 | **Status**: ✅ Production Ready
-
-# Production mode
+npm run build
 npm start
 ```
 
-## Environment Variables
+## 📁 Project Structure
 
-See `.env.example` for all required environment variables
+```
+src/
+├── config/              # Configuration files
+│   ├── database.ts      # Database connection
+│   ├── passport.ts      # OAuth strategies
+│   └── redis.ts         # Redis connection
+├── constant/            # Application constants
+├── controllers/         # Route controllers
+│   ├── auth.controller.ts
+│   ├── appointment.controller.ts
+│   ├── patient.controller.ts
+│   └── ...
+├── events/              # Event emitters
+├── jobs/                # Scheduled cron jobs
+├── middlewares/         # Express middlewares
+│   ├── auth.middleware.ts
+│   ├── validate.middleware.ts
+│   └── ...
+├── models/              # Sequelize models
+│   ├── User.ts
+│   ├── Patient.ts
+│   ├── Doctor.ts
+│   └── ...
+├── routes/              # API routes
+│   ├── auth.routes.ts
+│   ├── patient.routes.ts
+│   └── ...
+├── services/            # Business logic
+│   ├── auth.service.ts
+│   ├── email.service.ts
+│   ├── reportPDF.service.ts
+│   └── ...
+├── templates/           # Email templates
+├── tests/               # Test files
+├── types/               # TypeScript definitions
+├── utils/               # Utility functions
+├── app.ts               # Express app setup
+└── server.ts            # Server entry point
+
+migrations/              # Database migrations
+seeders/                 # Database seeders
+uploads/                 # File uploads directory
+logs/                    # Application logs
+postman/                 # Postman collections
+```
+
+## 📡 API Reference
+
+### Base URL
+```
+http://localhost:3000/api
+```
+
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/register` | Register new user |
+| `POST` | `/auth/login` | User login |
+| `POST` | `/auth/refresh` | Refresh access token |
+| `POST` | `/auth/forgot-password` | Request password reset |
+| `POST` | `/auth/reset-password` | Reset password |
+| `GET` | `/oauth/google` | Google OAuth login |
+
+### Users
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/users` | Get all users |
+| `GET` | `/users/:id` | Get user by ID |
+| `POST` | `/users` | Create user |
+| `PUT` | `/users/:id` | Update user |
+| `DELETE` | `/users/:id` | Delete user |
+
+### Patients
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/patients` | Get all patients |
+| `GET` | `/patients/:id` | Get patient by ID |
+| `GET` | `/patients/:id/visits` | Get patient visits |
+| `GET` | `/patients/:id/prescriptions` | Get patient prescriptions |
+| `PUT` | `/patients/:id` | Update patient |
+
+### Appointments
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/appointments` | Get all appointments |
+| `GET` | `/appointments/:id` | Get appointment by ID |
+| `POST` | `/appointments` | Create appointment |
+| `PUT` | `/appointments/:id` | Update appointment |
+| `PATCH` | `/appointments/:id/status` | Update status |
+| `DELETE` | `/appointments/:id` | Cancel appointment |
+
+### Prescriptions
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/prescriptions` | Get all prescriptions |
+| `GET` | `/prescriptions/:id` | Get prescription by ID |
+| `POST` | `/prescriptions` | Create prescription |
+| `PUT` | `/prescriptions/:id` | Update prescription |
+| `POST` | `/prescriptions/:id/lock` | Lock prescription |
+| `GET` | `/prescriptions/:id/pdf` | Export as PDF |
+
+### Invoices
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/invoices` | Get all invoices |
+| `GET` | `/invoices/:id` | Get invoice by ID |
+| `POST` | `/invoices` | Create invoice |
+| `PUT` | `/invoices/:id` | Update invoice |
+| `POST` | `/invoices/:id/payments` | Add payment |
+| `GET` | `/invoices/:id/pdf` | Export as PDF |
+
+### Medicines
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/medicines` | Get all medicines |
+| `GET` | `/medicines/:id` | Get medicine by ID |
+| `POST` | `/medicines` | Create medicine |
+| `PUT` | `/medicines/:id` | Update medicine |
+| `DELETE` | `/medicines/:id` | Delete medicine |
+| `GET` | `/medicines/low-stock` | Get low stock items |
+
+### Reports
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/reports/financial` | Financial report |
+| `GET` | `/reports/financial/pdf` | Export PDF |
+| `GET` | `/reports/financial/excel` | Export Excel |
+| `GET` | `/reports/appointments` | Appointment stats |
+| `GET` | `/reports/patient-statistics` | Patient demographics |
+
+### Dashboard
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/dashboard/admin` | Admin dashboard data |
+| `GET` | `/dashboard/doctor` | Doctor dashboard data |
+| `GET` | `/dashboard/receptionist` | Receptionist data |
+
+## 🗄️ Database
+
+### Entity Relationship
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│    User     │────▶│   Patient   │────▶│    Visit    │
+└─────────────┘     └─────────────┘     └─────────────┘
+       │                   │                   │
+       │                   │                   ▼
+       ▼                   │           ┌─────────────┐
+┌─────────────┐            │           │ Prescription│
+│   Doctor    │            │           └─────────────┘
+└─────────────┘            │                   │
+       │                   │                   ▼
+       ▼                   │           ┌─────────────┐
+┌─────────────┐            └──────────▶│   Invoice   │
+│ DoctorShift │                        └─────────────┘
+└─────────────┘
+```
+
+### Main Models
+- **User** - Base user account
+- **Patient** - Patient profiles
+- **Doctor** - Doctor profiles & specialties
+- **Appointment** - Booking records
+- **Visit** - Medical visits & examinations
+- **Prescription** - Medicine prescriptions
+- **Invoice** - Billing & payments
+- **Medicine** - Pharmacy inventory
+- **DoctorShift** - Scheduling
+- **Attendance** - Employee attendance
+- **Payroll** - Salary management
+
+## 📜 Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server (nodemon) |
+| `npm run build` | Compile TypeScript |
+| `npm start` | Start production server |
+| `npm test` | Run all tests |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run test:coverage` | Generate coverage report |
+| `npm run seed:data` | Seed database with large sample data (Warning: Truncates existing data) |
+
+## 🔒 Security Best Practices
+
+- ✅ JWT tokens with expiration
+- ✅ Password hashing with bcrypt (salt rounds: 10)
+- ✅ Rate limiting on sensitive endpoints
+- ✅ CORS whitelist configuration
+- ✅ Helmet.js security headers
+- ✅ Input validation with express-validator
+- ✅ SQL injection prevention via Sequelize ORM
+- ✅ Environment variables for secrets
+
+## 📝 Logging
+
+Winston logger with multiple transports:
+- Console (development)
+- File rotation (production)
+- Error-specific log files
+
+Log files location: `./logs/`
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'feat: Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+### Commit Convention
+```
+feat: New feature
+fix: Bug fix
+docs: Documentation
+refactor: Code refactoring
+test: Testing
+chore: Maintenance
+```
+
+## 📄 License
+
+This project is proprietary software. All rights reserved.
+
+## 👥 Team
+
+Developed with ❤️ by the HEALOS Development Team
+
+---
+
+<div align="center">
+
+**[⬆ Back to Top](#-healos-backend-api)**
+
+</div>

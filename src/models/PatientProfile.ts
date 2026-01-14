@@ -60,6 +60,36 @@ PatientProfile.init(
     tableName: "patient_profiles",
     timestamps: true,
     underscored: true,
+    hooks: {
+      afterUpdate: async (profile: PatientProfile, options: any) => {
+        if (options.syncing) return;
+        if (profile.type === 'phone' || profile.type === 'address') {
+          const Patient = sequelize.models.Patient;
+          const patient: any = await Patient.findByPk(profile.patientId);
+          if (patient && patient.userId) {
+            const Employee = sequelize.models.Employee;
+            if (Employee) {
+              const field = profile.type === 'phone' ? 'phone' : 'address';
+              await Employee.update({ [field]: profile.value }, { where: { userId: patient.userId }, hooks: false } as any);
+            }
+          }
+        }
+      },
+      afterCreate: async (profile: PatientProfile, options: any) => {
+        if (options.syncing) return;
+        if (profile.type === 'phone' || profile.type === 'address') {
+          const Patient = sequelize.models.Patient;
+          const patient: any = await Patient.findByPk(profile.patientId);
+          if (patient && patient.userId) {
+            const Employee = sequelize.models.Employee;
+            if (Employee) {
+              const field = profile.type === 'phone' ? 'phone' : 'address';
+              await Employee.update({ [field]: profile.value }, { where: { userId: patient.userId }, hooks: false } as any);
+            }
+          }
+        }
+      }
+    }
   }
 );
 

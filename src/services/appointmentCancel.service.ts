@@ -2,6 +2,8 @@ import Appointment from "../models/Appointment";
 import Shift from "../models/Shift";
 import { BOOKING_CONFIG } from "../config/booking.config";
 import { RoleCode } from "../constant/role";
+import { AppointmentStateMachine } from "../utils/stateMachine";
+import { AppointmentStatus } from "../constant/appointment";
 
 function buildAppointmentTime(
   date: string,
@@ -24,7 +26,12 @@ export const cancelAppointmentService = async (input: {
 }) => {
   const appt = await Appointment.findByPk(input.appointmentId);
   if (!appt) throw new Error("APPOINTMENT_NOT_FOUND");
-  if (appt.status !== "WAITING") throw new Error("APPOINTMENT_NOT_WAITING");
+
+  // STATE MACHINE: Validate transition from current status to CANCELLED
+  AppointmentStateMachine.validateTransition(
+    appt.status as AppointmentStatus,
+    AppointmentStatus.CANCELLED
+  );
 
   // Patient chỉ hủy lịch của chính mình
   if (input.requesterRole === RoleCode.PATIENT) {
@@ -52,7 +59,8 @@ export const cancelAppointmentService = async (input: {
 
   if (new Date() > cancelDeadline) throw new Error("CANCEL_TOO_LATE");
 
-  appt.status = "CANCELLED";
+  // STATE MACHINE: Status transition validated above, now apply it
+  appt.status = AppointmentStatus.CANCELLED;
   await appt.save();
   return appt;
 };

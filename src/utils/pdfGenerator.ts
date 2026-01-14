@@ -1,286 +1,389 @@
 import PDFDocument from "pdfkit";
-import { Readable } from "stream";
-import {
-  signPrescription,
-  generatePrescriptionSignatureData,
-} from "./digitalSignature";
-
-interface PrescriptionData {
-  prescriptionCode: string;
-  patientName: string;
-  patientPhone: string;
-  patientAge?: number;
-  doctorName: string;
-  doctorSpecialty: string;
-  visitDate: Date;
-  diagnosis?: string;
-  symptoms?: string;
-  diseaseCategory?: string;
-  medicines: {
-    medicineName: string;
-    quantity: number;
-    unit: string;
-    unitPrice: number;
-    dosageMorning: number;
-    dosageNoon: number;
-    dosageAfternoon: number;
-    dosageEvening: number;
-    instruction?: string;
-  }[];
-  totalAmount: number;
-  note?: string;
-  createdAt: Date;
-}
+import { Response } from "express";
+import { createVietnamesePDF } from "./pdfFontHelper";
 
 /**
- * Generate prescription PDF with digital signature
- * @param prescription - Prescription data
- * @param doctorPrivateKey - Doctor's private key for signing (optional)
- * @returns PDF as Buffer
+ * Format số tiền VND
  */
-export const generatePrescriptionPDF = async (
-  prescription: PrescriptionData,
-  doctorPrivateKey?: string
-): Promise<Buffer> => {
-  return new Promise((resolve, reject) => {
-    try {
-      const doc = new PDFDocument({
-        size: "A4",
-        margins: { top: 50, bottom: 50, left: 50, right: 50 },
+export const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(amount);
+};
+
+/**
+ * Format ngày tháng
+ */
+export const formatDate = (date: Date | string): string => {
+  const d = new Date(date);
+  return d.toLocaleDateString("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+};
+
+/**
+ * Format ngày giờ đầy đủ
+ */
+export const formatDateTime = (date: Date | string): string => {
+  const d = new Date(date);
+  return d.toLocaleString("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+/**
+ * Tạo PDF header với logo và thông tin phòng khám
+ */
+export const addPDFHeader = (
+  doc: PDFKit.PDFDocument,
+  title: string,
+  fonts?: { regular: string; bold: string } | null
+): void => {
+  const regularFont = fonts?.regular ?? "Helvetica";
+  const boldFont = fonts?.bold ?? "Helvetica-Bold";
+
+  const startY = 50;
+  
+  // Left side: Clinic Info
+  doc
+    .fontSize(10)
+    .font(boldFont)
+    .text("HỆ THỐNG QUẢN LÝ PHÒNG KHÁM", 50, startY, { align: "left", width: 250 });
+  
+  doc
+    .fontSize(9)
+    .font(regularFont)
+    .text("Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM", 50, startY + 15, { align: "left", width: 250 });
+  
+  doc.text("SĐT: (028) 1234 5678", 50, startY + 30, { align: "left", width: 250 });
+
+  // Right side: National Motto
+  doc
+    .fontSize(10)
+    .font(boldFont)
+    .text("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", 300, startY, { align: "center", width: 250 });
+  
+  doc
+    .fontSize(10)
+    .font(boldFont)
+    .text("Độc lập - Tự do - Hạnh phúc", 300, startY + 15, { align: "center", width: 250 });
+  
+  const lineY = startY + 28;
+  doc
+    .moveTo(370, lineY)
+    .lineTo(480, lineY)
+    .lineWidth(0.5)
+    .stroke();
+
+  doc.moveDown(3);
+  doc
+    .fontSize(16)
+    .font(boldFont)
+    .fillColor("#000000")
+    .text(title.toUpperCase(), 50, doc.y, { align: "center" });
+
+  doc.moveDown(1);
+};
+
+/**
+ * Tạo PDF footer với số trang
+ */
+export const addPDFFooter = (
+  doc: PDFKit.PDFDocument,
+  pageNumber: number,
+  fonts?: { regular: string; bold: string } | null
+): void => {
+  const regularFont = fonts?.regular ?? "Helvetica";
+  const bottomY = doc.page.height - 50;
+
+  doc
+    .fontSize(8)
+    .font(regularFont)
+    .text(
+      `Trang ${pageNumber} - In lúc ${formatDateTime(new Date())}`,
+      50,
+      bottomY,
+      {
+        align: "center",
+        width: doc.page.width - 100,
+      }
+    );
+};
+
+/**
+ * Vẽ bảng với borders
+ */
+export const drawTable = (
+  doc: PDFKit.PDFDocument,
+  headers: string[],
+  rows: string[][],
+  columnWidths: number[],
+  startY: number,
+  fonts?: { regular: string; bold: string } | null
+): number => {
+  const regularFont = fonts?.regular ?? "Helvetica";
+  const boldFont = fonts?.bold ?? "Helvetica-Bold";
+  const startX = 50;
+  const rowHeight = 25;
+  let currentY = startY;
+
+  // Header background
+  doc.rect(startX, currentY, columnWidths.reduce((a, b) => a + b, 0), rowHeight).fill("#4A90E2");
+
+  // Header text
+  doc.fontSize(10).font(boldFont).fillColor("#FFFFFF");
+  let currentX = startX;
+  headers.forEach((header, i) => {
+    doc.text(header, currentX + 5, currentY + 7, {
+      width: columnWidths[i] - 10,
+      align: "center",
+    });
+    currentX += columnWidths[i];
+  });
+
+  currentY += rowHeight;
+
+  // Rows
+  doc.fillColor("#000000").font(regularFont);
+  rows.forEach((row, rowIndex) => {
+    currentX = startX;
+
+    // Alternate row colors
+    if (rowIndex % 2 === 0) {
+      doc
+        .rect(startX, currentY, columnWidths.reduce((a, b) => a + b, 0), rowHeight)
+        .fill("#F5F5F5");
+    }
+
+    doc.fillColor("#000000");
+    row.forEach((cell, i) => {
+      doc.fontSize(9).text(cell, currentX + 5, currentY + 7, {
+        width: columnWidths[i] - 10,
+        align: i === 0 ? "left" : "right",
       });
+      currentX += columnWidths[i];
+    });
 
-      const chunks: Buffer[] = [];
+    // Draw row borders
+    currentX = startX;
+    columnWidths.forEach((width) => {
+      doc
+        .rect(currentX, currentY, width, rowHeight)
+        .stroke("#CCCCCC");
+      currentX += width;
+    });
 
-      doc.on("data", (chunk) => chunks.push(chunk));
-      doc.on("end", () => resolve(Buffer.concat(chunks)));
+    currentY += rowHeight;
+  });
+
+  return currentY;
+};
+
+/**
+ * Setup PDF response headers
+ */
+export const setupPDFResponse = (
+  res: Response,
+  filename: string
+): { doc: PDFKit.PDFDocument; fonts: { regular: string; bold: string } | null } => {
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
+
+  const { doc, fonts } = createVietnamesePDF({
+    size: "A4",
+    margin: 50,
+    info: {
+      Title: filename,
+      Author: "Healthcare System",
+    },
+  });
+
+  doc.pipe(res);
+  return { doc, fonts };
+};
+
+/**
+ * Generate prescription PDF as buffer (Medical Examination Form - No Prices)
+ */
+export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Import medical PDF template
+      const {
+        createMedicalPDF,
+        drawMedicalHeader,
+        drawMedicalFooter,
+        drawInfoBox,
+        drawSectionHeader,
+        drawNoteBox,
+        drawSignatureSection,
+        drawMetadataBox,
+        SPACING,
+      } = await import("./medicalPDFTemplate");
+      const { setFont } = await import("./pdfFontHelper");
+
+      // Create PDF with Vietnamese font support
+      const { doc, fonts } = createMedicalPDF("PHIẾU KHÁM BỆNH");
+
+      const buffers: Buffer[] = [];
+      doc.on("data", buffers.push.bind(buffers));
+      doc.on("end", () => resolve(Buffer.concat(buffers)));
       doc.on("error", reject);
 
       // Header
-      doc
-        .fontSize(20)
-        .font("Helvetica-Bold")
-        .text("ĐƠN THUỐC / PRESCRIPTION", { align: "center" });
-
-      doc.moveDown(0.5);
-
-      // Prescription Code & Date
-      doc
-        .fontSize(10)
-        .font("Helvetica")
-        .text(`Mã đơn thuốc: ${prescription.prescriptionCode}`, {
-          align: "right",
-        });
-      doc.text(
-        `Ngày kê: ${new Date(prescription.createdAt).toLocaleDateString("vi-VN")}`,
-        { align: "right" }
+      drawMedicalHeader(
+        doc,
+        fonts,
+        {
+          clinicName: "HỆ THỐNG QUẢN LÝ PHÒNG KHÁM",
+          address: "Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM",
+          phone: "(028) 1234 5678",
+          email: "info@clinic.com",
+        },
+        "PHIẾU KHÁM BỆNH"
       );
 
-      doc.moveDown(1);
+      // Metadata (Prescription Code and Date)
+      drawMetadataBox(
+        doc,
+        fonts,
+        "Mã phiếu",
+        pdfData.prescriptionCode,
+        "Ngày khám",
+        formatDate(pdfData.createdAt)
+      );
 
-      // Doctor Information
-      doc.fontSize(12).font("Helvetica-Bold").text("THÔNG TIN BÁC SĨ");
-      doc
-        .fontSize(10)
-        .font("Helvetica")
-        .text(`Bác sĩ: ${prescription.doctorName}`);
-      doc.text(`Chuyên khoa: ${prescription.doctorSpecialty}`);
+      // Patient Info
+      const patientItems = [
+        { label: "Họ và tên", value: pdfData.patientName || "N/A" },
+        { label: "Số điện thoại", value: pdfData.patientPhone || "N/A" },
+      ];
 
-      doc.moveDown(1);
-
-      // Patient Information
-      doc.fontSize(12).font("Helvetica-Bold").text("THÔNG TIN BỆNH NHÂN");
-      doc
-        .fontSize(10)
-        .font("Helvetica")
-        .text(`Họ tên: ${prescription.patientName}`);
-      doc.text(`Số điện thoại: ${prescription.patientPhone}`);
-      if (prescription.patientAge) {
-        doc.text(`Tuổi: ${prescription.patientAge}`);
+      if (pdfData.patientGender) {
+        const genderLabel = pdfData.patientGender === "MALE" ? "Nam" : (pdfData.patientGender === "FEMALE" ? "Nữ" : "Khác");
+        patientItems.push({ label: "Giới tính", value: genderLabel });
       }
 
-      doc.moveDown(1);
-
-      // Medical Information
-      doc.fontSize(12).font("Helvetica-Bold").text("THÔNG TIN KHÁM BỆNH");
-      if (prescription.symptoms) {
-        doc
-          .fontSize(10)
-          .font("Helvetica")
-          .text(`Triệu chứng: ${prescription.symptoms}`);
-      }
-      if (prescription.diagnosis) {
-        doc.text(`Chẩn đoán: ${prescription.diagnosis}`);
-      }
-      if (prescription.diseaseCategory) {
-        doc.text(`Loại bệnh: ${prescription.diseaseCategory}`);
+      if (pdfData.patientAge) {
+        patientItems.push({ label: "Tuổi", value: `${pdfData.patientAge} tuổi` });
       }
 
-      doc.moveDown(1);
+      if (pdfData.patientAddress && pdfData.patientAddress !== "N/A") {
+        patientItems.push({ label: "Địa chỉ", value: pdfData.patientAddress });
+      }
 
-      // Medicines Table
-      doc.fontSize(12).font("Helvetica-Bold").text("ĐƠN THUỐC");
-      doc.moveDown(0.5);
+      drawInfoBox(doc, fonts, "THÔNG TIN BỆNH NHÂN", patientItems);
 
-      const tableTop = doc.y;
-      let currentY = tableTop;
+      // Doctor Info
+      const doctorItems = [
+        { label: "Bác sĩ khám", value: pdfData.doctorName || "N/A" },
+        { label: "Chuyên khoa", value: pdfData.doctorSpecialty || "N/A" },
+      ];
 
-      // Table Header
-      doc
-        .fontSize(9)
-        .font("Helvetica-Bold")
-        .text("STT", 50, currentY, { width: 30 })
-        .text("Tên thuốc", 85, currentY, { width: 150 })
-        .text("SL", 240, currentY, { width: 30 })
-        .text("Sáng", 275, currentY, { width: 35 })
-        .text("Trưa", 315, currentY, { width: 35 })
-        .text("Chiều", 355, currentY, { width: 35 })
-        .text("Tối", 395, currentY, { width: 35 })
-        .text("Thành tiền", 435, currentY, { width: 80, align: "right" });
+      drawInfoBox(doc, fonts, "THÔNG TIN BÁC SĨ", doctorItems);
 
-      currentY += 20;
+      // Diagnosis Section
+      if (pdfData.diagnosis || pdfData.symptoms) {
+        drawSectionHeader(doc, fonts, "CHẨN ĐOÁN VÀ TRIỆU CHỨNG", "📋");
 
-      // Horizontal line
-      doc
-        .moveTo(50, currentY)
-        .lineTo(550, currentY)
-        .stroke();
+        setFont(doc, fonts, false);
+        doc.fontSize(10);
 
-      currentY += 10;
-
-      // Medicine rows
-      prescription.medicines.forEach((medicine, index) => {
-        const itemTotal = medicine.quantity * medicine.unitPrice;
-
-        doc
-          .fontSize(9)
-          .font("Helvetica")
-          .text(`${index + 1}`, 50, currentY, { width: 30 })
-          .text(
-            `${medicine.medicineName} (${medicine.unit})`,
-            85,
-            currentY,
-            { width: 150 }
-          )
-          .text(`${medicine.quantity}`, 240, currentY, { width: 30 })
-          .text(`${medicine.dosageMorning}`, 275, currentY, { width: 35 })
-          .text(`${medicine.dosageNoon}`, 315, currentY, { width: 35 })
-          .text(`${medicine.dosageAfternoon}`, 355, currentY, { width: 35 })
-          .text(`${medicine.dosageEvening}`, 395, currentY, { width: 35 })
-          .text(`${itemTotal.toLocaleString("vi-VN")} đ`, 435, currentY, {
-            width: 80,
-            align: "right",
+        if (pdfData.symptoms) {
+          setFont(doc, fonts, true);
+          doc.text("Triệu chứng:", SPACING.pageMargin, doc.y);
+          setFont(doc, fonts, false);
+          doc.text(pdfData.symptoms, SPACING.pageMargin + 10, doc.y, {
+            width: 495,
           });
-
-        currentY += 15;
-
-        // Instruction
-        if (medicine.instruction) {
-          doc
-            .fontSize(8)
-            .font("Helvetica-Oblique")
-            .text(`   ${medicine.instruction}`, 85, currentY, { width: 430 });
-          currentY += 12;
+          doc.moveDown(0.5);
         }
 
-        currentY += 5;
-      });
+        if (pdfData.diagnosis) {
+          setFont(doc, fonts, true);
+          doc.text("Chẩn đoán:", SPACING.pageMargin, doc.y);
+          setFont(doc, fonts, false);
+          doc.text(pdfData.diagnosis, SPACING.pageMargin + 10, doc.y, {
+            width: 495,
+          });
+          doc.moveDown(0.5);
+        }
 
-      // Total
-      currentY += 10;
-      doc
-        .moveTo(50, currentY)
-        .lineTo(550, currentY)
-        .stroke();
+        if (pdfData.diseaseCategory) {
+          setFont(doc, fonts, true);
+          doc.text("Nhóm bệnh:", SPACING.pageMargin, doc.y);
+          setFont(doc, fonts, false);
+          doc.text(pdfData.diseaseCategory, SPACING.pageMargin + 10, doc.y);
+        }
 
-      currentY += 10;
-
-      doc
-        .fontSize(11)
-        .font("Helvetica-Bold")
-        .text("TỔNG CỘNG:", 350, currentY)
-        .text(`${prescription.totalAmount.toLocaleString("vi-VN")} đ`, 435, currentY, {
-          width: 80,
-          align: "right",
-        });
-
-      currentY += 30;
-
-      // Note
-      if (prescription.note) {
-        doc
-          .fontSize(10)
-          .font("Helvetica-Bold")
-          .text("Ghi chú:", 50, currentY);
-        currentY += 15;
-        doc
-          .fontSize(9)
-          .font("Helvetica")
-          .text(prescription.note, 50, currentY, { width: 500 });
-        currentY += 30;
+        doc.moveDown(1);
       }
 
-      // Digital Signature
-      if (doctorPrivateKey) {
-        const signatureData = generatePrescriptionSignatureData({
-          prescriptionCode: prescription.prescriptionCode,
-          patientId: 0, // Will be filled from actual data
-          doctorId: 0, // Will be filled from actual data
-          totalAmount: prescription.totalAmount,
-          createdAt: prescription.createdAt,
+      // Medicine Prescription (WITHOUT PRICES)
+      if (pdfData.medicines && pdfData.medicines.length > 0) {
+        drawSectionHeader(doc, fonts, "ĐƠN THUỐC", "💊");
+
+        const { drawMedicineCard } = await import("./medicalPDFTemplate");
+
+        pdfData.medicines.forEach((medicine: any, index: number) => {
+          const dosage = [];
+          if (medicine.dosageMorning > 0) dosage.push(`Sáng: ${medicine.dosageMorning}`);
+          if (medicine.dosageNoon > 0) dosage.push(`Trưa: ${medicine.dosageNoon}`);
+          if (medicine.dosageAfternoon > 0) dosage.push(`Chiều: ${medicine.dosageAfternoon}`);
+          if (medicine.dosageEvening > 0) dosage.push(`Tối: ${medicine.dosageEvening}`);
+
+          drawMedicineCard(doc, fonts, {
+            index: index + 1,
+            name: medicine.medicineName,
+            quantity: medicine.quantity,
+            unit: medicine.unit,
+            dosage: dosage.join(", "),
+            days: medicine.days,
+            instruction: medicine.instruction,
+          });
         });
 
-        const signature = signPrescription(signatureData, doctorPrivateKey);
-
-        doc.moveDown(2);
-        doc
-          .fontSize(8)
-          .font("Helvetica-Oblique")
-          .text("Chữ ký số:", { align: "right" });
-        doc
-          .fontSize(7)
-          .text(signature.substring(0, 60) + "...", { align: "right" });
+        doc.moveDown(0.5);
       }
+
+      // Notes
+      if (pdfData.note) {
+        const notes = [pdfData.note];
+        drawNoteBox(doc, fonts, "LƯU Ý", notes, "⚠️");
+      }
+
+      // Standard medical notes
+      const standardNotes = [
+        "Uống thuốc đúng liều lượng, đúng giờ theo chỉ dẫn của bác sĩ",
+        "Bảo quản thuốc nơi khô ráo, tránh ánh nắng trực tiếp",
+        "Tái khám nếu có triệu chứng bất thường hoặc không đỡ sau 3-5 ngày",
+        "Liên hệ phòng khám ngay nếu có phản ứng phụ với thuốc",
+      ];
+      drawNoteBox(doc, fonts, "HƯỚNG DẪN SỬ DỤNG THUỐC", standardNotes, "ℹ️");
+
+      // Signature section
+      drawSignatureSection(
+        doc,
+        fonts,
+        "Bệnh nhân/Người nhà",
+        "Bác sĩ điều trị",
+        new Date(pdfData.createdAt)
+      );
 
       // Footer
-      doc.moveDown(2);
-      doc
-        .fontSize(10)
-        .font("Helvetica-Bold")
-        .text(
-          `Ngày ${new Date().getDate()} tháng ${new Date().getMonth() + 1} năm ${new Date().getFullYear()}`,
-          { align: "center" }
-        );
+      drawMedicalFooter(doc, fonts, 1, 1);
 
-      doc.moveDown(1);
-      doc.fontSize(10).font("Helvetica-Bold").text("BÁC SĨ KÊ ĐƠN", {
-        align: "center",
-      });
-
-      doc.moveDown(3);
-      doc.text(prescription.doctorName, { align: "center" });
-
-      // Finalize PDF
+      // Finalize
       doc.end();
     } catch (error) {
       reject(error);
     }
   });
-};
-
-/**
- * Generate PDF stream (for sending as response)
- */
-export const generatePrescriptionPDFStream = (
-  prescription: PrescriptionData,
-  doctorPrivateKey?: string
-): PDFKit.PDFDocument => {
-  const doc = new PDFDocument({
-    size: "A4",
-    margins: { top: 50, bottom: 50, left: 50, right: 50 },
-  });
-
-  // Same content generation as above
-  // (Implementation is identical to generatePrescriptionPDF but returns doc instead of Buffer)
-
-  return doc;
 };

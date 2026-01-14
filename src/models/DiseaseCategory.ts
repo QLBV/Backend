@@ -50,6 +50,7 @@ DiseaseCategory.init(
     sequelize,
     modelName: "DiseaseCategory",
     tableName: "disease_categories",
+    timestamps: true,
   }
 );
 

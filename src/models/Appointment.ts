@@ -6,6 +6,7 @@ import Shift from "./Shift";
 
 export default class Appointment extends Model {
   declare id: number;
+  declare appointmentCode: string;
   declare patientId: number;
   declare doctorId: number;
   declare shiftId: number;
@@ -14,15 +15,27 @@ export default class Appointment extends Model {
   declare bookingType: "ONLINE" | "OFFLINE";
   declare bookedBy: "PATIENT" | "RECEPTIONIST";
   declare symptomInitial?: string;
-  declare status: "WAITING" | "CANCELLED" | "CHECKED_IN";
+  declare status:
+    | "WAITING"
+    | "CHECKED_IN"
+    | "IN_PROGRESS"
+    | "COMPLETED"
+    | "CANCELLED"
+    | "NO_SHOW";
 }
 
 Appointment.init(
   {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    patientId: { type: DataTypes.INTEGER, allowNull: false },
-    doctorId: { type: DataTypes.INTEGER, allowNull: false },
-    shiftId: { type: DataTypes.INTEGER, allowNull: false },
+    id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+    appointmentCode: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      unique: true,
+      field: "appointmentCode",
+    },
+    patientId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    doctorId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    shiftId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
     date: { type: DataTypes.DATEONLY, allowNull: false },
     slotNumber: { type: DataTypes.INTEGER, allowNull: false },
     bookingType: {
@@ -35,23 +48,27 @@ Appointment.init(
     },
     symptomInitial: { type: DataTypes.TEXT },
     status: {
-      type: DataTypes.ENUM("WAITING", "CANCELLED", "CHECKED_IN"),
+      type: DataTypes.ENUM(
+        "WAITING",
+        "CHECKED_IN",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "CANCELLED",
+        "NO_SHOW"
+      ),
       defaultValue: "WAITING",
     },
   },
   {
     sequelize,
     tableName: "appointments",
+    timestamps: true,
     indexes: [
       {
         unique: true,
-        fields: ["doctorId", "shiftId", "date", "slotNumber"], // ❗ chặn trùng
+        fields: ["doctorId", "shiftId", "date", "slotNumber"],
+        name: "appointments_slot_unique",
       },
     ],
   }
 );
-
-// Associations
-Appointment.belongsTo(Patient, { foreignKey: "patientId" });
-Appointment.belongsTo(Doctor, { foreignKey: "doctorId" });
-Appointment.belongsTo(Shift, { foreignKey: "shiftId" });
