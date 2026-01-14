@@ -255,9 +255,6 @@ export const getRecordAuditTrail = async (
   });
 };
 
-/**
- * Get user activity
- */
 export const getUserActivity = async (
   userId: number,
   limit: number = 100
@@ -267,4 +264,17 @@ export const getUserActivity = async (
     order: [["timestamp", "DESC"]],
     limit,
   });
+};
+
+export const auditLogService = {
+  createAuditLog,
+  getRequestMetadata,
+  logCreate,
+  logUpdate,
+  logDelete,
+  logView,
+  logExport,
+  getAuditLogs,
+  getRecordAuditTrail,
+  getUserActivity,
 };

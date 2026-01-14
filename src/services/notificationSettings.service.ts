@@ -5,6 +5,8 @@ const DEFAULT_SETTINGS = {
   smsEnabled: false,
   pushEnabled: true,
   inAppEnabled: true,
+  appointmentReminders: true,
+  prescriptionReminders: true,
 };
 
 export const getNotificationSettingsService = async (userId: number) => {

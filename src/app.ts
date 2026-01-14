@@ -29,6 +29,8 @@ import { corsOptions } from "./config/cors.config";
 import passport from "./config/oauth.config";
 import auditLogRoutes from "./routes/auditLog.routes";
 import jobRoutes from "./routes/job.routes";
+import systemRoutes from "./routes/system.routes";
+import { checkMaintenance } from "./middlewares/maintenance.middlewares";
 
 const rateLimitWindowMsEnv = Number(process.env.RATE_LIMIT_WINDOW_MS);
 const rateLimitMaxEnv = Number(process.env.RATE_LIMIT_MAX_REQUESTS);
@@ -90,6 +92,10 @@ app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 // Khởi tạo Passport cho xác thực OAuth
 app.use(passport.initialize());
 
+// Middleware kiểm tra chế độ bảo trì
+// Đặt sau passport để có thể đọc thông tin user từ token
+app.use("/api", checkMaintenance);
+
 // Route kiểm tra sức khỏe hệ thống (Health Check)
 app.get("/", (req: Request, res: Response) => {
   res.json({
@@ -129,6 +135,8 @@ app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/jobs", jobRoutes);
+app.use("/api/contact", require("./routes/contact.routes").default);
+app.use("/api/system", systemRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {

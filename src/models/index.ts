@@ -39,6 +39,7 @@ import AuditLog from "./AuditLog";
 import Diagnosis from "./Diagnosis";
 import Refund from "./Refund";
 import Employee from "./Employee";
+import SystemSettings from "./SystemSettings";
 
 // Setup associations after all models are loaded
 import { setupAssociations } from "./associations";
@@ -76,4 +77,5 @@ export {
   Diagnosis,
   Refund,
   Employee,
+  SystemSettings,
 };

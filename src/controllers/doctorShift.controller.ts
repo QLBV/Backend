@@ -7,7 +7,7 @@ import Specialty from "../models/Specialty";
 import Employee from "../models/Employee";
 import { cancelDoctorShiftAndReschedule } from "../services/appointmentReschedule.service";
 import { assignDoctorToShiftService } from "../services/doctorShift.service";
-import { auditLogService } from "../services/auditLog.service";
+import * as auditLogService from "../services/auditLog.service";
 
 export const assignDoctorToShift = async (req: Request, res: Response) => {
   try {
@@ -44,7 +44,7 @@ export const assignDoctorToShift = async (req: Request, res: Response) => {
         shiftId: doctorShift.shiftId,
         workDate: doctorShift.workDate,
       })
-      .catch((err) => console.error("Failed to log audit:", err));
+      .catch((err: any) => console.error("Failed to log audit:", err));
 
     return res.status(201).json({
       success: true,

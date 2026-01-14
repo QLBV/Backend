@@ -8,6 +8,8 @@ interface NotificationSettingAttributes {
   smsEnabled: boolean;
   pushEnabled: boolean;
   inAppEnabled: boolean;
+  appointmentReminders: boolean; // Add this
+  prescriptionReminders: boolean; // Add this
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -15,7 +17,7 @@ interface NotificationSettingAttributes {
 interface NotificationSettingCreationAttributes
   extends Optional<
     NotificationSettingAttributes,
-    "id" | "emailEnabled" | "smsEnabled" | "pushEnabled" | "inAppEnabled"
+    "id" | "emailEnabled" | "smsEnabled" | "pushEnabled" | "inAppEnabled" | "appointmentReminders" | "prescriptionReminders"
   > {}
 
 class NotificationSetting
@@ -28,6 +30,8 @@ class NotificationSetting
   public smsEnabled!: boolean;
   public pushEnabled!: boolean;
   public inAppEnabled!: boolean;
+  public appointmentReminders!: boolean;
+  public prescriptionReminders!: boolean;
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -62,6 +66,16 @@ NotificationSetting.init(
       defaultValue: true,
     },
     inAppEnabled: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+    appointmentReminders: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+    prescriptionReminders: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true,

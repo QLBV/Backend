@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import sequelize from "../config/database";
 import { User, Role, Employee, Patient, Specialty } from "../models";
 import { Op } from "sequelize";
 import { RoleCode } from "../constant/role";
@@ -113,18 +114,21 @@ export const getUserById = async (req: Request, res: Response) => {
 };
 
 export const createUser = async (req: Request, res: Response) => {
+  const t = await sequelize.transaction();
   try {
     const { email, password, fullName, roleId, phone, gender, dateOfBirth, address, cccd } = req.body;
 
     if (!email || !password || !fullName || !roleId) {
+      await t.rollback();
       return res.status(400).json({
         success: false,
         message: "Email, password, fullName and roleId are required",
       });
     }
 
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({ where: { email }, transaction: t });
     if (existingUser) {
+      await t.rollback();
       return res.status(400).json({
         success: false,
         message: "Email already exists",
@@ -138,7 +142,7 @@ export const createUser = async (req: Request, res: Response) => {
       password: hashedPassword,
       fullName,
       roleId,
-    });
+    }, { transaction: t });
 
     // Create profile based on role
     const rid = Number(roleId);
@@ -155,27 +159,33 @@ export const createUser = async (req: Request, res: Response) => {
       
       const pos = rid === RoleCode.DOCTOR ? 'Bác sĩ' : (rid === RoleCode.RECEPTIONIST ? 'Lễ tân' : 'Quản trị viên');
       
+      // Handle optional unique fields: if empty string or undefined, use null to avoid unique constraint violation if DB supports it, or just let it be null.
+      // Sequelize treats undefined as "default value" or null.
+      // But empty string "" might be inserted as "" and cause collision if unique.
+      const safeCccd = cccd ? cccd : null;
+      const safePhone = phone ? phone : null;
+
       await Employee.create({
         userId: user.id,
         employeeCode,
         position: pos,
         joiningDate: new Date().toISOString().split('T')[0],
-        phone,
-        gender,
-        dateOfBirth,
-        address,
-        cccd
-      });
+        phone: safePhone,
+        gender: gender || null,
+        dateOfBirth: dateOfBirth || null,
+        address: address || null,
+        cccd: safeCccd
+      }, { transaction: t });
 
       // If it's a doctor, also create record in doctors table for compatibility
       if (rid === RoleCode.DOCTOR) {
-        const Doctor = require("../models/Doctor").default;
+        const Doctor = (await import("../models/Doctor")).default;
         await Doctor.create({
           userId: user.id,
           doctorCode: employeeCode,
           position: pos,
           description: ""
-        });
+        }, { transaction: t });
       }
     } else if (rid === RoleCode.PATIENT) {
       const patientCode = `PAT${idStr}`;
@@ -185,10 +195,12 @@ export const createUser = async (req: Request, res: Response) => {
         fullName: user.fullName,
         gender: gender || 'OTHER',
         dateOfBirth: dateOfBirth || new Date(),
-        phone,
-        address
-      } as any);
+        phone: phone || null,
+        address: address || null
+      } as any, { transaction: t });
     }
+
+    await t.commit();
 
     return res.status(201).json({
       success: true,
@@ -200,11 +212,13 @@ export const createUser = async (req: Request, res: Response) => {
         roleId: user.roleId,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    await t.rollback();
     console.error("Create user error:", error);
+    // Return specific error message if available
     return res.status(500).json({
       success: false,
-      message: "Failed to create user",
+      message: error.message || "Failed to create user",
     });
   }
 };
@@ -668,6 +682,16 @@ export const updateMyNotificationSettings = async (
       });
     }
     if (parsedInApp !== undefined) updates.inAppEnabled = parsedInApp;
+
+    const parsedAppointmentReminders = parseBoolean(req.body.appointmentReminders);
+    if (parsedAppointmentReminders !== null && parsedAppointmentReminders !== undefined) {
+      updates.appointmentReminders = parsedAppointmentReminders;
+    }
+
+    const parsedPrescriptionReminders = parseBoolean(req.body.prescriptionReminders);
+    if (parsedPrescriptionReminders !== null && parsedPrescriptionReminders !== undefined) {
+      updates.prescriptionReminders = parsedPrescriptionReminders;
+    }
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({

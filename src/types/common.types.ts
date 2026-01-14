@@ -45,3 +45,11 @@ export interface ErrorWithContext extends Error {
   statusCode?: number;
   context?: Record<string, any>;
 }
+
+// Standard API Response
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message: string;
+  data?: T;
+  error?: string;
+}

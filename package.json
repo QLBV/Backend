@@ -13,7 +13,8 @@
     "test:unit": "jest --testPathPattern=unit",
     "test:integration": "jest --testPathPattern=integration",
     "test:pdf": "ts-node src/tests/pdf.test.ts",
-    "test:invoice-pdf": "ts-node src/tests/invoice-pdf.test.ts"
+    "test:invoice-pdf": "ts-node src/tests/invoice-pdf.test.ts",
+    "seed:data": "ts-node scripts/seed_large_data.ts"
   },
   "repository": {
     "type": "git",
@@ -57,6 +58,7 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.2.0",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

@@ -292,7 +292,7 @@ export const updateAppointment = async (req: Request, res: Response) => {
     const Appointment = (await import("../models/Appointment")).default;
     const DoctorShift = (await import("../models/DoctorShift")).default;
     const Shift = (await import("../models/Shift")).default;
-    const { AppointmentStatus } = await import("../models/Appointment");
+
     const { Op, Transaction } = await import("sequelize");
     const { sequelize } = await import("../models");
     const { BOOKING_CONFIG } = await import("../config/booking.config");
