@@ -1,9 +1,9 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
-    // Helper function to check if column exists
+    
     const columnExists = async (tableName, columnName) => {
       const [columns] = await queryInterface.sequelize.query(`
         SELECT COLUMN_NAME 

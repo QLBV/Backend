@@ -1,6 +1,6 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('refunds', {
@@ -89,7 +89,7 @@ module.exports = {
       },
     });
 
-    // Create indexes
+    
     await queryInterface.addIndex('refunds', ['invoiceId'], {
       name: 'idx_refund_invoice',
     });
@@ -102,7 +102,7 @@ module.exports = {
       name: 'idx_refund_requested_by',
     });
 
-    // Add CHECK constraint for positive amount
+    
     await queryInterface.sequelize.query(`
       ALTER TABLE refunds ADD CONSTRAINT chk_refund_amount_positive CHECK (amount > 0);
     `);

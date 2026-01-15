@@ -1,12 +1,10 @@
-/**
- * Generate Invoice PDF with Vietnamese Font Support
- */
+
 
 import { formatCurrency, formatDate, formatDateTime } from "./pdfGenerator";
 import PDFDocument from "pdfkit";
 
 export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocument> {
-  // Import medical PDF template
+  
   const {
     createMedicalPDF,
     drawMedicalHeader,
@@ -20,7 +18,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
   } = await import("./medicalPDFTemplate");
   const { setFont } = await import("./pdfFontHelper");
 
-  // Import TableColumn type
+  
   type TableColumn = {
     header: string;
     width: number;
@@ -28,10 +26,10 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
     render?: (value: any, row: any) => string;
   };
 
-  // Create PDF with Vietnamese font support
+  
   const { doc, fonts } = createMedicalPDF("HÓA ĐƠN THANH TOÁN");
 
-  // Header
+  
   drawMedicalHeader(
     doc,
     fonts,
@@ -44,7 +42,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
     "HÓA ĐƠN THANH TOÁN"
   );
 
-  // Metadata
+  
   drawMetadataBox(
     doc,
     fonts,
@@ -54,7 +52,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
     formatDate(invoice.createdAt)
   );
 
-  // Payment Status
+  
   setFont(doc, fonts, true);
   doc.fontSize(11);
   const statusColors: any = {
@@ -80,7 +78,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
 
   doc.moveDown(1);
 
-  // Patient Info
+  
   const patientItems = [
     { 
       label: "Họ và tên", 
@@ -99,7 +97,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
 
   drawInfoBox(doc, fonts, "THÔNG TIN BỆNH NHÂN", patientItems, COLORS.lightGray, 2);
 
-  // Doctor Info
+  
   const doctorItems = [
     { label: "Bác sĩ", value: (invoice as any).doctor?.fullName || "N/A" },
     { label: "Chuyên khoa", value: (invoice as any).doctor?.specialty || "N/A" },
@@ -107,10 +105,10 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
 
   drawInfoBox(doc, fonts, "THÔNG TIN BÁC SĨ", doctorItems);
 
-  // Invoice Items Section
+  
   drawSectionHeader(doc, fonts, "CHI TIẾT HÓA ĐƠN");
 
-  // Prepare table data
+  
   const tableData: any[] = [];
 
   if ((invoice as any).items && Array.isArray((invoice as any).items)) {
@@ -134,7 +132,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
     });
   }
 
-  // Draw table with columns
+  
   const columns: TableColumn[] = [
     { header: "Mô tả", width: 240, align: "left" },
     { header: "Số lượng", width: 60, align: "center" },
@@ -151,7 +149,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
 
   drawProfessionalTable(doc, fonts, columns, rows);
 
-  // Summary Section
+  
   doc.moveDown(0.5);
   const summaryStartX = 300;
   const summaryWidth = 245;
@@ -159,7 +157,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
   setFont(doc, fonts, false);
   doc.fontSize(10);
 
-  // Subtotals
+  
   const items = [
     { label: "Tiền khám", value: invoice.examinationFee || 0 },
     { label: "Tiền thuốc", value: invoice.medicineTotalAmount || 0 },
@@ -188,7 +186,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
     currentY += 15;
   });
 
-  // Divider
+  
   doc
     .moveTo(summaryStartX, currentY + 5)
     .lineTo(summaryStartX + summaryWidth, currentY + 5)
@@ -198,7 +196,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
 
   currentY += 15;
 
-  // Total
+  
   setFont(doc, fonts, true);
   doc.fontSize(12).fillColor(COLORS.primary);
   doc.text("TỔNG CỘNG:", summaryStartX, currentY, {
@@ -238,7 +236,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
 
   doc.y = currentY + 30;
 
-  // Payment History
+  
   if ((invoice as any).payments && (invoice as any).payments.length > 0) {
     drawSectionHeader(doc, fonts, "LỊCH SỬ THANH TOÁN");
 
@@ -259,7 +257,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
     drawProfessionalTable(doc, fonts, paymentColumns, paymentRows);
   }
 
-  // Note
+  
   if (invoice.note) {
     doc.moveDown(1);
     setFont(doc, fonts, true);
@@ -270,7 +268,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
     });
   }
 
-  // Footer
+  
   drawMedicalFooter(doc, fonts, 1, 1);
 
   return doc;

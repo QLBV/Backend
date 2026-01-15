@@ -64,8 +64,6 @@ class Refund
   public note?: string;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
-
-  // Associations
   public readonly invoice?: any;
   public readonly requester?: any;
   public readonly approver?: any;

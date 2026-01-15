@@ -16,11 +16,8 @@ export const verifyToken = async (
   if (!authHeader?.startsWith("Bearer ")) {
     return res.status(401).json({ success: false, message: "NO_TOKEN" });
   }
-
   const token = authHeader.split(" ")[1];
-
   try {
-    // Kiểm tra token có trong danh sách đen không (đã đăng xuất)
     const isBlacklisted = await TokenBlacklistService.isBlacklisted(token);
     if (isBlacklisted) {
       return res.status(401).json({
@@ -28,12 +25,10 @@ export const verifyToken = async (
         message: "TOKEN_REVOKED",
       });
     }
-
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET as string
     ) as JwtUserPayload;
-
     req.user = decoded;
     (req as any).token = token;
 
@@ -52,7 +47,7 @@ export const verifyToken = async (
       });
       (req.user as any).doctorId = doctor?.id ?? null;
     }
-
+    
     next();
   } catch (err) {
     return res.status(401).json({ success: false, message: "INVALID_TOKEN" });

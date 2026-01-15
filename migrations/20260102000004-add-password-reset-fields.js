@@ -1,6 +1,6 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.addColumn('users', 'passwordResetToken', {
@@ -15,7 +15,7 @@ module.exports = {
       comment: 'Expiration time for password reset token',
     });
 
-    // Add index for faster token lookup
+    
     await queryInterface.addIndex('users', ['passwordResetToken'], {
       name: 'idx_users_password_reset_token',
     });

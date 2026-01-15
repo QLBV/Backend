@@ -7,9 +7,11 @@ export default class ShiftTemplate extends Model {
   declare id: number;
   declare doctorId: number;
   declare shiftId: number;
-  declare dayOfWeek: number; // 1-7 (Monday to Sunday)
+  declare dayOfWeek: number; 
   declare isActive: boolean;
   declare notes?: string;
+  declare shift?: Shift;
+  declare doctor?: Doctor;
 }
 
 ShiftTemplate.init(

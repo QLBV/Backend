@@ -1,14 +1,12 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
-// Interface cho business hours của từng ngày
+
 interface DaySchedule {
   open: string;
   close: string;
   closed: boolean;
 }
-
-// Interface cho business hours
 interface BusinessHours {
   monday: DaySchedule;
   tuesday: DaySchedule;
@@ -19,7 +17,6 @@ interface BusinessHours {
   sunday: DaySchedule;
 }
 
-// Interface cho system settings
 interface SystemSettingsConfig {
   maintenanceMode: boolean;
   allowOnlineBooking: boolean;
@@ -30,7 +27,6 @@ interface SystemSettingsConfig {
   timezone: string;
 }
 
-// Interface cho email settings
 interface EmailSettings {
   smtpHost?: string;
   smtpPort?: number;
@@ -40,7 +36,6 @@ interface EmailSettings {
   fromName?: string;
 }
 
-// Attributes cho SystemSettings model
 interface SystemSettingsAttributes {
   id: number;
   clinicName: string;
@@ -71,7 +66,6 @@ class SystemSettings
   public businessHours!: BusinessHours;
   public systemSettings!: SystemSettingsConfig;
   public emailSettings!: EmailSettings;
-
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }

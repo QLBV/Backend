@@ -19,7 +19,6 @@ export const requireRole = (...allowedRoles: RoleCode[]) => {
         message: "FORBIDDEN",
       });
     }
-
     next();
   };
 };

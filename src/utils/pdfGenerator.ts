@@ -2,16 +2,12 @@ import PDFDocument from "pdfkit";
 import { Response } from "express";
 import { createVietnamesePDF } from "./pdfFontHelper";
 
-/**
- * Format số tiền VND
- */
+
 export const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat("vi-VN").format(amount) + " VND";
 };
 
-/**
- * Format ngày tháng
- */
+
 export const formatDate = (date: Date | string): string => {
   const d = new Date(date);
   return d.toLocaleDateString("vi-VN", {
@@ -21,9 +17,7 @@ export const formatDate = (date: Date | string): string => {
   });
 };
 
-/**
- * Format ngày giờ đầy đủ
- */
+
 export const formatDateTime = (date: Date | string): string => {
   const d = new Date(date);
   return d.toLocaleString("vi-VN", {
@@ -35,9 +29,7 @@ export const formatDateTime = (date: Date | string): string => {
   });
 };
 
-/**
- * Tạo PDF header với logo và thông tin phòng khám
- */
+
 export const addPDFHeader = (
   doc: PDFKit.PDFDocument,
   title: string,
@@ -48,7 +40,7 @@ export const addPDFHeader = (
 
   const startY = 50;
   
-  // Left side: Clinic Info
+  
   doc
     .fontSize(10)
     .font(boldFont)
@@ -61,7 +53,7 @@ export const addPDFHeader = (
   
   doc.text("SĐT: (028) 1234 5678", 50, startY + 30, { align: "left", width: 250 });
 
-  // Right side: National Motto
+  
   doc
     .fontSize(10)
     .font(boldFont)
@@ -89,9 +81,7 @@ export const addPDFHeader = (
   doc.moveDown(1);
 };
 
-/**
- * Tạo PDF footer với số trang
- */
+
 export const addPDFFooter = (
   doc: PDFKit.PDFDocument,
   pageNumber: number,
@@ -114,9 +104,7 @@ export const addPDFFooter = (
     );
 };
 
-/**
- * Vẽ bảng với borders
- */
+
 export const drawTable = (
   doc: PDFKit.PDFDocument,
   headers: string[],
@@ -131,10 +119,10 @@ export const drawTable = (
   const rowHeight = 25;
   let currentY = startY;
 
-  // Header background
+  
   doc.rect(startX, currentY, columnWidths.reduce((a, b) => a + b, 0), rowHeight).fill("#4A90E2");
 
-  // Header text
+  
   doc.fontSize(10).font(boldFont).fillColor("#FFFFFF");
   let currentX = startX;
   headers.forEach((header, i) => {
@@ -147,12 +135,12 @@ export const drawTable = (
 
   currentY += rowHeight;
 
-  // Rows
+  
   doc.fillColor("#000000").font(regularFont);
   rows.forEach((row, rowIndex) => {
     currentX = startX;
 
-    // Alternate row colors
+    
     if (rowIndex % 2 === 0) {
       doc
         .rect(startX, currentY, columnWidths.reduce((a, b) => a + b, 0), rowHeight)
@@ -168,7 +156,7 @@ export const drawTable = (
       currentX += columnWidths[i];
     });
 
-    // Draw row borders
+    
     currentX = startX;
     columnWidths.forEach((width) => {
       doc
@@ -183,9 +171,7 @@ export const drawTable = (
   return currentY;
 };
 
-/**
- * Setup PDF response headers
- */
+
 export const setupPDFResponse = (
   res: Response,
   filename: string
@@ -206,13 +192,11 @@ export const setupPDFResponse = (
   return { doc, fonts };
 };
 
-/**
- * Generate prescription PDF as buffer (Medical Examination Form - No Prices)
- */
+
 export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => {
   return new Promise(async (resolve, reject) => {
     try {
-      // Import medical PDF template
+      
       const {
         createMedicalPDF,
         drawMedicalHeader,
@@ -226,7 +210,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
       } = await import("./medicalPDFTemplate");
       const { setFont } = await import("./pdfFontHelper");
 
-      // Create PDF with Vietnamese font support
+      
       const { doc, fonts } = createMedicalPDF("PHIẾU KHÁM BỆNH");
 
       const buffers: Buffer[] = [];
@@ -234,7 +218,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
       doc.on("end", () => resolve(Buffer.concat(buffers)));
       doc.on("error", reject);
 
-      // Header
+      
       drawMedicalHeader(
         doc,
         fonts,
@@ -247,7 +231,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
         "PHIẾU KHÁM BỆNH"
       );
 
-      // Metadata (Prescription Code and Date)
+      
       drawMetadataBox(
         doc,
         fonts,
@@ -257,7 +241,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
         formatDate(pdfData.createdAt)
       );
 
-      // Patient Info
+      
       const patientItems = [
         { label: "Họ và tên", value: pdfData.patientName || "N/A" },
         { label: "Số điện thoại", value: pdfData.patientPhone || "N/A" },
@@ -278,7 +262,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
 
       drawInfoBox(doc, fonts, "THÔNG TIN BỆNH NHÂN", patientItems);
 
-      // Doctor Info
+      
       const doctorItems = [
         { label: "Bác sĩ khám", value: pdfData.doctorName || "N/A" },
         { label: "Chuyên khoa", value: pdfData.doctorSpecialty || "N/A" },
@@ -286,7 +270,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
 
       drawInfoBox(doc, fonts, "THÔNG TIN BÁC SĨ", doctorItems);
 
-      // Diagnosis Section
+      
       if (pdfData.diagnosis || pdfData.symptoms) {
         console.log("[PDF] Rendering diagnosis section with centered header");
         drawSectionHeader(doc, fonts, "CHẨN ĐOÁN VÀ TRIỆU CHỨNG");
@@ -324,7 +308,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
         doc.moveDown(1);
       }
 
-      // Medicine Prescription (WITHOUT PRICES)
+      
       if (pdfData.medicines && pdfData.medicines.length > 0) {
         drawSectionHeader(doc, fonts, "ĐƠN THUỐC");
 
@@ -351,13 +335,13 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
         doc.moveDown(0.5);
       }
 
-      // Notes
+      
       if (pdfData.note) {
         const notes = [pdfData.note];
         drawNoteBox(doc, fonts, "LƯU Ý", notes);
       }
 
-      // Standard medical notes
+      
       const standardNotes = [
         "Uống thuốc đúng liều lượng, đúng giờ theo chỉ dẫn của bác sĩ",
         "Bảo quản thuốc nơi khô ráo, tránh ánh nắng trực tiếp",
@@ -366,7 +350,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
       ];
       drawNoteBox(doc, fonts, "HƯỚNG DẪN SỬ DỤNG THUỐC", standardNotes);
 
-      // Signature section
+      
       drawSignatureSection(
         doc,
         fonts,
@@ -375,10 +359,10 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
         new Date(pdfData.createdAt)
       );
 
-      // Footer
+      
       drawMedicalFooter(doc, fonts, 1, 1);
 
-      // Finalize
+      
       doc.end();
     } catch (error) {
       reject(error);

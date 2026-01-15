@@ -5,14 +5,6 @@ import User from "../models/User";
 import Patient from "../models/Patient";
 import { RoleCode } from "../constant/role";
 
-/**
- * OAuth Configuration
- *
- * Setup Google OAuth strategy
- * Supports automatic user creation for new OAuth users
- */
-
-// Google OAuth Strategy
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   passport.use(
     new GoogleStrategy(
@@ -23,13 +15,13 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
-          // Check if user already exists
+          
           let user = await User.findOne({
             where: { email: profile.emails?.[0]?.value },
           });
 
           if (!user) {
-            // Create new user from Google profile
+            
             const email = profile.emails?.[0]?.value;
             const fullName = profile.displayName;
 
@@ -40,22 +32,20 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
               );
             }
 
-            // Generate a random secure password for OAuth users
-            // They won't use it (OAuth flow), but it prevents empty password in DB
             const randomPassword = Math.random().toString(36).slice(-32) + Date.now().toString(36);
             const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
             user = await User.create({
               email,
               fullName,
-              password: hashedPassword, // Hashed random password (OAuth users won't use it)
-              roleId: RoleCode.PATIENT, // Default role
+              password: hashedPassword, 
+              roleId: RoleCode.PATIENT, 
               isActive: true,
               oauth2Provider: "GOOGLE",
               oauth2Id: profile.id,
             });
 
-            // Create patient profile for PATIENT role
+            
             if (user.roleId === RoleCode.PATIENT) {
               const patient = await Patient.create({
                 userId: user.id,
@@ -67,7 +57,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
               await patient.update({ patientCode });
             }
           } else {
-            // Update OAuth info if user exists but wasn't OAuth before
+            
             if (!user.oauth2Provider) {
               await user.update({
                 oauth2Provider: "GOOGLE",
@@ -85,12 +75,10 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   );
 }
 
-// Serialize user for session
 passport.serializeUser((user: any, done) => {
   done(null, user.id);
 });
 
-// Deserialize user from session
 passport.deserializeUser(async (id: number, done) => {
   try {
     const user = await User.findByPk(id);

@@ -1,5 +1,5 @@
 import { Model, DataTypes, Optional } from "sequelize";
-import { sequelize } from ".";
+import { sequelize } from "./index";
 
 export enum DiagnosisSeverity {
   MILD = "MILD",
@@ -40,7 +40,7 @@ class Diagnosis
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
-  // Associations
+  
   public readonly visit?: any;
   public readonly diseaseCategory?: any;
 }

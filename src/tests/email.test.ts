@@ -1,43 +1,36 @@
-/**
- * Test Email Service
- * File này dùng để test hệ thống gửi email
- */
 
-// Load environment variables
+
+
 import dotenv from "dotenv";
 dotenv.config();
 
 import { emailService, sendEmail } from "../services/email.service";
 import { emailTemplates } from "../templates/emailTemplates";
 
-/**
- * Test 1: Verify kết nối SMTP server
- */
+
 async function testEmailConnection() {
   console.log("\n=== TEST 1: Kiểm tra kết nối Email Server ===");
   try {
     const isConnected = await emailService.verifyConnection();
     if (isConnected) {
-      console.log("✅ Kết nối email server thành công!");
+      console.log(" Kết nối email server thành công!");
       return true;
     } else {
-      console.log("❌ Không thể kết nối email server");
+      console.log(" Không thể kết nối email server");
       return false;
     }
   } catch (error) {
-    console.error("❌ Lỗi khi kiểm tra kết nối:", error);
+    console.error(" Lỗi khi kiểm tra kết nối:", error);
     return false;
   }
 }
 
-/**
- * Test 2: Gửi email đơn giản
- */
+
 async function testSimpleEmail() {
   console.log("\n=== TEST 2: Gửi email đơn giản ===");
   try {
     const result = await sendEmail({
-      to: process.env.EMAIL_USER || "test@example.com", // Gửi về chính email của mình
+      to: process.env.EMAIL_USER || "test@example.com", 
       subject: "Test Email - Hệ thống Phòng khám",
       html: `
         <h1>Email Test</h1>
@@ -48,21 +41,19 @@ async function testSimpleEmail() {
     });
 
     if (result) {
-      console.log("✅ Gửi email đơn giản thành công!");
+      console.log(" Gửi email đơn giản thành công!");
       return true;
     } else {
-      console.log("❌ Gửi email thất bại");
+      console.log(" Gửi email thất bại");
       return false;
     }
   } catch (error) {
-    console.error("❌ Lỗi khi gửi email:", error);
+    console.error(" Lỗi khi gửi email:", error);
     return false;
   }
 }
 
-/**
- * Test 3: Gửi email xác nhận lịch khám
- */
+
 async function testAppointmentConfirmationEmail() {
   console.log("\n=== TEST 3: Gửi email xác nhận lịch khám ===");
   try {
@@ -72,7 +63,7 @@ async function testAppointmentConfirmationEmail() {
       doctorSpecialty: "Tim mạch",
       appointmentDate: new Date(
         Date.now() + 2 * 24 * 60 * 60 * 1000
-      ).toISOString(), // 2 ngày sau
+      ).toISOString(), 
       shiftName: "Sáng (8:00 - 12:00)",
       slotNumber: 5,
       appointmentId: 12345,
@@ -87,21 +78,19 @@ async function testAppointmentConfirmationEmail() {
     });
 
     if (result) {
-      console.log("✅ Gửi email xác nhận lịch khám thành công!");
+      console.log(" Gửi email xác nhận lịch khám thành công!");
       return true;
     } else {
-      console.log("❌ Gửi email xác nhận lịch khám thất bại");
+      console.log(" Gửi email xác nhận lịch khám thất bại");
       return false;
     }
   } catch (error) {
-    console.error("❌ Lỗi khi gửi email xác nhận lịch khám:", error);
+    console.error(" Lỗi khi gửi email xác nhận lịch khám:", error);
     return false;
   }
 }
 
-/**
- * Test 4: Gửi email thông báo hủy lịch khám
- */
+
 async function testAppointmentCancellationEmail() {
   console.log("\n=== TEST 4: Gửi email thông báo hủy lịch khám ===");
   try {
@@ -125,21 +114,19 @@ async function testAppointmentCancellationEmail() {
     });
 
     if (result) {
-      console.log("✅ Gửi email thông báo hủy lịch khám thành công!");
+      console.log(" Gửi email thông báo hủy lịch khám thành công!");
       return true;
     } else {
-      console.log("❌ Gửi email thông báo hủy lịch khám thất bại");
+      console.log(" Gửi email thông báo hủy lịch khám thất bại");
       return false;
     }
   } catch (error) {
-    console.error("❌ Lỗi khi gửi email thông báo hủy lịch khám:", error);
+    console.error(" Lỗi khi gửi email thông báo hủy lịch khám:", error);
     return false;
   }
 }
 
-/**
- * Test 5: Gửi email thông báo thay đổi bác sĩ
- */
+
 async function testDoctorChangedEmail() {
   console.log("\n=== TEST 5: Gửi email thông báo thay đổi bác sĩ ===");
   try {
@@ -166,27 +153,25 @@ async function testDoctorChangedEmail() {
     });
 
     if (result) {
-      console.log("✅ Gửi email thông báo thay đổi bác sĩ thành công!");
+      console.log(" Gửi email thông báo thay đổi bác sĩ thành công!");
       return true;
     } else {
-      console.log("❌ Gửi email thông báo thay đổi bác sĩ thất bại");
+      console.log(" Gửi email thông báo thay đổi bác sĩ thất bại");
       return false;
     }
   } catch (error) {
-    console.error("❌ Lỗi khi gửi email thông báo thay đổi bác sĩ:", error);
+    console.error(" Lỗi khi gửi email thông báo thay đổi bác sĩ:", error);
     return false;
   }
 }
 
-/**
- * Chạy tất cả các test
- */
+
 async function runAllTests() {
   console.log("╔═══════════════════════════════════════════════════════╗");
   console.log("║       TEST HỆ THỐNG GỬI EMAIL - EMAIL SERVICE       ║");
   console.log("╚═══════════════════════════════════════════════════════╝");
-  console.log(`\n📧 Email nhận: ${process.env.EMAIL_USER}`);
-  console.log(`🕐 Thời gian test: ${new Date().toLocaleString("vi-VN")}\n`);
+  console.log(`\n Email nhận: ${process.env.EMAIL_USER}`);
+  console.log(` Thời gian test: ${new Date().toLocaleString("vi-VN")}\n`);
 
   const results = {
     connection: false,
@@ -196,12 +181,12 @@ async function runAllTests() {
     doctorChanged: false,
   };
 
-  // Test 1: Kiểm tra kết nối
+  
   results.connection = await testEmailConnection();
 
-  // Nếu kết nối thành công, tiếp tục test gửi email
+  
   if (results.connection) {
-    // Delay 2 giây giữa các email để tránh spam
+    
     await delay(2000);
     results.simpleEmail = await testSimpleEmail();
 
@@ -215,40 +200,40 @@ async function runAllTests() {
     results.doctorChanged = await testDoctorChangedEmail();
   }
 
-  // Tổng kết
+  
   console.log("\n" + "=".repeat(60));
-  console.log("📊 TỔNG KẾT KẾT QUẢ TEST");
+  console.log(" TỔNG KẾT KẾT QUẢ TEST");
   console.log("=".repeat(60));
   console.log(
-    `✓ Kết nối Email Server:              ${results.connection ? "✅ PASS" : "❌ FAIL"}`
+    ` Kết nối Email Server:              ${results.connection ? " PASS" : " FAIL"}`
   );
   console.log(
-    `✓ Gửi email đơn giản:                 ${results.simpleEmail ? "✅ PASS" : "❌ FAIL"}`
+    ` Gửi email đơn giản:                 ${results.simpleEmail ? " PASS" : " FAIL"}`
   );
   console.log(
-    `✓ Email xác nhận lịch khám:          ${results.appointmentConfirmation ? "✅ PASS" : "❌ FAIL"}`
+    ` Email xác nhận lịch khám:          ${results.appointmentConfirmation ? " PASS" : " FAIL"}`
   );
   console.log(
-    `✓ Email thông báo hủy lịch:          ${results.appointmentCancellation ? "✅ PASS" : "❌ FAIL"}`
+    ` Email thông báo hủy lịch:          ${results.appointmentCancellation ? " PASS" : " FAIL"}`
   );
   console.log(
-    `✓ Email thông báo thay đổi bác sĩ:   ${results.doctorChanged ? "✅ PASS" : "❌ FAIL"}`
+    ` Email thông báo thay đổi bác sĩ:   ${results.doctorChanged ? " PASS" : " FAIL"}`
   );
   console.log("=".repeat(60));
 
   const totalTests = Object.keys(results).length;
   const passedTests = Object.values(results).filter((r) => r === true).length;
-  console.log(`\n📈 Kết quả: ${passedTests}/${totalTests} tests passed`);
+  console.log(`\n Kết quả: ${passedTests}/${totalTests} tests passed`);
 
   if (passedTests === totalTests) {
-    console.log("\n🎉 TẤT CẢ CÁC TEST ĐỀU THÀNH CÔNG!");
+    console.log("\n TẤT CẢ CÁC TEST ĐỀU THÀNH CÔNG!");
   } else {
     console.log(
-      "\n⚠️  Một số test thất bại. Vui lòng kiểm tra lại cấu hình email."
+      "\n️  Một số test thất bại. Vui lòng kiểm tra lại cấu hình email."
     );
   }
 
-  console.log("\n💡 Lưu ý:");
+  console.log("\n Lưu ý:");
   console.log("   - Kiểm tra email trong hộp thư đến hoặc spam");
   console.log(
     "   - Nếu dùng Gmail, đảm bảo đã bật 'App Password' trong cài đặt bảo mật"
@@ -258,27 +243,25 @@ async function runAllTests() {
   );
 }
 
-/**
- * Helper: Delay function
- */
+
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Chạy test khi file được execute
+
 if (require.main === module) {
   runAllTests()
     .then(() => {
-      console.log("\n✅ Hoàn thành tất cả các test!\n");
+      console.log("\n Hoàn thành tất cả các test!\n");
       process.exit(0);
     })
     .catch((error) => {
-      console.error("\n❌ Lỗi khi chạy test:", error);
+      console.error("\n Lỗi khi chạy test:", error);
       process.exit(1);
     });
 }
 
-// Export để có thể import và test riêng lẻ
+
 export {
   testEmailConnection,
   testSimpleEmail,

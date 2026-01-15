@@ -163,7 +163,7 @@ def add_endpoint(
         }
     )
 
-# =================== AUTH ===================
+
 add_endpoint(
     name="Register",
     module="AUTH",
@@ -337,7 +337,7 @@ add_endpoint(
     ],
 )
 
-# =================== PROFILE ===================
+
 add_endpoint(
     name="Get my profile",
     module="PROFILE",
@@ -386,7 +386,7 @@ add_endpoint(
     error={"success": False, "message": "No file uploaded"},
 )
 
-# =================== USER ===================
+
 add_endpoint(
     name="Get my notification settings",
     module="USER",
@@ -515,7 +515,7 @@ add_endpoint(
     error={"success": False, "message": "User not found"},
 )
 
-# =================== PATIENT ===================
+
 add_endpoint(
     name="Setup patient profile",
     module="PATIENT",
@@ -626,7 +626,7 @@ add_endpoint(
     error={"success": False, "message": "FORBIDDEN"},
 )
 
-# =================== DOCTOR ===================
+
 add_endpoint(
     name="Get all doctors",
     module="DOCTOR",
@@ -703,7 +703,7 @@ add_endpoint(
     error={"success": False, "message": "Get shifts by doctor failed"},
 )
 
-# =================== APPOINTMENT ===================
+
 add_endpoint(
     name="Create appointment (online)",
     module="APPOINTMENT",
@@ -812,7 +812,7 @@ add_endpoint(
     error={"success": False, "message": "APPOINTMENT_NOT_FOUND"},
 )
 
-# =================== VISIT / MEDICAL RECORD ===================
+
 add_endpoint(
     name="Start visit (check-in)",
     module="VISIT / MEDICAL RECORD",
@@ -982,7 +982,7 @@ add_endpoint(
     notes=["Returns application/pdf on success"],
 )
 
-# =================== BILLING / INVOICE ===================
+
 add_endpoint(
     name="Create invoice",
     module="BILLING / INVOICE",
@@ -1121,7 +1121,7 @@ add_endpoint(
     error={"success": False, "message": "Failed to retrieve statistics"},
 )
 
-# =================== INVENTORY / MEDICINE ===================
+
 add_endpoint(
     name="Create medicine",
     module="INVENTORY / MEDICINE",
@@ -1274,7 +1274,7 @@ add_endpoint(
     error={"success": False, "message": "Medicine not found"},
 )
 
-# =================== ATTENDANCE / SHIFT ===================
+
 add_endpoint(
     name="Check-in",
     module="ATTENDANCE / SHIFT",
@@ -1516,7 +1516,7 @@ add_endpoint(
     error={"success": False, "message": "Failed to restore shift"},
 )
 
-# =================== NOTIFICATION ===================
+
 add_endpoint(
     name="Get notifications",
     module="NOTIFICATION",
@@ -1577,7 +1577,7 @@ add_endpoint(
     error={"success": False, "message": "Notification not found"},
 )
 
-# =================== SEARCH ===================
+
 add_endpoint(
     name="Search patients",
     module="SEARCH",
@@ -1614,7 +1614,7 @@ add_endpoint(
     error={"success": False, "message": "Invalid date format in filters"},
 )
 
-# =================== SPECIALTY ===================
+
 add_endpoint(
     name="Get specialties",
     module="SPECIALTY",
@@ -1639,7 +1639,7 @@ add_endpoint(
     error={"success": False, "message": "Specialty not found"},
 )
 
-# =================== PAYROLL ===================
+
 add_endpoint(
     name="Calculate payroll",
     module="PAYROLL",
@@ -1775,7 +1775,7 @@ add_endpoint(
     notes=["Returns application/pdf on success", "Authorization check inside controller"],
 )
 
-# =================== PERMISSION ===================
+
 add_endpoint(
     name="Get all permissions",
     module="PERMISSION",
@@ -1872,7 +1872,7 @@ add_endpoint(
     error={"success": False, "message": "Permission not found"},
 )
 
-# =================== ADMIN ===================
+
 add_endpoint(
     name="Dashboard stats",
     module="ADMIN",

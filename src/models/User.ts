@@ -37,16 +37,13 @@ class User
   public avatar?: string;
   public oauth2Provider?: "GOOGLE";
   public oauth2Id?: string;
-
   public passwordResetToken?: string | null;
   public passwordResetExpires?: Date | null;
   public emailVerificationToken?: string | null;
   public emailVerificationExpires?: Date | null;
   public isEmailVerified?: boolean;
-  
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
-
   public Role?: {
     name: string;
   };
@@ -66,7 +63,7 @@ User.init(
     },
     password: {
       type: DataTypes.STRING(255),
-      allowNull: true, // Nullable for OAuth users
+      allowNull: true, 
     },
     fullName: {
       type: DataTypes.STRING(100),
@@ -134,7 +131,7 @@ User.init(
           if (Patient) {
             await Patient.update(updates, { where: { userId: user.id }, hooks: false } as any);
           }
-          // Sync isActive to Doctor model as well
+          
           if (user.changed("isActive")) {
             const Doctor = sequelize.models.Doctor;
             if (Doctor) {

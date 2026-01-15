@@ -2,9 +2,6 @@ import { body, query } from "express-validator";
 import { validate } from "./validate";
 import { PayrollStatus } from "../../models/Payroll";
 
-/**
- * Validator for calculating payroll
- */
 export const validateCalculatePayroll = [
   body("month")
     .isInt({ min: 1, max: 12 })
@@ -30,9 +27,6 @@ export const validateCalculatePayroll = [
   validate,
 ];
 
-/**
- * Validator for getting payrolls with filters
- */
 export const validateGetPayrolls = [
   query("month")
     .optional()
@@ -72,9 +66,6 @@ export const validateGetPayrolls = [
   validate,
 ];
 
-/**
- * Validator for getting payrolls by period
- */
 export const validateGetPayrollsByPeriod = [
   query("month")
     .optional()

@@ -1,6 +1,6 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('invoice_items', {
@@ -27,14 +27,14 @@ module.exports = {
         comment: 'Loại item: EXAMINATION (khám bệnh) hoặc MEDICINE (thuốc)'
       },
 
-      // For EXAMINATION
+      
       description: {
         type: Sequelize.STRING(500),
         allowNull: true,
         comment: 'Mô tả cho khám bệnh, ví dụ: "Khám Tim mạch"'
       },
 
-      // For MEDICINE
+      
       prescriptionDetailId: {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: true,
@@ -57,7 +57,7 @@ module.exports = {
         comment: 'Snapshot mã thuốc tại thời điểm tạo hóa đơn'
       },
 
-      // Pricing
+      
       quantity: {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: false,
@@ -87,7 +87,7 @@ module.exports = {
       }
     });
 
-    // Add indexes
+    
     await queryInterface.addIndex('invoice_items', ['invoiceId'], {
       name: 'idx_invoice_items_invoice'
     });

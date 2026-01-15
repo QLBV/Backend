@@ -1,9 +1,6 @@
 import { body, ValidationChain } from "express-validator";
 import { validate } from "./validate";
 
-/**
- * Validator for medicine export
- */
 export const validateExportMedicine: (ValidationChain | typeof validate)[] = [
   body("quantity")
     .isInt({ min: 1 })
@@ -32,9 +29,6 @@ export const validateExportMedicine: (ValidationChain | typeof validate)[] = [
   validate,
 ];
 
-/**
- * Validator for medicine import (enhanced with supplier info)
- */
 export const validateImportMedicineEnhanced: (ValidationChain | typeof validate)[] = [
   body("quantity")
     .isInt({ min: 1 })

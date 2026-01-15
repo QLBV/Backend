@@ -1,13 +1,11 @@
-/**
- * Unit tests for appointment.service.ts
- */
 
-import { createAppointmentService } from "../../../services/appointment.service";
+
+import { createAppointmentService } from "../../../modules/appointment/appointment.service";
 import Appointment from "../../../models/Appointment";
 import DoctorShift from "../../../models/DoctorShift";
-import { sequelize } from "../../../models";
+import { sequelize } from "../../../models/index";
 
-// Mock models
+
 jest.mock("../../../models/Appointment");
 jest.mock("../../../models/DoctorShift");
 jest.mock("../../../models", () => ({
@@ -55,7 +53,7 @@ describe("Appointment Service", () => {
       );
 
       (DoctorShift.findOne as jest.Mock).mockResolvedValue(mockDoctorShift);
-      (Appointment.count as jest.Mock).mockResolvedValue(10); // Less than max
+      (Appointment.count as jest.Mock).mockResolvedValue(10); 
       (Appointment.findOne as jest.Mock).mockResolvedValue(mockLastAppointment);
       (Appointment.create as jest.Mock).mockResolvedValue(mockAppointment);
 
@@ -71,7 +69,7 @@ describe("Appointment Service", () => {
       expect(result).toEqual(mockAppointment);
       expect(Appointment.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          slotNumber: 6, // Next slot after 5
+          slotNumber: 6, 
         }),
         expect.any(Object)
       );
@@ -121,7 +119,7 @@ describe("Appointment Service", () => {
       );
 
       (DoctorShift.findOne as jest.Mock).mockResolvedValue(mockDoctorShift);
-      (Appointment.count as jest.Mock).mockResolvedValue(40); // Max appointments
+      (Appointment.count as jest.Mock).mockResolvedValue(40); 
 
       await expect(
         createAppointmentService({

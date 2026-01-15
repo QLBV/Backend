@@ -1,5 +1,5 @@
 import { Model, DataTypes, Optional } from "sequelize";
-import { sequelize } from ".";
+import { sequelize } from "./index";
 
 interface DiseaseCategoryAttributes {
   id: number;

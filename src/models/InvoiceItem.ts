@@ -10,20 +10,13 @@ interface InvoiceItemAttributes {
   id: number;
   invoiceId: number;
   itemType: ItemType;
-
-  // For EXAMINATION
   description?: string;
-
-  // For MEDICINE
   prescriptionDetailId?: number;
   medicineName?: string;
   medicineCode?: string;
-
-  // Pricing
   quantity: number;
   unitPrice: number;
   subtotal: number;
-
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -47,21 +40,15 @@ class InvoiceItem
   public id!: number;
   public invoiceId!: number;
   public itemType!: ItemType;
-
   public description?: string;
-
   public prescriptionDetailId?: number;
   public medicineName?: string;
   public medicineCode?: string;
-
   public quantity!: number;
   public unitPrice!: number;
   public subtotal!: number;
-
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
-
-  // Associations
   public readonly invoice?: any;
   public readonly prescriptionDetail?: any;
 }
@@ -85,14 +72,10 @@ InvoiceItem.init(
       type: DataTypes.ENUM(...Object.values(ItemType)),
       allowNull: false,
     },
-
-    // For EXAMINATION
     description: {
       type: DataTypes.STRING(500),
       allowNull: true,
     },
-
-    // For MEDICINE
     prescriptionDetailId: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: true,
@@ -109,8 +92,6 @@ InvoiceItem.init(
       type: DataTypes.STRING(50),
       allowNull: true,
     },
-
-    // Pricing
     quantity: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,

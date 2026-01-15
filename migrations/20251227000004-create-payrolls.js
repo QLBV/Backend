@@ -1,6 +1,6 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('payrolls', {
@@ -28,7 +28,7 @@ module.exports = {
         comment: 'FK to users - Nhân viên nhận lương'
       },
 
-      // Period
+      
       month: {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: false,
@@ -40,7 +40,7 @@ module.exports = {
         comment: 'Năm (YYYY)'
       },
 
-      // Salary Components (Snapshot tại thời điểm tính lương)
+      
       baseSalary: {
         type: Sequelize.DECIMAL(15, 2),
         allowNull: false,
@@ -70,7 +70,7 @@ module.exports = {
         comment: 'Phụ cấp kinh nghiệm = yearsOfService × 200,000'
       },
 
-      // Commission (Chỉ cho Doctor)
+      
       totalInvoices: {
         type: Sequelize.DECIMAL(15, 2),
         allowNull: false,
@@ -90,7 +90,7 @@ module.exports = {
         comment: 'Hoa hồng = totalInvoices × commissionRate'
       },
 
-      // Deductions
+      
       daysOff: {
         type: Sequelize.INTEGER.UNSIGNED,
         allowNull: false,
@@ -116,7 +116,7 @@ module.exports = {
         comment: 'Số tiền phạt = penaltyDaysOff × 200,000'
       },
 
-      // Total
+      
       grossSalary: {
         type: Sequelize.DECIMAL(15, 2),
         allowNull: false,
@@ -128,7 +128,7 @@ module.exports = {
         comment: 'Thực lĩnh = grossSalary - penaltyAmount'
       },
 
-      // Status
+      
       status: {
         type: Sequelize.ENUM('DRAFT', 'APPROVED', 'PAID'),
         allowNull: false,
@@ -172,14 +172,14 @@ module.exports = {
       }
     });
 
-    // Add unique constraint: Mỗi user chỉ có 1 payroll/tháng
+    
     await queryInterface.addConstraint('payrolls', {
       fields: ['userId', 'month', 'year'],
       type: 'unique',
       name: 'unique_user_month_year'
     });
 
-    // Add indexes
+    
     await queryInterface.addIndex('payrolls', ['payrollCode'], {
       name: 'idx_payrolls_code'
     });

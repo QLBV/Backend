@@ -7,17 +7,15 @@ type FontCandidate = {
   bold?: string;
 };
 
-/**
- * PDF Font Helper: hỗ trợ đăng ký font Unicode cho PDF tiếng Việt.
- */
+
 export function getSystemFont(): FontCandidate | null {
   const possibleFonts: FontCandidate[] = [
-    // Windows
+    
     { regular: "C:\\Windows\\Fonts\\arial.ttf", bold: "C:\\Windows\\Fonts\\arialbd.ttf" },
     { regular: "C:\\Windows\\Fonts\\times.ttf", bold: "C:\\Windows\\Fonts\\timesbd.ttf" },
     { regular: "C:\\Windows\\Fonts\\calibri.ttf", bold: "C:\\Windows\\Fonts\\calibrib.ttf" },
     { regular: "C:\\Windows\\Fonts\\tahoma.ttf", bold: "C:\\Windows\\Fonts\\tahomabd.ttf" },
-    // Linux
+    
     { regular: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", bold: "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" },
     { regular: "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", bold: "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" },
     { regular: "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf", bold: "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf" },
@@ -35,9 +33,7 @@ export function getSystemFont(): FontCandidate | null {
   return null;
 }
 
-/**
- * Đăng ký font tiếng Việt cho PDFKit.
- */
+
 export function registerVietnameseFont(
   doc: PDFKit.PDFDocument
 ): { regular: string; bold: string } | null {
@@ -69,9 +65,7 @@ export function registerVietnameseFont(
   }
 }
 
-/**
- * Tạo PDF document có sẵn font tiếng Việt.
- */
+
 export function createVietnamesePDF(options?: PDFKit.PDFDocumentOptions) {
   const doc = new PDFDocument({
     size: "A4",
@@ -85,9 +79,7 @@ export function createVietnamesePDF(options?: PDFKit.PDFDocumentOptions) {
   return { doc, fonts };
 }
 
-/**
- * Helper: set font an toàn cho document.
- */
+
 export function setFont(
   doc: PDFKit.PDFDocument,
   fonts: { regular: string; bold: string } | null,

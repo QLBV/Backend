@@ -1,6 +1,6 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('prescriptions', {
@@ -78,7 +78,7 @@ module.exports = {
       },
     });
 
-    // Add indexes
+    
     await queryInterface.addIndex('prescriptions', ['prescriptionCode'], {
       name: 'idx_prescriptions_code',
       unique: true,

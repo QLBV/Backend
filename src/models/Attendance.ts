@@ -37,11 +37,8 @@ class Attendance
   public checkOutTime?: Date;
   public status!: AttendanceStatus;
   public note?: string;
-
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
-
-  // Associations
   public readonly user?: any;
 }
 

@@ -7,7 +7,6 @@ interface PermissionAttributes {
   description?: string;
   module: string;
 }
-
 interface PermissionCreationAttributes
   extends Optional<PermissionAttributes, "id"> {}
 

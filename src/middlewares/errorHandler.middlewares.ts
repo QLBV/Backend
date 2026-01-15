@@ -2,25 +2,13 @@ import { Request, Response, NextFunction } from "express";
 import { AppError } from "../utils/AppError";
 import logger from "../utils/logger";
 
-/**
- * Standardized error response format:
- * {
- *   success: false,
- *   message: "ERROR_CODE" or "Human readable message",
- *   error?: {
- *     code: "ERROR_CODE",
- *     message: "Human readable message",
- *     details?: any
- *   }
- * }
- */
 export const errorHandler = (
   err: any,
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  // Log error for debugging
+
   logger.error("Error occurred:", {
     error: err.message,
     stack: err.stack,
@@ -29,7 +17,6 @@ export const errorHandler = (
     userId: (req as any).user?.userId,
   });
 
-  // Handle AppError instances
   if (err instanceof AppError) {
     return res.status(err.status).json({
       success: false,
@@ -42,7 +29,6 @@ export const errorHandler = (
     });
   }
 
-  // Handle validation errors (express-validator)
   if (err.array && typeof err.array === "function") {
     const validationErrors = err.array();
     return res.status(400).json({
@@ -56,7 +42,6 @@ export const errorHandler = (
     });
   }
 
-  // Handle Sequelize errors
   if (err.name === "SequelizeValidationError") {
     return res.status(400).json({
       success: false,
@@ -93,9 +78,7 @@ export const errorHandler = (
         message: "Referenced record does not exist",
       },
     });
-  }
-
-  // Handle JWT errors
+  }  
   if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
     return res.status(401).json({
       success: false,
@@ -106,8 +89,6 @@ export const errorHandler = (
       },
     });
   }
-
-  // Fallback for unknown errors
   const isDevelopment = process.env.NODE_ENV === "development";
   return res.status(500).json({
     success: false,

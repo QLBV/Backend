@@ -1,6 +1,6 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.addColumn('users', 'oauth2Provider', {
@@ -22,13 +22,13 @@ module.exports = {
       comment: 'User code (BN000xxx, BS000xxx, NV000xxx)',
     });
 
-    // Make password nullable for OAuth users
+    
     await queryInterface.changeColumn('users', 'password', {
       type: Sequelize.STRING(255),
       allowNull: true,
     });
 
-    // Add index for OAuth lookup
+    
     await queryInterface.addIndex('users', ['oauth2Provider', 'oauth2Id'], {
       name: 'idx_users_oauth',
     });
@@ -40,7 +40,7 @@ module.exports = {
     await queryInterface.removeColumn('users', 'oauth2Id');
     await queryInterface.removeColumn('users', 'oauth2Provider');
 
-    // Revert password to NOT NULL
+    
     await queryInterface.changeColumn('users', 'password', {
       type: Sequelize.STRING(255),
       allowNull: false,

@@ -5,7 +5,6 @@ import { Request } from "express";
 
 const uploadDir = path.join("uploads", "avatars");
 
-// Auto create folder if not exists
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }

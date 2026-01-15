@@ -1,5 +1,5 @@
 import { Model, DataTypes, Optional } from "sequelize";
-import { sequelize } from ".";
+import { sequelize } from "./index";
 
 export enum PrescriptionStatus {
   DRAFT = "DRAFT",

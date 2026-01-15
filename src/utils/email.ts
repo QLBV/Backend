@@ -18,7 +18,7 @@ const transporter = nodemailer.createTransport({
 
 export const sendEmail = async ({ to, subject, html }: SendEmailOptions) => {
   if (!process.env.SMTP_USER) {
-    console.warn("⚠️ Email credentials not configured. Email skipped.");
+    console.warn("️ Email credentials not configured. Email skipped.");
     return;
   }
 

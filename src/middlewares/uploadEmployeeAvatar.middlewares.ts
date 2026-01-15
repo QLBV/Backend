@@ -5,7 +5,6 @@ import { Request } from "express";
 
 const uploadDir = path.join("uploads", "employees");
 
-// Auto create folder if not exists
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }

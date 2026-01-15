@@ -2,12 +2,12 @@
 
 const bcrypt = require('bcryptjs');
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     const now = new Date();
 
-    console.log('🌱 [1/28] Seeding roles...');
+    console.log(' [1/28] Seeding roles...');
     const [existingRoles] = await queryInterface.sequelize.query('SELECT id FROM roles LIMIT 1');
     if (existingRoles.length === 0) {
       await queryInterface.bulkInsert('roles', [
@@ -17,54 +17,54 @@ module.exports = {
         { id: 4, name: 'DOCTOR', description: 'Bác sĩ', createdAt: now, updatedAt: now },
       ], {});
     } else {
-      console.log('   ⚠️  Roles đã tồn tại, bỏ qua...');
+      console.log('   ️  Roles đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [2/28] Seeding permissions...');
+    console.log(' [2/28] Seeding permissions...');
     const [existingPerms] = await queryInterface.sequelize.query('SELECT id FROM permissions LIMIT 1');
     const permissions = [
-      // User Management
+      
       { name: 'user.view', description: 'Xem danh sách người dùng', module: 'user' },
       { name: 'user.create', description: 'Tạo người dùng mới', module: 'user' },
       { name: 'user.update', description: 'Cập nhật thông tin người dùng', module: 'user' },
       { name: 'user.delete', description: 'Xóa người dùng', module: 'user' },
-      // Patient Management
+      
       { name: 'patient.view', description: 'Xem danh sách bệnh nhân', module: 'patient' },
       { name: 'patient.create', description: 'Tạo hồ sơ bệnh nhân', module: 'patient' },
       { name: 'patient.update', description: 'Cập nhật hồ sơ bệnh nhân', module: 'patient' },
       { name: 'patient.delete', description: 'Xóa hồ sơ bệnh nhân', module: 'patient' },
-      // Appointment Management
+      
       { name: 'appointment.view', description: 'Xem lịch hẹn', module: 'appointment' },
       { name: 'appointment.create', description: 'Đặt lịch hẹn', module: 'appointment' },
       { name: 'appointment.update', description: 'Cập nhật lịch hẹn', module: 'appointment' },
       { name: 'appointment.delete', description: 'Hủy lịch hẹn', module: 'appointment' },
-      // Visit Management
+      
       { name: 'visit.view', description: 'Xem phiên khám', module: 'visit' },
       { name: 'visit.create', description: 'Tạo phiên khám', module: 'visit' },
       { name: 'visit.update', description: 'Cập nhật phiên khám', module: 'visit' },
-      // Medicine Management
+      
       { name: 'medicine.view', description: 'Xem danh sách thuốc', module: 'medicine' },
       { name: 'medicine.create', description: 'Thêm thuốc mới', module: 'medicine' },
       { name: 'medicine.update', description: 'Cập nhật thông tin thuốc', module: 'medicine' },
       { name: 'medicine.delete', description: 'Xóa thuốc', module: 'medicine' },
       { name: 'medicine.import', description: 'Nhập thuốc', module: 'medicine' },
       { name: 'medicine.export', description: 'Xuất thuốc', module: 'medicine' },
-      // Prescription Management
+      
       { name: 'prescription.view', description: 'Xem đơn thuốc', module: 'prescription' },
       { name: 'prescription.create', description: 'Kê đơn thuốc', module: 'prescription' },
       { name: 'prescription.update', description: 'Cập nhật đơn thuốc', module: 'prescription' },
       { name: 'prescription.delete', description: 'Xóa đơn thuốc', module: 'prescription' },
-      // Invoice & Payment Management
+      
       { name: 'invoice.view', description: 'Xem hóa đơn', module: 'invoice' },
       { name: 'invoice.create', description: 'Tạo hóa đơn', module: 'invoice' },
       { name: 'invoice.update', description: 'Cập nhật hóa đơn', module: 'invoice' },
       { name: 'payment.view', description: 'Xem thanh toán', module: 'payment' },
       { name: 'payment.create', description: 'Tạo thanh toán', module: 'payment' },
-      // Payroll Management
+      
       { name: 'payroll.view', description: 'Xem bảng lương', module: 'payroll' },
       { name: 'payroll.create', description: 'Tạo bảng lương', module: 'payroll' },
       { name: 'payroll.approve', description: 'Phê duyệt bảng lương', module: 'payroll' },
-      // Report & Dashboard
+      
       { name: 'report.view', description: 'Xem báo cáo', module: 'report' },
       { name: 'dashboard.view', description: 'Xem dashboard', module: 'dashboard' },
     ];
@@ -79,31 +79,31 @@ module.exports = {
         }))
       , {});
     } else {
-      console.log('   ⚠️  Permissions đã tồn tại, bỏ qua...');
+      console.log('   ️  Permissions đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [3/28] Seeding role_permissions...');
+    console.log(' [3/28] Seeding role_permissions...');
     const [existingRolePerms] = await queryInterface.sequelize.query('SELECT roleId FROM role_permissions LIMIT 1');
     const rolePermissions = [];
 
-    // ADMIN (roleId: 1) - Full permissions
+    
     for (let i = 1; i <= permissions.length; i++) {
       rolePermissions.push({ roleId: 1, permissionId: i });
     }
 
-    // RECEPTIONIST (roleId: 2) - Quản lý bệnh nhân, lịch hẹn, hóa đơn và thanh toán
-    // Permissions: patient (5,6,7), appointment (9,10,11,12), visit (13,14,15), 
-    // invoice (26,27,28), payment (29,30), dashboard (35)
+    
+    
+    
     [5,6,7,9,10,11,12,13,14,15,26,27,28,29,30,35].forEach(permId => {
       rolePermissions.push({ roleId: 2, permissionId: permId });
     });
 
-    // PATIENT (roleId: 3) - Chỉ xem và đặt lịch hẹn
+    
     [9,10,35].forEach(permId => {
       rolePermissions.push({ roleId: 3, permissionId: permId });
     });
 
-    // DOCTOR (roleId: 4) - Quản lý bệnh nhân, lịch hẹn, khám bệnh, kê đơn
+    
     [5,6,7,9,10,11,12,13,14,15,16,17,18,22,23,24,25,26,27,28,35].forEach(permId => {
       rolePermissions.push({ roleId: 4, permissionId: permId });
     });
@@ -111,39 +111,39 @@ module.exports = {
     if (existingRolePerms.length === 0) {
       await queryInterface.bulkInsert('role_permissions', rolePermissions, {});
     } else {
-      console.log('   ⚠️  Role permissions đã tồn tại, bỏ qua...');
+      console.log('   ️  Role permissions đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [4/28] Seeding users...');
+    console.log(' [4/28] Seeding users...');
     const [existingUsers] = await queryInterface.sequelize.query('SELECT id FROM users LIMIT 1');
     if (existingUsers.length === 0) {
       const hashedPassword = await bcrypt.hash('123456', 10);
       await queryInterface.bulkInsert('users', [
-      // ADMIN
+      
       { id: 1, email: 'admin@healthcare.com', password: hashedPassword, fullName: 'Quản Trị Viên', roleId: 1, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
 
-      // DOCTORS
+      
       { id: 2, email: 'nguyen.van.a@healthcare.com', password: hashedPassword, fullName: 'BS. Nguyễn Văn A', roleId: 4, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
       { id: 3, email: 'tran.thi.b@healthcare.com', password: hashedPassword, fullName: 'BS. Trần Thị B', roleId: 4, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
       { id: 4, email: 'le.van.c@healthcare.com', password: hashedPassword, fullName: 'BS. Lê Văn C', roleId: 4, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
       { id: 5, email: 'pham.thi.d@healthcare.com', password: hashedPassword, fullName: 'BS. Phạm Thị D', roleId: 4, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
 
-      // PATIENTS
+      
       { id: 6, email: 'patient1@gmail.com', password: hashedPassword, fullName: 'Ngô Văn K', roleId: 3, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
       { id: 7, email: 'patient2@gmail.com', password: hashedPassword, fullName: 'Đỗ Thị L', roleId: 3, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
       { id: 8, email: 'patient3@gmail.com', password: hashedPassword, fullName: 'Bùi Văn M', roleId: 3, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
       { id: 9, email: 'patient4@gmail.com', password: hashedPassword, fullName: 'Vũ Thị N', roleId: 3, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
       { id: 10, email: 'patient5@gmail.com', password: hashedPassword, fullName: 'Đặng Văn O', roleId: 3, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
 
-      // RECEPTIONISTS
+      
       { id: 11, email: 'receptionist1@healthcare.com', password: hashedPassword, fullName: 'Nguyễn Thị E', roleId: 2, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
       { id: 12, email: 'receptionist2@healthcare.com', password: hashedPassword, fullName: 'Trần Văn F', roleId: 2, isActive: 1, avatar: null, oauth2Provider: null, oauth2Id: null, createdAt: now, updatedAt: now },
     ], {});
     } else {
-      console.log('   ⚠️  Users đã tồn tại, bỏ qua...');
+      console.log('   ️  Users đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [5/28] Seeding specialties...');
+    console.log(' [5/28] Seeding specialties...');
     const [existingSpecialties] = await queryInterface.sequelize.query('SELECT id FROM specialties LIMIT 1');
     if (existingSpecialties.length === 0) {
       await queryInterface.bulkInsert('specialties', [
@@ -155,10 +155,10 @@ module.exports = {
         { id: 6, name: 'Tai Mũi Họng', description: 'Chuyên khoa Tai Mũi Họng', createdAt: now, updatedAt: now },
       ], {});
     } else {
-      console.log('   ⚠️  Specialties đã tồn tại, bỏ qua...');
+      console.log('   ️  Specialties đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [6/28] Seeding doctors...');
+    console.log(' [6/28] Seeding doctors...');
     const [existingDoctors] = await queryInterface.sequelize.query('SELECT id FROM doctors LIMIT 1');
     if (existingDoctors.length === 0) {
       await queryInterface.bulkInsert('doctors', [
@@ -168,10 +168,10 @@ module.exports = {
         { id: 4, doctorCode: 'BS004', userId: 5, specialtyId: 2, position: 'Bác sĩ', degree: 'Thạc sĩ', description: 'Chuyên gia Ngoại khoa', createdAt: now, updatedAt: now },
       ], {});
     } else {
-      console.log('   ⚠️  Doctors đã tồn tại, bỏ qua...');
+      console.log('   ️  Doctors đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [7/28] Seeding shifts...');
+    console.log(' [7/28] Seeding shifts...');
     const [existingShifts] = await queryInterface.sequelize.query('SELECT id FROM shifts LIMIT 1');
     if (existingShifts.length === 0) {
       await queryInterface.bulkInsert('shifts', [
@@ -180,15 +180,15 @@ module.exports = {
         { id: 3, name: 'Tối', startTime: '18:00', endTime: '21:00', createdAt: now, updatedAt: now },
       ], {});
     } else {
-      console.log('   ⚠️  Shifts đã tồn tại, bỏ qua...');
+      console.log('   ️  Shifts đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [8/28] Seeding doctor_shifts...');
+    console.log(' [8/28] Seeding doctor_shifts...');
     const [existingDoctorShifts] = await queryInterface.sequelize.query('SELECT id FROM doctor_shifts LIMIT 1');
     if (existingDoctorShifts.length === 0) {
       const doctorShifts = [];
       const today = new Date();
-      // Tạo lịch cho 60 ngày tiếp theo (thay vì 14 ngày) để đảm bảo có đủ dữ liệu
+      
       for (let dayOffset = 0; dayOffset < 60; dayOffset++) {
         const workDate = new Date(today);
         workDate.setDate(today.getDate() + dayOffset);
@@ -206,10 +206,10 @@ module.exports = {
       }
       await queryInterface.bulkInsert('doctor_shifts', doctorShifts, {});
     } else {
-      console.log('   ⚠️  Doctor shifts đã tồn tại, bỏ qua...');
+      console.log('   ️  Doctor shifts đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [9/28] Seeding patients...');
+    console.log(' [9/28] Seeding patients...');
     const [existingPatients] = await queryInterface.sequelize.query('SELECT id FROM patients LIMIT 1');
     if (existingPatients.length === 0) {
       await queryInterface.bulkInsert('patients', [
@@ -220,10 +220,10 @@ module.exports = {
         { id: 5, patientCode: 'BN005', fullName: 'Đặng Văn O', gender: 'MALE', dateOfBirth: '1995-07-25', avatar: null, cccd: '001095008765', userId: 10, isActive: 1, createdAt: now, updatedAt: now },
       ], {});
     } else {
-      console.log('   ⚠️  Patients đã tồn tại, bỏ qua...');
+      console.log('   ️  Patients đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [10/28] Seeding patient_profiles...');
+    console.log(' [10/28] Seeding patient_profiles...');
     const [existingPatientProfiles] = await queryInterface.sequelize.query('SELECT id FROM patient_profiles LIMIT 1');
     if (existingPatientProfiles.length === 0) {
       await queryInterface.bulkInsert('patient_profiles', [
@@ -244,10 +244,10 @@ module.exports = {
       { patient_id: 5, type: 'address', value: '654 Nguyễn Thị Minh Khai', ward: 'Phường 2', city: 'TP. Hồ Chí Minh', is_primary: 1, created_at: now, updated_at: now },
       ], {});
     } else {
-      console.log('   ⚠️  Patient profiles đã tồn tại, bỏ qua...');
+      console.log('   ️  Patient profiles đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [11/28] Seeding disease_categories...');
+    console.log(' [11/28] Seeding disease_categories...');
     const [existingDiseaseCategories] = await queryInterface.sequelize.query('SELECT id FROM disease_categories LIMIT 1');
     if (existingDiseaseCategories.length === 0) {
       await queryInterface.bulkInsert('disease_categories', [
@@ -261,10 +261,10 @@ module.exports = {
       { id: 8, code: 'L50', name: 'Nổi mề đay', description: 'Dị ứng da', createdAt: now, updatedAt: now },
       ], {});
     } else {
-      console.log('   ⚠️  Disease categories đã tồn tại, bỏ qua...');
+      console.log('   ️  Disease categories đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [12/28] Seeding medicines...');
+    console.log(' [12/28] Seeding medicines...');
     const [existingMedicines] = await queryInterface.sequelize.query('SELECT id FROM medicines LIMIT 1');
     if (existingMedicines.length === 0) {
       const futureDate = new Date();
@@ -282,10 +282,10 @@ module.exports = {
       { id: 10, medicineCode: 'MED010', name: 'Amlodipine 5mg', group: 'Thuốc tim mạch', activeIngredient: 'Amlodipine', manufacturer: 'Imexpharm', unit: 'VIEN', importPrice: 600, salePrice: 1200, quantity: 500, minStockLevel: 50, expiryDate: futureDate, description: null, status: 'ACTIVE', createdAt: now, updatedAt: now },
       ], {});
     } else {
-      console.log('   ⚠️  Medicines đã tồn tại, bỏ qua...');
+      console.log('   ️  Medicines đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [13/28] Seeding medicine_imports...');
+    console.log(' [13/28] Seeding medicine_imports...');
     const [existingMedicineImports] = await queryInterface.sequelize.query('SELECT id FROM medicine_imports LIMIT 1');
     if (existingMedicineImports.length === 0) {
       const importDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -303,23 +303,23 @@ module.exports = {
       { importCode: `IMP-${importDateStr}-00010`, medicineId: 10, quantity: 500, importPrice: 600, importDate, userId: 1, supplier: 'Công ty Dược phẩm DEF', supplierInvoice: 'HD-2024-010', batchNumber: 'LOT-2024-010', note: null, createdAt: now, updatedAt: now },
       ], {});
     } else {
-      console.log('   ⚠️  Medicine imports đã tồn tại, bỏ qua...');
+      console.log('   ️  Medicine imports đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [14/28] Seeding medicine_exports...');
+    console.log(' [14/28] Seeding medicine_exports...');
     const [existingMedicineExports] = await queryInterface.sequelize.query('SELECT id FROM medicine_exports LIMIT 1');
     if (existingMedicineExports.length === 0) {
-      const exportDate = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000); // 15 ngày trước
+      const exportDate = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000); 
       const exportDateStr = exportDate.toISOString().slice(0, 10).replace(/-/g, '');
       await queryInterface.bulkInsert('medicine_exports', [
         { exportCode: `EXP-${exportDateStr}-00001`, medicineId: 1, quantity: 50, exportDate, userId: 1, reason: 'Hủy do hết hạn', note: 'Thuốc đã quá hạn sử dụng, tiêu hủy theo quy định', createdAt: exportDate, updatedAt: exportDate },
         { exportCode: `EXP-${exportDateStr}-00002`, medicineId: 7, quantity: 10, exportDate, userId: 1, reason: 'Hủy do bao bì hư hỏng', note: 'Bao bì bị rách, không đảm bảo chất lượng', createdAt: exportDate, updatedAt: exportDate },
       ], {});
     } else {
-      console.log('   ⚠️  Medicine exports đã tồn tại, bỏ qua...');
+      console.log('   ️  Medicine exports đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [15/28] Seeding appointments (upcoming)...');
+    console.log(' [15/28] Seeding appointments (upcoming)...');
     const [existingAppointments] = await queryInterface.sequelize.query('SELECT id FROM appointments LIMIT 1');
     if (existingAppointments.length === 0) {
       const tomorrow = new Date(today);
@@ -334,7 +334,7 @@ module.exports = {
       { id: 5, appointmentCode: `APT-${tomorrowCodeStr}-00005`, patientId: 5, doctorId: 1, shiftId: 2, date: tomorrowStr, slotNumber: 1, bookingType: 'ONLINE', bookedBy: 'PATIENT', symptomInitial: 'Khám tổng quát', status: 'WAITING', createdAt: now, updatedAt: now },
       ]);
       
-      console.log('🌱 [16/28] Seeding appointments (completed - yesterday)...');
+      console.log(' [16/28] Seeding appointments (completed - yesterday)...');
       const yesterday = new Date(today);
       yesterday.setDate(today.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
@@ -344,10 +344,10 @@ module.exports = {
         { id: 7, appointmentCode: `APT-${yesterdayCodeStr}-00007`, patientId: 2, doctorId: 2, shiftId: 1, date: yesterdayStr, slotNumber: 2, bookingType: 'ONLINE', bookedBy: 'PATIENT', symptomInitial: 'Sốt cao', status: 'CHECKED_IN', createdAt: yesterday, updatedAt: yesterday },
       ], {});
     } else {
-      console.log('   ⚠️  Appointments đã tồn tại, bỏ qua...');
+      console.log('   ️  Appointments đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [17/28] Seeding visits...');
+    console.log(' [17/28] Seeding visits...');
     const [existingVisits] = await queryInterface.sequelize.query('SELECT id FROM visits LIMIT 1');
     if (existingVisits.length === 0) {
       const yesterday = new Date(today);
@@ -359,10 +359,10 @@ module.exports = {
       { id: 2, visitCode: `VIS-${yesterdayCodeStr}-00002`, appointmentId: 7, patientId: 2, doctorId: 2, checkInTime: yesterday, symptoms: 'Sốt cao, ói mửa', diseaseCategoryId: 3, diagnosis: 'Nhiễm khuẩn đường hô hấp', note: 'Uống thuốc đầy đủ theo đơn', status: 'COMPLETED', createdAt: yesterday, updatedAt: yesterday },
       ], {});
     } else {
-      console.log('   ⚠️  Visits đã tồn tại, bỏ qua...');
+      console.log('   ️  Visits đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [18/28] Seeding prescriptions...');
+    console.log(' [18/28] Seeding prescriptions...');
     const [existingPrescriptions] = await queryInterface.sequelize.query('SELECT id FROM prescriptions LIMIT 1');
     if (existingPrescriptions.length === 0) {
       const yesterday = new Date(today);
@@ -372,10 +372,10 @@ module.exports = {
         { id: 2, prescriptionCode: 'DT002', visitId: 2, doctorId: 2, patientId: 2, totalAmount: 35400, status: 'LOCKED', note: 'Tái khám sau 5 ngày', createdAt: yesterday, updatedAt: yesterday },
       ], {});
     } else {
-      console.log('   ⚠️  Prescriptions đã tồn tại, bỏ qua...');
+      console.log('   ️  Prescriptions đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [19/28] Seeding prescription_details...');
+    console.log(' [19/28] Seeding prescription_details...');
     const [existingPrescriptionDetails] = await queryInterface.sequelize.query('SELECT id FROM prescription_details LIMIT 1');
     if (existingPrescriptionDetails.length === 0) {
       const yesterday = new Date(today);
@@ -388,10 +388,10 @@ module.exports = {
       { id: 5, prescriptionId: 2, medicineId: 3, medicineName: 'Vitamin C 500mg', quantity: 3, unit: 'VIEN', unitPrice: 800, dosageMorning: 1, dosageNoon: 0, dosageAfternoon: 0, dosageEvening: 0, instruction: 'Uống sau ăn sáng', createdAt: yesterday, updatedAt: yesterday },
       ], {});
     } else {
-      console.log('   ⚠️  Prescription details đã tồn tại, bỏ qua...');
+      console.log('   ️  Prescription details đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [20/28] Seeding invoices...');
+    console.log(' [20/28] Seeding invoices...');
     const [existingInvoices] = await queryInterface.sequelize.query('SELECT id FROM invoices LIMIT 1');
     if (existingInvoices.length === 0) {
       const yesterday = new Date(today);
@@ -401,10 +401,10 @@ module.exports = {
       { id: 2, invoiceCode: 'HD002', visitId: 2, patientId: 2, doctorId: 2, examinationFee: 200000, medicineTotalAmount: 35400, discount: 0, totalAmount: 235400, paymentStatus: 'PAID', paidAmount: 235400, note: null, createdBy: 11, createdAt: yesterday, updatedAt: yesterday },
       ], {});
     } else {
-      console.log('   ⚠️  Invoices đã tồn tại, bỏ qua...');
+      console.log('   ️  Invoices đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [21/28] Seeding invoice_items...');
+    console.log(' [21/28] Seeding invoice_items...');
     const [existingInvoiceItems] = await queryInterface.sequelize.query('SELECT id FROM invoice_items LIMIT 1');
     if (existingInvoiceItems.length === 0) {
       const yesterday = new Date(today);
@@ -419,10 +419,10 @@ module.exports = {
       { invoiceId: 2, itemType: 'MEDICINE', description: null, prescriptionDetailId: 5, medicineName: 'Vitamin C 500mg', medicineCode: 'MED003', quantity: 3, unitPrice: 800, subtotal: 2400, createdAt: yesterday, updatedAt: yesterday },
       ], {});
     } else {
-      console.log('   ⚠️  Invoice items đã tồn tại, bỏ qua...');
+      console.log('   ️  Invoice items đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [22/28] Seeding payments...');
+    console.log(' [22/28] Seeding payments...');
     const [existingPayments] = await queryInterface.sequelize.query('SELECT id FROM payments LIMIT 1');
     if (existingPayments.length === 0) {
       const yesterday = new Date(today);
@@ -432,10 +432,10 @@ module.exports = {
       { invoiceId: 2, amount: 235400, paymentMethod: 'BANK_TRANSFER', paymentDate: yesterday, reference: 'TXN123456789', note: 'Chuyển khoản ngân hàng', createdBy: 11, createdAt: yesterday, updatedAt: yesterday },
       ], {});
     } else {
-      console.log('   ⚠️  Payments đã tồn tại, bỏ qua...');
+      console.log('   ️  Payments đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [23/28] Seeding attendance...');
+    console.log(' [23/28] Seeding attendance...');
     const [existingAttendance] = await queryInterface.sequelize.query('SELECT id FROM attendance LIMIT 1');
     if (existingAttendance.length === 0) {
       const attendanceRecords = [];
@@ -445,12 +445,12 @@ module.exports = {
       const workDate = new Date(startDate);
       workDate.setDate(startDate.getDate() + day);
       const workDateStr = workDate.toISOString().split('T')[0];
-      // Chỉ chấm công cho Admin, Doctors, Receptionists (không có Patient)
+      
       for (let userId = 1; userId <= 5; userId++) {
         const isAbsent = Math.random() < 0.05;
         const isWeekend = workDate.getDay() === 0 || workDate.getDay() === 6;
         if (!isAbsent && !isWeekend) {
-          // Tạo check-in và check-out time
+          
           const checkInTime = new Date(workDate);
           checkInTime.setHours(7 + Math.floor(Math.random() * 2), Math.floor(Math.random() * 60), 0, 0);
           const checkOutTime = new Date(workDate);
@@ -479,12 +479,12 @@ module.exports = {
           });
         }
       }
-      // Receptionists
+      
       for (let userId = 11; userId <= 12; userId++) {
         const isAbsent = Math.random() < 0.05;
         const isWeekend = workDate.getDay() === 0 || workDate.getDay() === 6;
         if (!isAbsent && !isWeekend) {
-          // Tạo check-in và check-out time
+          
           const checkInTime = new Date(workDate);
           checkInTime.setHours(7 + Math.floor(Math.random() * 2), Math.floor(Math.random() * 60), 0, 0);
           const checkOutTime = new Date(workDate);
@@ -516,53 +516,53 @@ module.exports = {
       }
       await queryInterface.bulkInsert('attendance', attendanceRecords, {});
     } else {
-      console.log('   ⚠️  Attendance đã tồn tại, bỏ qua...');
+      console.log('   ️  Attendance đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [24/28] Seeding payrolls...');
+    console.log(' [24/28] Seeding payrolls...');
     const [existingPayrolls] = await queryInterface.sequelize.query('SELECT id FROM payrolls LIMIT 1');
     if (existingPayrolls.length === 0) {
       const currentMonth = today.getMonth() + 1;
       const currentYear = today.getFullYear();
       await queryInterface.bulkInsert('payrolls', [
-      // Admin
+      
       { payrollCode: `SAL${currentYear}${String(currentMonth).padStart(2,'0')}001`, userId: 1, month: currentMonth, year: currentYear, baseSalary: 2500000, roleCoefficient: 3.0, roleSalary: 7500000, yearsOfService: 5, experienceBonus: 1250000, totalInvoices: 0, commissionRate: 0, commission: 0, daysOff: 1, allowedDaysOff: 2, penaltyDaysOff: 0, penaltyAmount: 0, grossSalary: 8750000, netSalary: 8750000, status: 'DRAFT', approvedBy: null, approvedAt: null, paidAt: null, note: null, createdAt: now, updatedAt: now },
-      // Doctors
+      
       { payrollCode: `SAL${currentYear}${String(currentMonth).padStart(2,'0')}002`, userId: 2, month: currentMonth, year: currentYear, baseSalary: 2500000, roleCoefficient: 2.5, roleSalary: 6250000, yearsOfService: 8, experienceBonus: 2000000, totalInvoices: 450400, commissionRate: 0.05, commission: 22520, daysOff: 0, allowedDaysOff: 2, penaltyDaysOff: 0, penaltyAmount: 0, grossSalary: 8272520, netSalary: 8272520, status: 'DRAFT', approvedBy: null, approvedAt: null, paidAt: null, note: null, createdAt: now, updatedAt: now },
       { payrollCode: `SAL${currentYear}${String(currentMonth).padStart(2,'0')}003`, userId: 3, month: currentMonth, year: currentYear, baseSalary: 2500000, roleCoefficient: 2.0, roleSalary: 5000000, yearsOfService: 4, experienceBonus: 1000000, totalInvoices: 235400, commissionRate: 0.05, commission: 11770, daysOff: 1, allowedDaysOff: 2, penaltyDaysOff: 0, penaltyAmount: 0, grossSalary: 6011770, netSalary: 6011770, status: 'DRAFT', approvedBy: null, approvedAt: null, paidAt: null, note: null, createdAt: now, updatedAt: now },
-      // Receptionists
+      
       { payrollCode: `SAL${currentYear}${String(currentMonth).padStart(2,'0')}011`, userId: 11, month: currentMonth, year: currentYear, baseSalary: 2500000, roleCoefficient: 1.2, roleSalary: 3000000, yearsOfService: 2, experienceBonus: 500000, totalInvoices: 0, commissionRate: 0, commission: 0, daysOff: 2, allowedDaysOff: 2, penaltyDaysOff: 0, penaltyAmount: 0, grossSalary: 3500000, netSalary: 3500000, status: 'DRAFT', approvedBy: null, approvedAt: null, paidAt: null, note: null, createdAt: now, updatedAt: now },
       ], {});
     } else {
-      console.log('   ⚠️  Payrolls đã tồn tại, bỏ qua...');
+      console.log('   ️  Payrolls đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [25/28] Seeding notifications...');
+    console.log(' [25/28] Seeding notifications...');
     const [existingNotifications] = await queryInterface.sequelize.query('SELECT id FROM notifications LIMIT 1');
     if (existingNotifications.length === 0) {
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
       const tomorrowStr = tomorrow.toISOString().split('T')[0];
       await queryInterface.bulkInsert('notifications', [
-      // Notifications cho bệnh nhân về lịch hẹn sắp tới
+      
       { userId: 6, type: 'APPOINTMENT_CREATED', title: 'Đặt lịch thành công', message: 'Bạn đã đặt lịch khám với BS. Nguyễn Văn A vào ngày ' + tomorrowStr + ' ca sáng. Vui lòng đến đúng giờ.', relatedAppointmentId: 1, isRead: 0, emailSent: 0, emailSentAt: null, createdAt: now, updatedAt: now },
       { userId: 7, type: 'APPOINTMENT_CREATED', title: 'Lịch hẹn đã được tạo', message: 'Lịch hẹn của bạn với BS. Trần Thị B đã được xác nhận cho ngày ' + tomorrowStr + ' ca sáng.', relatedAppointmentId: 2, isRead: 0, emailSent: 0, emailSentAt: null, createdAt: now, updatedAt: now },
       { userId: 8, type: 'APPOINTMENT_CREATED', title: 'Đặt lịch thành công', message: 'Bạn đã đặt lịch khám với BS. Lê Văn C vào ngày ' + tomorrowStr + ' ca chiều.', relatedAppointmentId: 3, isRead: 0, emailSent: 0, emailSentAt: null, createdAt: now, updatedAt: now },
       { userId: 10, type: 'APPOINTMENT_CREATED', title: 'Lịch hẹn mới', message: 'Lịch hẹn khám bệnh của bạn đã được đặt thành công cho ngày ' + tomorrowStr, relatedAppointmentId: 5, isRead: 0, emailSent: 0, emailSentAt: null, createdAt: now, updatedAt: now },
 
-      // Notifications cho bác sĩ
+      
       { userId: 2, type: 'SYSTEM', title: 'Lịch làm việc mới', message: 'Bạn có lịch làm việc trong 14 ngày tới. Vui lòng kiểm tra lịch trình.', relatedAppointmentId: null, isRead: 1, emailSent: 0, emailSentAt: null, createdAt: now, updatedAt: now },
       { userId: 3, type: 'SYSTEM', title: 'Nhắc nhở', message: 'Bạn có 1 lịch hẹn vào ngày mai. Vui lòng chuẩn bị.', relatedAppointmentId: null, isRead: 0, emailSent: 0, emailSentAt: null, createdAt: now, updatedAt: now },
 
-      // Notifications hệ thống
+      
       { userId: 1, type: 'SYSTEM', title: 'Cảnh báo thuốc sắp hết', message: 'Có 2 loại thuốc sắp đạt mức tồn kho tối thiểu. Vui lòng kiểm tra và nhập thêm.', relatedAppointmentId: null, isRead: 0, emailSent: 0, emailSentAt: null, createdAt: now, updatedAt: now },
       { userId: 11, type: 'SYSTEM', title: 'Chào mừng', message: 'Chào mừng bạn đến với hệ thống quản lý phòng khám. Bạn có thể đặt lịch khám trực tuyến.', relatedAppointmentId: null, isRead: 1, emailSent: 0, emailSentAt: null, createdAt: now, updatedAt: now },
       ], {});
     } else {
-      console.log('   ⚠️  Notifications đã tồn tại, bỏ qua...');
+      console.log('   ️  Notifications đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [26/28] Seeding diagnoses...');
+    console.log(' [26/28] Seeding diagnoses...');
     const [existingDiagnoses] = await queryInterface.sequelize.query('SELECT id FROM diagnoses LIMIT 1');
     if (existingDiagnoses.length === 0) {
       const yesterday = new Date(today);
@@ -572,10 +572,10 @@ module.exports = {
       { visitId: 2, diseaseCategoryId: 3, diagnosisDetail: 'Nhiễm khuẩn đường hô hấp trên, viêm phế quản cấp. Bệnh nhân sốt cao, ho có đờm, khó thở nhẹ.', icd10Code: 'J06.9', severity: 'MODERATE', note: 'Theo dõi nhiệt độ, uống thuốc đầy đủ, tái khám sau 5 ngày', createdAt: yesterday, updatedAt: yesterday },
       ], {});
     } else {
-      console.log('   ⚠️  Diagnoses đã tồn tại, bỏ qua...');
+      console.log('   ️  Diagnoses đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [27/28] Seeding refunds...');
+    console.log(' [27/28] Seeding refunds...');
     const [existingRefunds] = await queryInterface.sequelize.query('SELECT id FROM refunds LIMIT 1');
     if (existingRefunds.length === 0) {
       const yesterday = new Date(today);
@@ -584,17 +584,17 @@ module.exports = {
       { invoiceId: 1, amount: 50000, reason: 'MEDICINE_RETURNED', reasonDetail: 'Bệnh nhân trả lại một phần thuốc do dị ứng', status: 'COMPLETED', requestedBy: 6, approvedBy: 1, requestDate: new Date(yesterday.getTime() + 2 * 24 * 60 * 60 * 1000), approvedDate: new Date(yesterday.getTime() + 2 * 24 * 60 * 60 * 1000), completedDate: new Date(yesterday.getTime() + 3 * 24 * 60 * 60 * 1000), note: 'Đã hoàn tiền cho bệnh nhân', createdAt: new Date(yesterday.getTime() + 2 * 24 * 60 * 60 * 1000), updatedAt: new Date(yesterday.getTime() + 3 * 24 * 60 * 60 * 1000) },
       ], {});
     } else {
-      console.log('   ⚠️  Refunds đã tồn tại, bỏ qua...');
+      console.log('   ️  Refunds đã tồn tại, bỏ qua...');
     }
 
-    console.log('🌱 [28/28] Seeding notification_settings...');
+    console.log(' [28/28] Seeding notification_settings...');
     const [existingNotificationSettings] = await queryInterface.sequelize.query('SELECT id FROM notification_settings LIMIT 1');
     if (existingNotificationSettings.length === 0) {
       const notificationSettings = [];
       for (let userId = 1; userId <= 12; userId++) {
         notificationSettings.push({
           userId,
-          emailEnabled: userId <= 5 || userId >= 11 ? true : false, // Admin, Doctors, Receptionists có email
+          emailEnabled: userId <= 5 || userId >= 11 ? true : false, 
           smsEnabled: false,
           pushEnabled: true,
           inAppEnabled: true,
@@ -604,11 +604,11 @@ module.exports = {
       }
       await queryInterface.bulkInsert('notification_settings', notificationSettings, {});
     } else {
-      console.log('   ⚠️  Notification settings đã tồn tại, bỏ qua...');
+      console.log('   ️  Notification settings đã tồn tại, bỏ qua...');
     }
 
-    console.log('✅ Seed dữ liệu hoàn tất! Tổng cộng 28 bảng đã được seed.');
-    console.log('📊 Thống kê:');
+    console.log(' Seed dữ liệu hoàn tất! Tổng cộng 28 bảng đã được seed.');
+    console.log(' Thống kê:');
     console.log('   - 4 Roles: ADMIN, DOCTOR, PATIENT, RECEPTIONIST');
     console.log('   - 35 Permissions');
     console.log('   - 12 Users: 1 Admin, 4 Doctors, 5 Patients, 2 Receptionists');
@@ -637,7 +637,7 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
-    console.log('🗑️  Xóa toàn bộ dữ liệu...');
+    console.log('️  Xóa toàn bộ dữ liệu...');
     await queryInterface.bulkDelete('notification_settings', null, {});
     await queryInterface.bulkDelete('refunds', null, {});
     await queryInterface.bulkDelete('diagnoses', null, {});
@@ -665,6 +665,6 @@ module.exports = {
     await queryInterface.bulkDelete('role_permissions', null, {});
     await queryInterface.bulkDelete('permissions', null, {});
     await queryInterface.bulkDelete('roles', null, {});
-    console.log('✅ Đã xóa toàn bộ dữ liệu!');
+    console.log(' Đã xóa toàn bộ dữ liệu!');
   }
 };

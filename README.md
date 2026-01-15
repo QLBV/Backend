@@ -1,8 +1,6 @@
 <div align="center">
 
-# 🏥 HEALOS Backend API
-
-### Enterprise Healthcare Management REST API
+### HỆ THỐNG QUẢN LÝ PHÒNG KHÁM TƯ HEALTHCARE
 
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-5.2-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
@@ -10,166 +8,162 @@
 [![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![Sequelize](https://img.shields.io/badge/Sequelize-6.37-52B0E7?style=for-the-badge&logo=sequelize&logoColor=white)](https://sequelize.org/)
 
-<p align="center">
-  <strong>A robust, scalable REST API powering the HEALOS Healthcare Management System.</strong>
-</p>
-
-[Features](#-features) • [Tech Stack](#-tech-stack) • [Getting Started](#-getting-started) • [API Reference](#-api-reference) • [Database](#-database)
+[Tính năng](#-tính-năng) • [Công nghệ](#-công-nghệ) • [Bắt đầu](#-bắt-đầu) • [Cơ sở dữ liệu](#️-cơ-sở-dữ-liệu)
 
 </div>
 
 ---
 
-## 📋 Overview
+## 📋 Tổng quan
 
-HEALOS Backend is a **production-ready REST API** built with Node.js, Express, and TypeScript. It provides comprehensive endpoints for managing healthcare operations including patient records, appointments, prescriptions, invoices, pharmacy inventory, and employee management.
+Backend là được xây dựng với Node.js, Express và TypeScript. Nó cung cấp các endpoint toàn diện để quản lý các hoạt động chăm sóc sức khỏe bao gồm hồ sơ bệnh nhân, lịch hẹn, đơn thuốc, hóa đơn, kho thuốc và quản lý nhân viên.
 
-## ✨ Features
+## ✨ Tính năng
 
-### 🔐 Authentication & Security
-- **JWT Authentication** with access & refresh tokens
-- **OAuth 2.0** integration (Google Sign-In)
-- **Role-Based Access Control (RBAC)** - Admin, Doctor, Receptionist, Patient
-- **Password Hashing** with bcrypt
-- **Rate Limiting** to prevent abuse
-- **Helmet.js** for security headers
-- **CORS** configuration
+### 🔐 Xác thực & Bảo mật
+- **Xác thực JWT** với access & refresh token
+- **OAuth 2.0** tích hợp (Đăng nhập Google)
+- **Kiểm soát truy cập dựa trên vai trò (RBAC)** - Admin, Bác sĩ, Lễ tân, Bệnh nhân
+- **Mã hóa mật khẩu** với bcrypt
+- **Giới hạn tốc độ** để ngăn chặn lạm dụng
+- **Helmet.js** cho security headers
+- **Cấu hình CORS**
 
-### 👥 User Management
-- User registration & login
-- Email verification
-- Password reset via email
-- Profile management
-- Role & permission management
+### 👥 Quản lý người dùng
+- Đăng ký & đăng nhập người dùng
+- Xác minh email
+- Đặt lại mật khẩu qua email
+- Quản lý hồ sơ cá nhân
+- Quản lý vai trò & quyền hạn
 
-### 🗓️ Appointment System
-- Online & offline booking
-- Appointment status management
-- Doctor availability checking
-- Appointment reminders (cron jobs)
-- Visit tracking
+### 📅 Hệ thống lịch hẹn
+- Đặt lịch online & offline
+- Quản lý trạng thái lịch hẹn
+- Kiểm tra lịch trống của bác sĩ
+- Nhắc nhở lịch hẹn (cron jobs)
+- Theo dõi lượt khám
 
-### 💊 Prescription Management
-- Create, update, lock prescriptions
-- Digital prescription generation
-- PDF export with signatures
-- Status workflow (Draft → Locked → Dispensed)
+### 💊 Quản lý đơn thuốc
+- Tạo, cập nhật, khóa đơn thuốc
+- Tạo đơn thuốc điện tử
+- Xuất PDF với chữ ký
+- Quy trình trạng thái (Nháp → Đã khóa → Đã cấp phát)
 
-### 💰 Invoice & Payments
-- Invoice generation
-- Payment tracking (Cash, Bank Transfer, QR)
-- Partial payment support
-- PDF invoice export
-- Payment history
+### 💰 Hóa đơn & Thanh toán
+- Tạo hóa đơn
+- Theo dõi thanh toán (Tiền mặt, Chuyển khoản, QR)
+- Hỗ trợ thanh toán từng phần
+- Xuất hóa đơn PDF
+- Lịch sử thanh toán
 
-### 💊 Pharmacy & Inventory
-- Medicine CRUD operations
-- Stock management
-- Import/Export tracking
-- Low stock alerts
-- Batch & expiry tracking
+### 💊 Nhà thuốc & Kho
+- Thao tác CRUD cho thuốc
+- Quản lý tồn kho
+- Theo dõi nhập/xuất
+- Cảnh báo tồn kho thấp
+- Theo dõi lô & hạn sử dụng
 
-### 👨‍⚕️ Doctor & Staff Management
-- Doctor profiles & specialties
-- Shift scheduling
-- Attendance tracking
-- Payroll management
-- Salary calculation
+### 👨‍⚕️ Quản lý bác sĩ & nhân viên
+- Hồ sơ bác sĩ & chuyên khoa
+- Lập lịch ca trực
+- Theo dõi chấm công
+- Quản lý lương
+- Tính toán tiền lương
 
-### 📊 Reports & Analytics
-- Financial reports (PDF/Excel)
-- Appointment statistics
-- Patient demographics
-- Medicine usage reports
-- Revenue analytics
+### 📊 Báo cáo & Phân tích
+- Báo cáo tài chính (PDF/Excel)
+- Thống kê lịch hẹn
+- Thông tin nhân khẩu học bệnh nhân
+- Báo cáo sử dụng thuốc
+- Phân tích doanh thu
 
-### 📧 Notifications
-- Email notifications (Nodemailer)
-- In-app notifications
-- Appointment reminders
-- System alerts
+### 🔔 Thông báo
+- Thông báo email (Nodemailer)
+- Thông báo trong ứng dụng
+- Nhắc nhở lịch hẹn
+- Cảnh báo hệ thống
 
-## 🛠 Tech Stack
+## 🛠 Công nghệ
 
-### Core Framework
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Node.js** | 18+ | Runtime Environment |
+### Framework cốt lõi
+| Công nghệ | Phiên bản | Mục đích |
+|-----------|-----------|----------|
+| **Node.js** | 18+ | Môi trường Runtime |
 | **Express.js** | 5.2 | Web Framework |
 | **TypeScript** | 5.9 | Type Safety |
 
-### Database & ORM
-| Technology | Purpose |
-|------------|---------|
-| **MySQL** | Primary Database |
+### Cơ sở dữ liệu & ORM
+| Công nghệ | Mục đích |
+|-----------|----------|
+| **MySQL** | Cơ sở dữ liệu chính |
 | **Sequelize** | ORM & Migrations |
 | **Redis (ioredis)** | Caching & Sessions |
 
-### Security
-| Technology | Purpose |
-|------------|---------|
-| **JWT** | Token Authentication |
-| **bcrypt** | Password Hashing |
+### Bảo mật
+| Công nghệ | Mục đích |
+|-----------|----------|
+| **JWT** | Xác thực Token |
+| **bcrypt** | Mã hóa mật khẩu |
 | **Helmet** | Security Headers |
-| **express-rate-limit** | Rate Limiting |
+| **express-rate-limit** | Giới hạn tốc độ |
 | **Passport.js** | OAuth Strategies |
 
-### Documentation & Export
-| Technology | Purpose |
-|------------|---------|
-| **PDFKit** | PDF Generation |
-| **ExcelJS** | Excel Export |
-| **Chart.js** | Chart Generation |
+### Tài liệu & Xuất file
+| Công nghệ | Mục đích |
+|-----------|----------|
+| **PDFKit** | Tạo PDF |
+| **ExcelJS** | Xuất Excel |
+| **Chart.js** | Tạo biểu đồ |
 
-### Utilities
-| Technology | Purpose |
-|------------|---------|
-| **Nodemailer** | Email Service |
+### Tiện ích
+| Công nghệ | Mục đích |
+|-----------|----------|
+| **Nodemailer** | Dịch vụ Email |
 | **Winston** | Logging |
 | **Morgan** | HTTP Logging |
 | **node-cron** | Scheduled Jobs |
-| **Multer** | File Uploads |
+| **Multer** | Upload File |
 
 ### Testing
-| Technology | Purpose |
-|------------|---------|
+| Công nghệ | Mục đích |
+|-----------|----------|
 | **Jest** | Testing Framework |
 | **Supertest** | HTTP Testing |
 | **ts-jest** | TypeScript Support |
 
-## 🚀 Getting Started
+## 🚀 Bắt đầu
 
-### Prerequisites
+### Yêu cầu
 
 - **Node.js** >= 18.x
 - **MySQL** >= 8.0
-- **Redis** (optional, for caching)
+- **Redis** (tùy chọn, cho caching)
 - **npm** >= 9.x
 
-### Installation
+### Cài đặt
 
-1. **Clone the repository**
+1. **Clone repository**
    ```bash
    git clone https://github.com/QLBV/Backend.git
    cd Backend
    ```
 
-2. **Install dependencies**
+2. **Cài đặt dependencies**
    ```bash
    npm install
    ```
 
-3. **Environment Setup**
+3. **Thiết lập môi trường**
    
-   Copy the example environment file:
+   Sao chép file môi trường mẫu:
    ```bash
    cp .env.example .env
    ```
    
-   Configure your `.env` file:
+   Cấu hình file `.env`:
    ```env
    # Server
-   PORT=3000
+   PORT=5000
    NODE_ENV=development
    
    # Database
@@ -195,7 +189,7 @@ HEALOS Backend is a **production-ready REST API** built with Node.js, Express, a
    GOOGLE_CLIENT_ID=your_google_client_id
    GOOGLE_CLIENT_SECRET=your_google_client_secret
    
-   # Redis (optional)
+   # Redis (tùy chọn)
    REDIS_HOST=localhost
    REDIS_PORT=6379
    
@@ -203,51 +197,51 @@ HEALOS Backend is a **production-ready REST API** built with Node.js, Express, a
    FRONTEND_URL=http://localhost:5173
    ```
 
-4. **Database Setup**
+4. **Thiết lập cơ sở dữ liệu**
    
-   Create the database:
+   Tạo database:
    ```bash
-   mysql -u root -p -e "CREATE DATABASE healos_db;"
+   mysql -u root -p -e "CREATE DATABASE healthcare_db;"
    ```
    
-   Run migrations:
+   Chạy migrations:
    ```bash
    npx sequelize-cli db:migrate
    ```
    
-   Seed initial data:
+   Seed dữ liệu ban đầu:
    ```bash
    npx sequelize-cli db:seed:all
    ```
    
-   (Optional) Seed large sample data for testing:
+   (Tùy chọn) Seed dữ liệu mẫu lớn để test:
    ```bash
    npm run seed:data
    ```
 
-5. **Start Development Server**
+5. **Khởi động Development Server**
    ```bash
    npm run dev
    ```
    
-   The API will be available at `http://localhost:3000`
+   API sẽ chạy tại `http://localhost:5000`
 
-### Build for Production
+### Build cho Production
 
 ```bash
 npm run build
 npm start
 ```
 
-## 📁 Project Structure
+## 📁 Cấu trúc dự án
 
 ```
 src/
-├── config/              # Configuration files
-│   ├── database.ts      # Database connection
+├── config/              # File cấu hình
+│   ├── database.ts      # Kết nối database
 │   ├── passport.ts      # OAuth strategies
-│   └── redis.ts         # Redis connection
-├── constant/            # Application constants
+│   └── redis.ts         # Kết nối Redis
+├── constant/            # Hằng số ứng dụng
 ├── controllers/         # Route controllers
 │   ├── auth.controller.ts
 │   ├── appointment.controller.ts
@@ -282,105 +276,14 @@ src/
 
 migrations/              # Database migrations
 seeders/                 # Database seeders
-uploads/                 # File uploads directory
+uploads/                 # Thư mục upload file
 logs/                    # Application logs
 postman/                 # Postman collections
 ```
 
-## 📡 API Reference
+## 🗄️ Cơ sở dữ liệu
 
-### Base URL
-```
-http://localhost:3000/api
-```
-
-### Authentication
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/auth/register` | Register new user |
-| `POST` | `/auth/login` | User login |
-| `POST` | `/auth/refresh` | Refresh access token |
-| `POST` | `/auth/forgot-password` | Request password reset |
-| `POST` | `/auth/reset-password` | Reset password |
-| `GET` | `/oauth/google` | Google OAuth login |
-
-### Users
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/users` | Get all users |
-| `GET` | `/users/:id` | Get user by ID |
-| `POST` | `/users` | Create user |
-| `PUT` | `/users/:id` | Update user |
-| `DELETE` | `/users/:id` | Delete user |
-
-### Patients
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/patients` | Get all patients |
-| `GET` | `/patients/:id` | Get patient by ID |
-| `GET` | `/patients/:id/visits` | Get patient visits |
-| `GET` | `/patients/:id/prescriptions` | Get patient prescriptions |
-| `PUT` | `/patients/:id` | Update patient |
-
-### Appointments
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/appointments` | Get all appointments |
-| `GET` | `/appointments/:id` | Get appointment by ID |
-| `POST` | `/appointments` | Create appointment |
-| `PUT` | `/appointments/:id` | Update appointment |
-| `PATCH` | `/appointments/:id/status` | Update status |
-| `DELETE` | `/appointments/:id` | Cancel appointment |
-
-### Prescriptions
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/prescriptions` | Get all prescriptions |
-| `GET` | `/prescriptions/:id` | Get prescription by ID |
-| `POST` | `/prescriptions` | Create prescription |
-| `PUT` | `/prescriptions/:id` | Update prescription |
-| `POST` | `/prescriptions/:id/lock` | Lock prescription |
-| `GET` | `/prescriptions/:id/pdf` | Export as PDF |
-
-### Invoices
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/invoices` | Get all invoices |
-| `GET` | `/invoices/:id` | Get invoice by ID |
-| `POST` | `/invoices` | Create invoice |
-| `PUT` | `/invoices/:id` | Update invoice |
-| `POST` | `/invoices/:id/payments` | Add payment |
-| `GET` | `/invoices/:id/pdf` | Export as PDF |
-
-### Medicines
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/medicines` | Get all medicines |
-| `GET` | `/medicines/:id` | Get medicine by ID |
-| `POST` | `/medicines` | Create medicine |
-| `PUT` | `/medicines/:id` | Update medicine |
-| `DELETE` | `/medicines/:id` | Delete medicine |
-| `GET` | `/medicines/low-stock` | Get low stock items |
-
-### Reports
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/reports/financial` | Financial report |
-| `GET` | `/reports/financial/pdf` | Export PDF |
-| `GET` | `/reports/financial/excel` | Export Excel |
-| `GET` | `/reports/appointments` | Appointment stats |
-| `GET` | `/reports/patient-statistics` | Patient demographics |
-
-### Dashboard
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/dashboard/admin` | Admin dashboard data |
-| `GET` | `/dashboard/doctor` | Doctor dashboard data |
-| `GET` | `/dashboard/receptionist` | Receptionist data |
-
-## 🗄️ Database
-
-### Entity Relationship
+### Mối quan hệ thực thể
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
@@ -399,81 +302,61 @@ http://localhost:3000/api
 └─────────────┘
 ```
 
-### Main Models
-- **User** - Base user account
-- **Patient** - Patient profiles
-- **Doctor** - Doctor profiles & specialties
-- **Appointment** - Booking records
-- **Visit** - Medical visits & examinations
-- **Prescription** - Medicine prescriptions
-- **Invoice** - Billing & payments
-- **Medicine** - Pharmacy inventory
-- **DoctorShift** - Scheduling
-- **Attendance** - Employee attendance
-- **Payroll** - Salary management
+### Các Model chính
+- **User** - Tài khoản người dùng cơ bản
+- **Patient** - Hồ sơ bệnh nhân
+- **Doctor** - Hồ sơ bác sĩ & chuyên khoa
+- **Appointment** - Hồ sơ đặt lịch
+- **Visit** - Lượt khám & kiểm tra y tế
+- **Prescription** - Đơn thuốc
+- **Invoice** - Hóa đơn & thanh toán
+- **Medicine** - Kho thuốc
+- **DoctorShift** - Lịch trực
+- **Attendance** - Chấm công nhân viên
+- **Payroll** - Quản lý lương
 
-## 📜 Available Scripts
+## 📜 Các lệnh có sẵn
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server (nodemon) |
-| `npm run build` | Compile TypeScript |
-| `npm start` | Start production server |
-| `npm test` | Run all tests |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run test:coverage` | Generate coverage report |
-| `npm run seed:data` | Seed database with large sample data (Warning: Truncates existing data) |
+| Lệnh | Mô tả |
+|------|-------|
+| `npm run dev` | Khởi động development server (nodemon) |
+| `npm run build` | Biên dịch TypeScript |
+| `npm start` | Khởi động production server |
+| `npm test` | Chạy tất cả tests |
+| `npm run test:watch` | Chạy tests ở chế độ watch |
+| `npm run test:coverage` | Tạo báo cáo coverage |
+| `npm run seed:data` | Seed database với dữ liệu mẫu lớn |
 
-## 🔒 Security Best Practices
+## 🤝 Đóng góp
 
-- ✅ JWT tokens with expiration
-- ✅ Password hashing with bcrypt (salt rounds: 10)
-- ✅ Rate limiting on sensitive endpoints
-- ✅ CORS whitelist configuration
-- ✅ Helmet.js security headers
-- ✅ Input validation with express-validator
-- ✅ SQL injection prevention via Sequelize ORM
-- ✅ Environment variables for secrets
+1. Fork repository
+2. Tạo feature branch (`git checkout -b feature/tinh-nang-tuyet-voi`)
+3. Commit thay đổi (`git commit -m 'feat: Thêm tính năng tuyệt vời'`)
+4. Push lên branch (`git push origin feature/tinh-nang-tuyet-voi`)
+5. Mở Pull Request
 
-## 📝 Logging
-
-Winston logger with multiple transports:
-- Console (development)
-- File rotation (production)
-- Error-specific log files
-
-Log files location: `./logs/`
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'feat: Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
-
-### Commit Convention
+### Quy ước Commit
 ```
-feat: New feature
-fix: Bug fix
-docs: Documentation
-refactor: Code refactoring
+feat: Tính năng mới
+fix: Sửa lỗi
+docs: Tài liệu
+refactor: Tái cấu trúc code
 test: Testing
-chore: Maintenance
+chore: Bảo trì
 ```
 
-## 📄 License
+## 📄 Giấy phép
 
-This project is proprietary software. All rights reserved.
+Dự án này là phần mềm độc quyền. Bảo lưu mọi quyền.
 
-## 👥 Team
+## 👥 Đội ngũ
 
-Developed with ❤️ by the HEALOS Development Team
+Phát triển với ❤️ bởi Đội ngũ Phát triển HealthCare
 
 ---
 
 <div align="center">
 
-**[⬆ Back to Top](#-healos-backend-api)**
+**[⬆ Về đầu trang](#-healthcare-backend-api)**
 
 </div>

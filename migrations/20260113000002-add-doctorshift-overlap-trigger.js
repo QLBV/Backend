@@ -1,13 +1,8 @@
-/**
- * Migration: Add database triggers to prevent overlapping doctor shifts
- * Purpose: Defense-in-depth protection at database level
- * Note: Application-level validation (doctorShift.service.ts) is the primary protection
- * This trigger provides an additional safety net
- */
+
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    // Trigger to prevent overlapping shift assignments when inserting
+    
     await queryInterface.sequelize.query(`
       CREATE TRIGGER check_doctor_shift_overlap_before_insert
       BEFORE INSERT ON doctor_shifts
@@ -33,9 +28,9 @@ module.exports = {
       END
     `);
 
-    console.log('✅ Created trigger: check_doctor_shift_overlap_before_insert');
+    console.log(' Created trigger: check_doctor_shift_overlap_before_insert');
 
-    // Trigger to prevent overlapping shift assignments when updating
+    
     await queryInterface.sequelize.query(`
       CREATE TRIGGER check_doctor_shift_overlap_before_update
       BEFORE UPDATE ON doctor_shifts
@@ -64,11 +59,11 @@ module.exports = {
       END
     `);
 
-    console.log('✅ Created trigger: check_doctor_shift_overlap_before_update');
+    console.log(' Created trigger: check_doctor_shift_overlap_before_update');
   },
 
   async down(queryInterface, Sequelize) {
-    // Drop the triggers
+    
     await queryInterface.sequelize.query(`
       DROP TRIGGER IF EXISTS check_doctor_shift_overlap_before_insert
     `);
@@ -77,6 +72,6 @@ module.exports = {
       DROP TRIGGER IF EXISTS check_doctor_shift_overlap_before_update
     `);
 
-    console.log('✅ Removed doctor shift overlap triggers');
+    console.log(' Removed doctor shift overlap triggers');
   }
 };

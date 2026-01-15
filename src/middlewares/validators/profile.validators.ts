@@ -1,9 +1,6 @@
 import { body } from "express-validator";
 import { validate } from "./validate";
 
-/**
- * Validator for updating profile
- */
 export const validateUpdateProfile = [
   body("fullName")
     .optional()
@@ -20,9 +17,6 @@ export const validateUpdateProfile = [
   validate,
 ];
 
-/**
- * Validator for changing password
- */
 export const validateChangePassword = [
   body("currentPassword")
     .notEmpty()

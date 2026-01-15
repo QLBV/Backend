@@ -68,9 +68,7 @@ export const getAppointmentsValidator = [
   validate,
 ];
 
-/**
- * Validator for updating/rescheduling appointment
- */
+
 export const validateUpdateAppointment = [
   body("doctorId")
     .optional()
@@ -108,9 +106,7 @@ export const validateUpdateAppointment = [
   validate,
 ];
 
-/**
- * Validator for canceling appointment
- */
+
 export const validateCancelAppointment = [
   body("reason")
     .optional()

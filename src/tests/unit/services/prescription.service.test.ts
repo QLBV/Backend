@@ -1,20 +1,18 @@
-/**
- * Unit tests for prescription.service.ts
- */
+
 
 import {
   createPrescriptionService,
   cancelPrescriptionService,
   lockPrescriptionService,
-} from "../../../services/prescription.service";
+} from "../../../modules/appointment/prescription.service";
 import Prescription from "../../../models/Prescription";
 import PrescriptionDetail from "../../../models/PrescriptionDetail";
 import Medicine from "../../../models/Medicine";
 import MedicineExport from "../../../models/MedicineExport";
 import Visit from "../../../models/Visit";
-import { sequelize } from "../../../models";
+import { sequelize } from "../../../models/index";
 
-// Mock models
+
 jest.mock("../../../models/Prescription");
 jest.mock("../../../models/PrescriptionDetail");
 jest.mock("../../../models/Medicine");
@@ -77,8 +75,8 @@ describe("Prescription Service", () => {
       (MedicineExport.create as jest.Mock).mockResolvedValue({});
 
       const result = await createPrescriptionService(
-        1, // doctorId
-        1, // patientId
+        1, 
+        1, 
         {
           visitId: 1,
           medicines: [
@@ -94,7 +92,7 @@ describe("Prescription Service", () => {
         }
       );
 
-      expect(mockMedicine.quantity).toBe(80); // 100 - 20
+      expect(mockMedicine.quantity).toBe(80); 
       expect(mockMedicine.save).toHaveBeenCalled();
       expect(Prescription.create).toHaveBeenCalled();
       expect(PrescriptionDetail.create).toHaveBeenCalled();
@@ -132,7 +130,7 @@ describe("Prescription Service", () => {
       const mockMedicine = {
         id: 1,
         name: "Paracetamol",
-        quantity: 10, // Less than requested
+        quantity: 10, 
         salePrice: 1500,
         unit: "VIEN",
         status: "ACTIVE",
@@ -158,7 +156,7 @@ describe("Prescription Service", () => {
           medicines: [
             {
               medicineId: 1,
-              quantity: 50, // More than available
+              quantity: 50, 
               dosageMorning: 1,
               dosageNoon: 0,
               dosageAfternoon: 1,
@@ -206,7 +204,7 @@ describe("Prescription Service", () => {
 
       const result = await cancelPrescriptionService(1, 1);
 
-      expect(mockMedicine.quantity).toBe(100); // 80 + 20 (restored)
+      expect(mockMedicine.quantity).toBe(100); 
       expect(mockMedicine.save).toHaveBeenCalled();
       expect(mockPrescription.status).toBe("CANCELLED");
       expect(mockPrescription.save).toHaveBeenCalled();

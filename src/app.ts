@@ -4,32 +4,32 @@ import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import path from "path";
-import userRoutes from "./routes/user.routes";
-import employeeRoutes from "./routes/employee.routes";
-import authRoutes from "./routes/auth.routes";
-import patientRoutes from "./routes/patient.routes";
-import appointmentRoutes from "./routes/appointment.routes";
+import userRoutes from "./modules/user/user.routes";
+import employeeRoutes from "./modules/user/employee.routes";
+import authRoutes from "./modules/auth/auth.routes";
+import patientRoutes from "./modules/patient/patient.routes";
+import appointmentRoutes from "./modules/appointment/appointment.routes";
 import { errorHandler } from "./middlewares/errorHandler.middlewares";
-import visitRoutes from "./routes/visit.routes";
-import notificationRoutes from "./routes/notification.routes";
-import medicineRoutes from "./routes/medicine.routes";
-import medicineImportRoutes from "./routes/medicineImport.routes";
-import medicineExportRoutes from "./routes/medicineExport.routes";
-import prescriptionRoutes from "./routes/prescription.routes";
-import invoiceRoutes from "./routes/invoice.routes";
-import payrollRoutes from "./routes/payroll.routes";
-import dashboardRoutes from "./routes/dashboard.routes";
-import reportRoutes from "./routes/report.routes";
-import oauthRoutes from "./routes/oauth.routes";
-import permissionRoutes from "./routes/permission.routes";
-import profileRoutes from "./routes/profile.routes";
-import attendanceRoutes from "./routes/attendance.routes";
-import searchRoutes from "./routes/search.routes";
+import visitRoutes from "./modules/appointment/visit.routes";
+import notificationRoutes from "./modules/notification/notification.routes";
+import medicineRoutes from "./modules/inventory/medicine.routes";
+import medicineImportRoutes from "./modules/inventory/medicineImport.routes";
+import medicineExportRoutes from "./modules/inventory/medicineExport.routes";
+import prescriptionRoutes from "./modules/appointment/prescription.routes";
+import invoiceRoutes from "./modules/finance/invoice.routes";
+import payrollRoutes from "./modules/finance/payroll.routes";
+import dashboardRoutes from "./modules/admin/dashboard.routes";
+import reportRoutes from "./modules/admin/report.routes";
+import oauthRoutes from "./modules/auth/oauth.routes";
+import permissionRoutes from "./modules/user/permission.routes";
+import profileRoutes from "./modules/auth/profile.routes";
+import attendanceRoutes from "./modules/shift/attendance.routes";
+import searchRoutes from "./modules/misc/search.routes";
 import { corsOptions } from "./config/cors.config";
 import passport from "./config/oauth.config";
-import auditLogRoutes from "./routes/auditLog.routes";
-import jobRoutes from "./routes/job.routes";
-import systemRoutes from "./routes/system.routes";
+import auditLogRoutes from "./modules/admin/auditLog.routes";
+import jobRoutes from "./modules/misc/job.routes";
+import systemRoutes from "./modules/admin/system.routes";
 import { checkMaintenance } from "./middlewares/maintenance.middlewares";
 
 const rateLimitWindowMsEnv = Number(process.env.RATE_LIMIT_WINDOW_MS);
@@ -43,37 +43,37 @@ const rateLimitMax =
 
 const app: Application = express();
 
-// Đảm bảo đọc đúng IP client khi chạy sau reverse proxy (ảnh hưởng rate limiting)
+
 app.set("trust proxy", 1);
 
-// Ghi log HTTP requests với Morgan
+
 app.use(morgan("dev"));
 
-// LOGGING - Ghi log request/response đầu tiên trước tất cả middleware
+
 app.use((req, res, next) => {
   const start = Date.now();
-  console.log(`\n📥 INCOMING: ${req.method} ${req.url}`);
+  console.log(`\nINCOMING: ${req.method} ${req.url}`);
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     console.log(
-      `📤 RESPONSE: ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)\n`
+      `RESPONSE: ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)\n`
     );
   });
 
   next();
 });
 
-// Security Middlewares
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 app.use(cors(corsOptions));
 
-// Rate Limiting
+
 const limiter = rateLimit({
-  windowMs: rateLimitWindowMs, // Cấu hình qua RATE_LIMIT_WINDOW_MS
-  max: rateLimitMax, // Cấu hình qua RATE_LIMIT_MAX_REQUESTS
+  windowMs: rateLimitWindowMs, 
+  max: rateLimitMax, 
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -83,20 +83,20 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 
-// Parser body cho JSON và URL-encoded
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
-// Khởi tạo Passport cho xác thực OAuth
+
 app.use(passport.initialize());
 
-// Middleware kiểm tra chế độ bảo trì
-// Đặt sau passport để có thể đọc thông tin user từ token
+
+
 app.use("/api", checkMaintenance);
 
-// Route kiểm tra sức khỏe hệ thống (Health Check)
+
 app.get("/", (req: Request, res: Response) => {
   res.json({
     success: true,
@@ -106,7 +106,7 @@ app.get("/", (req: Request, res: Response) => {
   });
 });
 
-// API Routes
+
 app.use("/api/auth", authRoutes);
 app.use("/api/auth/oauth", oauthRoutes);
 app.use("/api/profile", profileRoutes);
@@ -115,13 +115,13 @@ app.use("/api/users", userRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/visits", visitRoutes);
-app.use("/api/doctors", require("./routes/doctor.routes").default);
-app.use("/api/doctor-shifts", require("./routes/doctorShift.routes").default);
-app.use("/api/specialties", require("./routes/specialty.routes").default);
+app.use("/api/doctors", require( "./modules/doctor/doctor.routes").default);
+app.use("/api/doctor-shifts", require( "./modules/doctor/doctorShift.routes").default);
+app.use("/api/specialties", require( "./modules/doctor/specialty.routes").default);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/shifts", require("./routes/shift.routes").default);
-app.use("/api/shift-templates", require("./routes/shiftTemplate.routes").default);
-app.use("/api/schedule-generation", require("./routes/scheduleGeneration.routes").default);
+app.use("/api/shifts", require( "./modules/shift/shift.routes").default);
+app.use("/api/shift-templates", require( "./modules/shift/shiftTemplate.routes").default);
+app.use("/api/schedule-generation", require( "./modules/shift/scheduleGeneration.routes").default);
 app.use("/api/medicines", medicineRoutes);
 app.use("/api/medicine-imports", medicineImportRoutes);
 app.use("/api/medicine-exports", medicineExportRoutes);
@@ -135,10 +135,10 @@ app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/jobs", jobRoutes);
-app.use("/api/contact", require("./routes/contact.routes").default);
+app.use("/api/contact", require( "./modules/misc/contact.routes").default);
 app.use("/api/system", systemRoutes);
 
-// 404 Handler
+
 app.use((req: Request, res: Response) => {
   res.status(404).json({
     success: false,
@@ -146,7 +146,7 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// Global Error Handler
+
 app.use(errorHandler);
 
 export default app;

@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { fakerVI as faker } from '@faker-js/faker';
 import bcrypt from 'bcryptjs';
 import {
@@ -26,24 +26,24 @@ async function seed() {
   const transaction = await sequelize.transaction();
   
   try {
-    console.log('🚀 Starting Data Seeding...');
+    console.log(' Starting Data Seeding...');
     await sequelize.authenticate();
-    console.log('✅ Database connected.');
+    console.log(' Database connected.');
 
-    // 1. Clean Data
-    console.log('🧹 Cleaning old data...');
+    
+    console.log(' Cleaning old data...');
     await sequelize.query('SET FOREIGN_KEY_CHECKS = 0', { transaction });
     for (const table of TABLES_TO_TRUNCATE) {
         try {
             await sequelize.query(`TRUNCATE TABLE ${table}`, { transaction });
         } catch (e) {
-            console.log(`⚠️  Could not truncate ${table}, skipping...`);
+            console.log(`️  Could not truncate ${table}, skipping...`);
         }
     }
     await sequelize.query('SET FOREIGN_KEY_CHECKS = 1', { transaction });
 
-    // 2. Base Data
-    console.log('🌱 Seeding Roles...');
+    
+    console.log(' Seeding Roles...');
     const rolesData = [
       { id: 1, name: 'ADMIN', description: 'Quản trị viên' },
       { id: 2, name: 'RECEPTIONIST', description: 'Lễ tân' },
@@ -57,7 +57,7 @@ async function seed() {
         await Role.create(r, { transaction });
     }
 
-    console.log('🌱 Seeding Shifts...');
+    console.log(' Seeding Shifts...');
     const shiftsData = [
       { id: 1, name: 'Sáng', startTime: '07:00', endTime: '11:30' },
       { id: 2, name: 'Chiều', startTime: '13:30', endTime: '17:00' },
@@ -67,7 +67,7 @@ async function seed() {
         await Shift.create(s, { transaction });
     }
 
-    console.log('🌱 Seeding Specialties...');
+    console.log(' Seeding Specialties...');
     const createdSpecialties = [];
     for(let i=1; i<=10; i++) {
         const s = await Specialty.create({
@@ -80,7 +80,7 @@ async function seed() {
         createdSpecialties.push(s);
     }
 
-    console.log('🌱 Seeding Disease Categories...');
+    console.log(' Seeding Disease Categories...');
     const createdDiseaseCats = [];
     for(let i=1; i<=50; i++) {
         const d = await DiseaseCategory.create({
@@ -91,7 +91,7 @@ async function seed() {
         createdDiseaseCats.push(d);
     }
 
-    console.log('🌱 Seeding Medicines...');
+    console.log(' Seeding Medicines...');
     const createdMedicines = [];
     for(let i=1; i<=60; i++) {
         const importPrice = parseFloat(faker.commerce.price({ min: 10000, max: 500000 }));
@@ -114,12 +114,12 @@ async function seed() {
         createdMedicines.push(m);
     }
 
-    // 3. Users & Profiles
-    console.log('🌱 Seeding Users...');
+    
+    console.log(' Seeding Users...');
     const passwordHash = await bcrypt.hash('123456', 10);
     const createdUsers = [];
     
-    // Helper to create user
+    
     const createUser = async (roleId, prefix) => {
         return User.create({
             email: `${prefix}${faker.string.alphanumeric(8)}@demo.com`,
@@ -130,11 +130,11 @@ async function seed() {
         }, { transaction });
     };
 
-    // Admin
+    
     const admin = await User.create({ email: 'admin@demo.com', password: passwordHash, fullName: 'Admin User', roleId: 1, isActive: true }, { transaction });
     createdUsers.push(admin);
 
-    // Doctors (15)
+    
     const createdDoctors = [];
     for(let i=0; i<15; i++) {
         const u = await createUser(4, 'doctor');
@@ -150,7 +150,7 @@ async function seed() {
         }, { transaction });
         createdDoctors.push(doc);
         
-        // Also add employee record
+        
         await Employee.create({
             userId: u.id,
             employeeCode: 'EMP' + faker.string.numeric(5),
@@ -164,7 +164,7 @@ async function seed() {
         }, { transaction });
     }
 
-    // Staff (Receptionist -> 2)
+    
     for(let i=0; i<10; i++) {
         const u = await createUser(2, 'staff');
         createdUsers.push(u);
@@ -181,7 +181,7 @@ async function seed() {
         }, { transaction });
     }
 
-    // Patients (50)
+    
     const createdPatients = [];
     for(let i=0; i<50; i++) {
         const u = await createUser(3, 'patient');
@@ -206,11 +206,11 @@ async function seed() {
         }, { transaction });
     }
 
-    // 4. Operational Data
-    console.log('🌱 Seeding Doctor Shifts...');
+    
+    console.log(' Seeding Doctor Shifts...');
     const createdDocShifts = [];
     const today = new Date();
-    // For each doctor, generate shifts for next 15 days
+    
     for(const doc of createdDoctors) {
         for(let d=0; d<15; d++) {
             const date = new Date(today);
@@ -221,13 +221,13 @@ async function seed() {
                 shiftId: faker.number.int({ min: 1, max: 3 }),
                 workDate: dateStr,
                 status: 'ACTIVE',
-                // maxSlots: 20 // Removed as it is not in the model
+                
             }, { transaction });
             createdDocShifts.push(ds);
         }
     }
 
-    console.log('🌱 Seeding Appointments...');
+    console.log(' Seeding Appointments...');
     const createdAppointments = [];
     for(let i=0; i<200; i++) {
         const docShift = faker.helpers.arrayElement(createdDocShifts);
@@ -252,11 +252,11 @@ async function seed() {
     
     const completedAppointments = createdAppointments.filter(a => a.status === 'COMPLETED');
 
-    console.log('🌱 Seeding Visits & Invoices...');
+    console.log(' Seeding Visits & Invoices...');
     
     for(const apt of completedAppointments) {
       try {
-        // Visit
+        
         const visit = await Visit.create({
             visitCode: 'VIS' + faker.string.alphanumeric(8).toUpperCase(),
             patientId: apt.patientId,
@@ -276,7 +276,7 @@ async function seed() {
             }
         }, { transaction });
 
-        // Diagnosis
+        
         await Diagnosis.create({
             visitId: visit.id,
             diseaseCategoryId: visit.diseaseCategoryId,
@@ -286,7 +286,7 @@ async function seed() {
             note: faker.lorem.sentence()
         }, { transaction });
 
-        // Prescription
+        
         const prescription = await Prescription.create({
             prescriptionCode: 'PRE' + faker.string.alphanumeric(8).toUpperCase(),
             visitId: visit.id,
@@ -296,7 +296,7 @@ async function seed() {
             notes: faker.lorem.sentence()
         }, { transaction });
 
-        // Prescription Details
+        
         const detailsCount = faker.number.int({ min: 1, max: 3 });
         let totalMedPrice = 0;
         for(let k=0; k<detailsCount; k++) {
@@ -325,14 +325,14 @@ async function seed() {
             totalMedPrice += (price * qty);
         }
 
-        // Invoice
+        
         const finalAmt = totalMedPrice + 200000;
         const invoice = await Invoice.create({
             invoiceCode: 'INV' + faker.string.alphanumeric(8).toUpperCase(),
             visitId: visit.id,
             patientId: apt.patientId,
             doctorId: apt.doctorId,
-            createdBy: 1, // Admin
+            createdBy: 1, 
             totalAmount: finalAmt,
             discount: 0,
             finalAmount: finalAmt,
@@ -341,7 +341,7 @@ async function seed() {
             issuedDate: new Date()
         }, { transaction });
         
-        // Invoice Items
+        
         await InvoiceItem.create({
             invoiceId: invoice.id,
             itemType: 'EXAMINATION',
@@ -356,63 +356,63 @@ async function seed() {
                 invoiceId: invoice.id,
                 amount: invoice.finalAmount,
                 paymentMethod: faker.helpers.arrayElement(['CASH', 'BANK_TRANSFER', 'QR_CODE']),
-                reference: faker.string.alphanumeric(10), // Was transactionId
+                reference: faker.string.alphanumeric(10), 
                 paymentDate: new Date(),
                 createdBy: 1
             }, { transaction });
         }
       } catch (err) {
-        console.warn(`⚠️ Skipped processing appointment ${apt.id} due to error: ${err.message}`);
+        console.warn(`️ Skipped processing appointment ${apt.id} due to error: ${err.message}`);
       }
     }
 
-    console.log('🌱 Seeding Imports, Logs...');
-    // Medicine Imports
+    console.log(' Seeding Imports, Logs...');
+    
     for(let i=0; i<50; i++) {
         await MedicineImport.create({
             importCode: 'IMP' + faker.string.alphanumeric(6).toUpperCase(),
             userId: 1,
-            supplier: faker.company.name(), // Was supplierName
+            supplier: faker.company.name(), 
             importDate: faker.date.past(),
-            note: faker.lorem.sentence(), // Was notes
+            note: faker.lorem.sentence(), 
             medicineId: faker.helpers.arrayElement(createdMedicines).id,
             quantity: 100,
-            importPrice: 5000, // Was unitPrice
+            importPrice: 5000, 
             batchNumber: faker.string.alphanumeric(6),
             supplierInvoice: faker.string.alphanumeric(10)
         }, { transaction });
     }
     
-    // Audit Logs
+    
     for(let i=0; i<50; i++) {
         await AuditLog.create({
             userId: faker.helpers.arrayElement(createdUsers).id,
             action: faker.helpers.arrayElement(['LOGIN', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE']),
-            tableName: faker.helpers.arrayElement(['patients', 'appointments', 'prescriptions']), // Was entityType
-            recordId: faker.number.int({ min: 1, max: 100 }), // Was entityId
-            // details, ipAddress, userAgent might be OK or ignored if loose, but AuditLog has ipAddress/userAgent
+            tableName: faker.helpers.arrayElement(['patients', 'appointments', 'prescriptions']), 
+            recordId: faker.number.int({ min: 1, max: 100 }), 
+            
             ipAddress: faker.internet.ipv4(),
             userAgent: faker.internet.userAgent()
         }, { transaction });
     }
 
-    // Notifications
+    
     for(let i=0; i<50; i++) {
         await Notification.create({
             userId: faker.helpers.arrayElement(createdUsers).id,
             title: faker.lorem.words(3),
             message: faker.lorem.sentence(),
-            type: 'SYSTEM', // Was INFO/WARNING
+            type: 'SYSTEM', 
             isRead: faker.datatype.boolean()
         }, { transaction });
     }
 
     await transaction.commit();
-    console.log('✅ Seeding Completed Successfully!');
+    console.log(' Seeding Completed Successfully!');
 
   } catch (error) {
     await transaction.rollback();
-    console.error('❌ Seeding failed:', error);
+    console.error(' Seeding failed:', error);
     process.exit(1);
   } finally {
     await sequelize.close();

@@ -1,6 +1,6 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('prescription_details', {
@@ -92,7 +92,7 @@ module.exports = {
       },
     });
 
-    // Add indexes
+    
     await queryInterface.addIndex('prescription_details', ['prescriptionId'], {
       name: 'idx_prescription_details_prescription',
     });
@@ -100,7 +100,7 @@ module.exports = {
       name: 'idx_prescription_details_medicine',
     });
 
-    // Composite unique constraint to prevent duplicate medicines in same prescription
+    
     await queryInterface.addIndex(
       'prescription_details',
       ['prescriptionId', 'medicineId'],

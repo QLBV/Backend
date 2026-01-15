@@ -2,7 +2,7 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    // Roles to include in Employees table: Admin (1), Receptionist (2), Doctor (4)
+    
     const [users] = await queryInterface.sequelize.query(
       'SELECT id, roleId, createdAt FROM users WHERE roleId IN (1, 2, 4)'
     );
@@ -40,7 +40,7 @@ module.exports = {
   },
 
   down: async (queryInterface, Sequelize) => {
-    // No easy way to undo without risk of deleting manually created employees, 
-    // but we can leave it as is or implement a selective delete if needed.
+    
+    
   }
 };

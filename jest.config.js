@@ -1,19 +1,19 @@
-/** @type {import('jest').Config} */
+
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   
-  // Test file patterns
+  
   testMatch: [
-    '**/tests/**/*.test.ts',
-    '**/__tests__/**/*.test.ts'
+    '**/tests*.test.ts',
+    '**/__tests__*.test.ts'
   ],
   
-  // Coverage
+  
   collectCoverageFrom: [
-    'src/**/*.{ts,js}',
-    '!src/**/*.d.ts',
+    'src*.{ts,js}',
+    '!src*.d.ts',
     '!src/migrations/**',
     '!src/seeders/**',
     '!src/config/**',
@@ -31,10 +31,10 @@ module.exports = {
     }
   },
   
-  // Setup
+  
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   
-  // Module paths
+  
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@models/(.*)$': '<rootDir>/src/models/$1',
@@ -44,27 +44,27 @@ module.exports = {
     '^@utils/(.*)$': '<rootDir>/src/utils/$1'
   },
   
-  // TypeScript
+  
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       tsconfig: 'tsconfig.json'
     }]
   },
   
-  // Timeout
+  
   testTimeout: 30000,
   
-  // Globals
+  
   globals: {
     'ts-jest': {
       isolatedModules: true
     }
   },
   
-  // Verbose
+  
   verbose: true,
   
-  // Clear mocks
+  
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true

@@ -1,6 +1,4 @@
-/**
- * Unit tests for medicine.service.ts
- */
+
 
 import {
   createMedicineService,
@@ -8,13 +6,13 @@ import {
   exportMedicineService,
   getAllMedicineImportsService,
   getAllMedicineExportsService,
-} from "../../../services/medicine.service";
+} from "../../../modules/inventory/medicine.service";
 import Medicine from "../../../models/Medicine";
 import MedicineImport from "../../../models/MedicineImport";
 import MedicineExport from "../../../models/MedicineExport";
-import { sequelize } from "../../../models";
+import { sequelize } from "../../../models/index";
 
-// Mock models
+
 jest.mock("../../../models/Medicine");
 jest.mock("../../../models/MedicineImport");
 jest.mock("../../../models/MedicineExport");
@@ -92,7 +90,7 @@ describe("Medicine Service", () => {
         userId: 1,
       });
 
-      expect(mockMedicine.quantity).toBe(150); // 100 + 50
+      expect(mockMedicine.quantity).toBe(150); 
       expect(mockMedicine.save).toHaveBeenCalled();
       expect(MedicineImport.create).toHaveBeenCalled();
     });
@@ -158,7 +156,7 @@ describe("Medicine Service", () => {
         userId: 1,
       });
 
-      expect(mockMedicine.quantity).toBe(80); // 100 - 20
+      expect(mockMedicine.quantity).toBe(80); 
       expect(mockMedicine.save).toHaveBeenCalled();
       expect(MedicineExport.create).toHaveBeenCalled();
     });
@@ -185,7 +183,7 @@ describe("Medicine Service", () => {
       await expect(
         exportMedicineService({
           medicineId: 1,
-          quantity: 50, // More than available
+          quantity: 50, 
           reason: "EXPIRED",
           userId: 1,
         })

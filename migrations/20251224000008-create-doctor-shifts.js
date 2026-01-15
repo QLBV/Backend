@@ -42,7 +42,7 @@ module.exports = {
       },
     });
 
-    // Unique constraint: một bác sĩ không thể trực 2 lần cùng ca cùng ngày
+    
     await queryInterface.addIndex("doctor_shifts", ["doctorId", "shiftId", "workDate"], {
       unique: true,
       name: "doctor_shifts_unique",

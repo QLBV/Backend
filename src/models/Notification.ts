@@ -3,9 +3,7 @@ import sequelize from "../config/database";
 import User from "./User";
 import Appointment from "./Appointment";
 
-/**
- * Enum cho loại thông báo
- */
+
 export enum NotificationType {
   APPOINTMENT_CREATED = "APPOINTMENT_CREATED",
   APPOINTMENT_CANCELLED = "APPOINTMENT_CANCELLED",
@@ -14,9 +12,6 @@ export enum NotificationType {
   SYSTEM = "SYSTEM",
 }
 
-/**
- * Interface cho Notification attributes
- */
 export interface NotificationAttributes {
   id: number;
   userId: number;
@@ -31,9 +26,6 @@ export interface NotificationAttributes {
   updatedAt?: Date;
 }
 
-/**
- * Interface cho tạo Notification
- */
 interface NotificationCreationAttributes
   extends Optional<
     NotificationAttributes,
@@ -46,9 +38,6 @@ interface NotificationCreationAttributes
     | "updatedAt"
   > {}
 
-/**
- * Notification Model
- */
 class Notification
   extends Model<NotificationAttributes, NotificationCreationAttributes>
   implements NotificationAttributes
@@ -121,7 +110,6 @@ Notification.init(
   }
 );
 
-// Relationships
 Notification.belongsTo(User, { foreignKey: "userId", as: "user" });
 Notification.belongsTo(Appointment, {
   foreignKey: "relatedAppointmentId",

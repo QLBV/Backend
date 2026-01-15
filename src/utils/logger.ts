@@ -1,7 +1,7 @@
 import winston from "winston";
 import path from "path";
 
-// Define log levels
+
 const levels = {
   error: 0,
   warn: 1,
@@ -10,7 +10,7 @@ const levels = {
   debug: 4,
 };
 
-// Define log colors
+
 const colors = {
   error: "red",
   warn: "yellow",
@@ -19,10 +19,10 @@ const colors = {
   debug: "white",
 };
 
-// Tell winston about our colors
+
 winston.addColors(colors);
 
-// Define log format
+
 const format = winston.format.combine(
   winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:ms" }),
   winston.format.colorize({ all: true }),
@@ -31,13 +31,13 @@ const format = winston.format.combine(
   )
 );
 
-// Define which transports to use
+
 const transports = [
-  // Console transport
+  
   new winston.transports.Console({
     format: format,
   }),
-  // File transport for errors
+  
   new winston.transports.File({
     filename: path.join(__dirname, "../../logs/error.log"),
     level: "error",
@@ -46,7 +46,7 @@ const transports = [
       winston.format.json()
     ),
   }),
-  // File transport for all logs
+  
   new winston.transports.File({
     filename: path.join(__dirname, "../../logs/combined.log"),
     format: winston.format.combine(
@@ -56,7 +56,7 @@ const transports = [
   }),
 ];
 
-// Create the logger
+
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || (process.env.NODE_ENV === "production" ? "info" : "debug"),
   levels,
@@ -66,11 +66,11 @@ const logger = winston.createLogger({
     winston.format.json()
   ),
   transports,
-  // Don't exit on handled exceptions
+  
   exitOnError: false,
 });
 
-// Create a stream object for Morgan HTTP logger
+
 export const stream = {
   write: (message: string) => {
     logger.http(message.trim());

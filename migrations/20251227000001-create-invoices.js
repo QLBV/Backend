@@ -1,6 +1,6 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('invoices', {
@@ -51,7 +51,7 @@ module.exports = {
         comment: 'FK to doctors'
       },
 
-      // Pricing
+      
       examinationFee: {
         type: Sequelize.DECIMAL(15, 2),
         allowNull: false,
@@ -77,7 +77,7 @@ module.exports = {
         comment: 'Tổng tiền = examinationFee + medicineTotalAmount - discount'
       },
 
-      // Payment
+      
       paymentStatus: {
         type: Sequelize.ENUM('UNPAID', 'PARTIALLY_PAID', 'PAID'),
         allowNull: false,
@@ -91,7 +91,7 @@ module.exports = {
         comment: 'Số tiền đã thanh toán'
       },
 
-      // Metadata
+      
       note: {
         type: Sequelize.TEXT,
         allowNull: true,
@@ -118,7 +118,7 @@ module.exports = {
       }
     });
 
-    // Add indexes for better query performance
+    
     await queryInterface.addIndex('invoices', ['invoiceCode'], {
       name: 'idx_invoices_code'
     });

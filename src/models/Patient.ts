@@ -46,7 +46,6 @@ class Patient
   noShowCount?: number;
   lastNoShowDate?: Date | null;
   
-  // Association properties
   declare profiles?: PatientProfile[];
 }
 
@@ -99,7 +98,7 @@ Patient.init(
       defaultValue: true,
       field: "isActive",
     },
-    //Health info fields - uncomment after running migration 20250105000001-add-health-info-to-patients.js
+    
     bloodType: {
       type: DataTypes.ENUM('A', 'B', 'AB', 'O', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'),
       allowNull: true,
@@ -148,15 +147,12 @@ Patient.init(
     hooks: {
       afterUpdate: async (patient: Patient, options: any) => {
         if (options.syncing || !patient.userId) return;
-
-        // Sync to User table
         if (patient.changed("isActive")) {
           await sequelize.models.User.update(
             { isActive: patient.isActive },
             { where: { id: patient.userId }, hooks: false } as any
           );
         }
-
         const Employee = sequelize.models.Employee;
         if (Employee) {
           const changed = ["gender", "dateOfBirth", "cccd", "avatar", "patientCode", "isActive"].some(f => patient.changed(f as any));

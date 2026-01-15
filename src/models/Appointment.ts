@@ -1,5 +1,5 @@
 import { DataTypes, Model } from "sequelize";
-import { sequelize } from ".";
+import { sequelize } from "./index";
 import Patient from "./Patient";
 import Doctor from "./Doctor";
 import Shift from "./Shift";
@@ -19,7 +19,7 @@ export default class Appointment extends Model {
   declare patientPhone?: string;
   declare patientDob?: string | Date;
   declare patientGender?: "MALE" | "FEMALE" | "OTHER";
-  declare symptomImages?: string[]; // Array of image URLs
+  declare symptomImages?: string[]; 
   declare queueNumber?: number | null;
   declare status:
     | "WAITING"
@@ -57,7 +57,7 @@ Appointment.init(
     patientPhone: { type: DataTypes.STRING(20), allowNull: true },
     patientDob: { type: DataTypes.DATEONLY, allowNull: true },
     patientGender: { type: DataTypes.ENUM("MALE", "FEMALE", "OTHER"), allowNull: true },
-    symptomImages: { type: DataTypes.JSON }, // Store array of image URLs
+    symptomImages: { type: DataTypes.JSON }, 
     queueNumber: { type: DataTypes.INTEGER, allowNull: true },
     status: {
       type: DataTypes.ENUM(

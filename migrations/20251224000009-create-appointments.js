@@ -71,13 +71,13 @@ module.exports = {
       },
     });
 
-    // CRITICAL: Unique constraint ngăn đặt trùng slot
+    
     await queryInterface.addIndex("appointments", ["doctorId", "shiftId", "date", "slotNumber"], {
       unique: true,
       name: "appointments_slot_unique",
     });
 
-    // Index để query nhanh
+    
     await queryInterface.addIndex("appointments", ["patientId"]);
     await queryInterface.addIndex("appointments", ["date"]);
     await queryInterface.addIndex("appointments", ["status"]);

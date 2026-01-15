@@ -1,38 +1,30 @@
 import { Request, Response, NextFunction } from "express";
 
-/**
- * Validate create prescription request
- */
+
 export const validateCreatePrescription = (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   const { visitId, patientId, medicines } = req.body;
-
-  // Check required fields
   if (!visitId) {
     return res.status(400).json({
       success: false,
       message: "Visit ID is required",
     });
   }
-
   if (!patientId) {
     return res.status(400).json({
       success: false,
       message: "Patient ID is required",
     });
   }
-
   if (!medicines || !Array.isArray(medicines) || medicines.length === 0) {
     return res.status(400).json({
       success: false,
       message: "At least one medicine is required",
     });
   }
-
-  // Validate each medicine
   for (let i = 0; i < medicines.length; i++) {
     const medicine = medicines[i];
 
@@ -49,8 +41,6 @@ export const validateCreatePrescription = (
         message: `Valid quantity is required for medicine at index ${i}`,
       });
     }
-
-    // At least one dosage must be provided
     const totalDosage =
       (medicine.dosageMorning || 0) +
       (medicine.dosageNoon || 0) +
@@ -71,13 +61,9 @@ export const validateCreatePrescription = (
       });
     }
   }
-
   next();
 };
 
-/**
- * Validate update prescription request
- */
 export const validateUpdatePrescription = (
   req: Request,
   res: Response,
@@ -85,7 +71,6 @@ export const validateUpdatePrescription = (
 ) => {
   const { medicines } = req.body;
 
-  // If medicines are provided, validate them
   if (medicines) {
     if (!Array.isArray(medicines) || medicines.length === 0) {
       return res.status(400).json({
@@ -132,6 +117,5 @@ export const validateUpdatePrescription = (
       }
     }
   }
-
   next();
 };

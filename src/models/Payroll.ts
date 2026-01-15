@@ -11,39 +11,26 @@ interface PayrollAttributes {
   id: number;
   payrollCode: string;
   userId: number;
-
-  // Period
   month: number;
   year: number;
-
-  // Salary Components
   baseSalary: number;
   roleCoefficient: number;
   roleSalary: number;
   yearsOfService: number;
   experienceBonus: number;
-
-  // Commission
   totalInvoices: number;
   commissionRate: number;
   commission: number;
-
-  // Deductions
   daysOff: number;
   allowedDaysOff: number;
   penaltyDaysOff: number;
   penaltyAmount: number;
-
-  // Total
   grossSalary: number;
   netSalary: number;
-
-  // Status
   status: PayrollStatus;
   approvedBy?: number;
   approvedAt?: Date;
   paidAt?: Date;
-
   note?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -78,39 +65,29 @@ class Payroll
   public id!: number;
   public payrollCode!: string;
   public userId!: number;
-
   public month!: number;
   public year!: number;
-
   public baseSalary!: number;
   public roleCoefficient!: number;
   public roleSalary!: number;
   public yearsOfService!: number;
   public experienceBonus!: number;
-
   public totalInvoices!: number;
   public commissionRate!: number;
   public commission!: number;
-
   public daysOff!: number;
   public allowedDaysOff!: number;
   public penaltyDaysOff!: number;
   public penaltyAmount!: number;
-
   public grossSalary!: number;
   public netSalary!: number;
-
   public status!: PayrollStatus;
   public approvedBy?: number;
   public approvedAt?: Date;
   public paidAt?: Date;
-
   public note?: string;
-
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
-
-  // Associations
   public readonly user?: any;
   public readonly approver?: any;
 }
@@ -135,8 +112,6 @@ Payroll.init(
         key: "id",
       },
     },
-
-    // Period
     month: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
@@ -145,8 +120,6 @@ Payroll.init(
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
     },
-
-    // Salary Components
     baseSalary: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
@@ -170,8 +143,6 @@ Payroll.init(
       allowNull: false,
       defaultValue: 0,
     },
-
-    // Commission
     totalInvoices: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
@@ -187,8 +158,6 @@ Payroll.init(
       allowNull: false,
       defaultValue: 0,
     },
-
-    // Deductions
     daysOff: {
       type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
@@ -209,8 +178,6 @@ Payroll.init(
       allowNull: false,
       defaultValue: 0,
     },
-
-    // Total
     grossSalary: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
@@ -219,8 +186,6 @@ Payroll.init(
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
     },
-
-    // Status
     status: {
       type: DataTypes.ENUM(...Object.values(PayrollStatus)),
       allowNull: false,

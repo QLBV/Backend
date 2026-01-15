@@ -1,6 +1,4 @@
-/**
- * Add APPOINTMENT_RESCHEDULED to notifications.type enum
- */
+
 
 module.exports = {
   async up(queryInterface, Sequelize) {

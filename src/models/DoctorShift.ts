@@ -35,8 +35,6 @@ class DoctorShift
   public replacedBy?: number | null;
   public cancelReason?: string | null;
   public maxSlots?: number | null;
-
-  // Associations
   public shift?: Shift;
   public doctor?: Doctor;
 }

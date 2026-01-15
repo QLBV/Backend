@@ -14,17 +14,14 @@ interface InvoiceAttributes {
   patientId: number;
   doctorId: number;
 
-  // Pricing
   examinationFee: number;
   medicineTotalAmount: number;
   discount: number;
   totalAmount: number;
 
-  // Payment
   paymentStatus: PaymentStatus;
   paidAmount: number;
 
-  // Metadata
   note?: string;
   createdBy: number;
   createdAt?: Date;
@@ -68,7 +65,6 @@ class Invoice
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
-  // Associations
   public readonly visit?: any;
   public readonly patient?: any;
   public readonly doctor?: any;
@@ -114,8 +110,6 @@ Invoice.init(
         key: "id",
       },
     },
-
-    // Pricing
     examinationFee: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
@@ -136,8 +130,7 @@ Invoice.init(
       allowNull: false,
       defaultValue: 0,
     },
-
-    // Payment
+  
     paymentStatus: {
       type: DataTypes.ENUM(...Object.values(PaymentStatus)),
       allowNull: false,
@@ -149,7 +142,6 @@ Invoice.init(
       defaultValue: 0,
     },
 
-    // Metadata
     note: {
       type: DataTypes.TEXT,
       allowNull: true,

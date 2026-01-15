@@ -15,7 +15,7 @@ export const registerValidator = [
     .isLength({ min: 2, max: 100 })
     .withMessage("FULLNAME_INVALID"),
 
-  validate, // Middleware xử lý kết quả validation
+  validate, 
 ];
 
 export const loginValidator = [

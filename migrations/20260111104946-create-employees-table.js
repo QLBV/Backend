@@ -64,8 +64,8 @@ module.exports = {
       }
     });
 
-    // Option to migrate existing doctor data
-    // This is a simple migration, you might want to do it in a separate step or here
+    
+    
     const [doctors] = await queryInterface.sequelize.query('SELECT * FROM doctors');
     if (doctors && doctors.length > 0) {
       const employees = doctors.map(doc => ({

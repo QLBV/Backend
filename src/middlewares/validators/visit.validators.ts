@@ -1,9 +1,6 @@
 import { body } from "express-validator";
 import { validate } from "./validate";
 
-/**
- * Validator for completing visit
- */
 export const validateCompleteVisit = [
   body("diagnosis")
     .notEmpty()
@@ -37,9 +34,6 @@ export const validateCompleteVisit = [
   validate,
 ];
 
-/**
- * Validator for check-in appointment
- */
 export const validateCheckIn = [
   body("vitalSigns")
     .optional()

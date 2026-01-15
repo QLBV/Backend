@@ -21,7 +21,7 @@ async function seedRealtimeData() {
       date.setDate(date.getDate() - dayOffset);
       date.setHours(0, 0, 0, 0);
 
-      // 1. Create 3-5 appointments per day
+      
       const count = 3 + Math.floor(Math.random() * 3);
       for (let i = 0; i < count; i++) {
         const apt = await Appointment.create({
@@ -54,16 +54,16 @@ async function seedRealtimeData() {
           paymentStatus: 'PAID',
           paymentMethod: 'CASH',
           createdBy: 1,
-          createdAt: date // Set createdAt for older days
+          createdAt: date 
         }, { transaction });
       }
     }
 
     await transaction.commit();
-    console.log('✅ Realtime dashboard data (7 days) seeded successfully!');
+    console.log(' Realtime dashboard data (7 days) seeded successfully!');
   } catch (err) {
     if (transaction) await transaction.rollback();
-    console.error('❌ Failed to seed realtime data:', err);
+    console.error(' Failed to seed realtime data:', err);
   } finally {
     process.exit();
   }

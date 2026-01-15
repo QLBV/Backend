@@ -12,7 +12,7 @@ const sequelize = new Sequelize(
     port: Number(process.env.DB_PORT),
     dialect: "mysql",
     logging: process.env.NODE_ENV === "development" ? console.log : false,
-    timezone: "+07:00", // Vietnam timezone
+    timezone: "+07:00", 
     dialectOptions: {
       charset: "utf8mb4",
     },
@@ -20,17 +20,17 @@ const sequelize = new Sequelize(
       charset: "utf8mb4",
       collate: "utf8mb4_unicode_ci",
     },
-    // Query retry configuration
+    
     retry: {
       max: 3,
-      timeout: 10000, // 10 seconds timeout for queries
+      timeout: 10000, 
     },
-    // Connection pool configuration
+    
     pool: {
-      max: 10, // Maximum connections
-      min: 0, // Minimum connections
-      acquire: 30000, // Maximum time (ms) to acquire connection before error
-      idle: 10000, // Maximum idle time before releasing connection
+      max: 10, 
+      min: 0, 
+      acquire: 30000, 
+      idle: 10000, 
     },
   }
 );

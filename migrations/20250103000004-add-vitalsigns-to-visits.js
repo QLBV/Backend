@@ -1,9 +1,9 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
-    // Add checkOutTime to visits
+    
     await queryInterface.addColumn('visits', 'checkOutTime', {
       type: Sequelize.DATE,
       allowNull: true,
@@ -11,7 +11,7 @@ module.exports = {
       after: 'checkInTime',
     });
 
-    // Add vitalSigns (JSON) to visits
+    
     await queryInterface.addColumn('visits', 'vitalSigns', {
       type: Sequelize.JSON,
       allowNull: true,

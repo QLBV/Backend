@@ -8,8 +8,8 @@ interface NotificationSettingAttributes {
   smsEnabled: boolean;
   pushEnabled: boolean;
   inAppEnabled: boolean;
-  appointmentReminders: boolean; // Add this
-  prescriptionReminders: boolean; // Add this
+  appointmentReminders: boolean; 
+  prescriptionReminders: boolean; 
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -32,7 +32,6 @@ class NotificationSetting
   public inAppEnabled!: boolean;
   public appointmentReminders!: boolean;
   public prescriptionReminders!: boolean;
-
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }

@@ -1,10 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { MedicineUnit } from "../models/Medicine";
 
-/**
- * Validate create medicine request
- * Note: medicineCode is auto-generated, not required in request
- */
+
 export const validateCreateMedicine = (
   req: Request,
   res: Response,
@@ -20,7 +17,6 @@ export const validateCreateMedicine = (
     expiryDate,
   } = req.body;
 
-  // Check required fields
   if (!name) {
     return res.status(400).json({
       success: false,
@@ -42,7 +38,7 @@ export const validateCreateMedicine = (
     });
   }
 
-  // Validate unit is valid enum value
+  
   if (!Object.values(MedicineUnit).includes(unit)) {
     return res.status(400).json({
       success: false,
@@ -78,7 +74,6 @@ export const validateCreateMedicine = (
     });
   }
 
-  // Validate expiry date is a valid date
   const expiryDateObj = new Date(expiryDate);
   if (isNaN(expiryDateObj.getTime())) {
     return res.status(400).json({
@@ -90,17 +85,12 @@ export const validateCreateMedicine = (
   next();
 };
 
-/**
- * Validate update medicine request
- */
 export const validateUpdateMedicine = (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   const { unit, importPrice, salePrice, expiryDate } = req.body;
-
-  // Validate unit if provided
   if (unit && !Object.values(MedicineUnit).includes(unit)) {
     return res.status(400).json({
       success: false,
@@ -108,7 +98,6 @@ export const validateUpdateMedicine = (
     });
   }
 
-  // Validate prices if provided
   if (importPrice !== undefined && importPrice < 0) {
     return res.status(400).json({
       success: false,
@@ -122,8 +111,6 @@ export const validateUpdateMedicine = (
       message: "Sale price must be non-negative",
     });
   }
-
-  // Validate expiry date if provided
   if (expiryDate) {
     const expiryDateObj = new Date(expiryDate);
     if (isNaN(expiryDateObj.getTime())) {
@@ -133,33 +120,26 @@ export const validateUpdateMedicine = (
       });
     }
   }
-
   next();
 };
 
-/**
- * Validate import medicine request
- */
 export const validateImportMedicine = (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   const { quantity, importPrice } = req.body;
-
   if (!quantity || quantity <= 0) {
     return res.status(400).json({
       success: false,
       message: "Valid quantity is required (must be greater than 0)",
     });
   }
-
   if (importPrice === undefined || importPrice < 0) {
     return res.status(400).json({
       success: false,
       message: "Valid import price is required",
     });
   }
-
   next();
 };

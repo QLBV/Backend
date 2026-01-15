@@ -6,8 +6,8 @@ module.exports = {
     await queryInterface.addColumn('appointments', 'patientPhone', { type: Sequelize.STRING(20), allowNull: true });
     await queryInterface.addColumn('appointments', 'patientDob', { type: Sequelize.DATEONLY, allowNull: true });
     
-    // Check if ENUM type exists before adding column to avoid error in some DBs, but Sequelize usually handles this.
-    // For safety, we define the column directly.
+    
+    
     await queryInterface.addColumn('appointments', 'patientGender', { 
       type: Sequelize.ENUM('MALE', 'FEMALE', 'OTHER'),
       allowNull: true 

@@ -1,6 +1,6 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('attendance', {
@@ -47,14 +47,14 @@ module.exports = {
       }
     });
 
-    // Add unique constraint: Mỗi user chỉ có 1 attendance record/ngày
+    
     await queryInterface.addConstraint('attendance', {
       fields: ['userId', 'date'],
       type: 'unique',
       name: 'unique_user_date'
     });
 
-    // Add indexes
+    
     await queryInterface.addIndex('attendance', ['userId'], {
       name: 'idx_attendance_user'
     });

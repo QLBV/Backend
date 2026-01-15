@@ -47,8 +47,6 @@ class Employee
   public avatar?: string;
   public expertise?: string;
   public isActive!: boolean;
-
-  // Timestamps
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -120,13 +118,10 @@ Employee.init(
     timestamps: true,
     hooks: {
       afterUpdate: async (employee: Employee, options: any) => {
-        // Prevent infinite loops when syncing
+        
         if (options.syncing) return;
-
         const userId = employee.userId;
         const updates: any = {};
-        
-        // Sync Avatar and isActive to User
         const userUpdates: any = {};
         if (employee.changed("avatar")) userUpdates.avatar = employee.avatar;
         if (employee.changed("isActive")) userUpdates.isActive = employee.isActive;
@@ -137,8 +132,6 @@ Employee.init(
             { where: { id: userId }, hooks: false } as any
           );
         }
-
-        // Sync to Doctor table if user is a doctor
         const changedInDoctor = ["specialtyId", "position", "degree", "description", "employeeCode", "isActive"].some(f => employee.changed(f as any));
         if (changedInDoctor) {
           const doctorUpdates: any = {
@@ -148,9 +141,6 @@ Employee.init(
             degree: employee.degree,
             description: employee.description
           };
-          
-          // Check if isActive exists in Doctor table first to avoid "Unknown column" error
-          // Or just add it to the migration
           if (employee.changed("isActive")) {
             doctorUpdates.isActive = employee.isActive;
           }
@@ -160,8 +150,6 @@ Employee.init(
             hooks: false 
           } as any);
         }
-
-        // Sync to Patient table if user is also a patient
         const changedInPatient = ["gender", "dateOfBirth", "cccd", "avatar", "employeeCode"].some(f => employee.changed(f as any));
         if (changedInPatient) {
           await sequelize.models.Patient.update({
@@ -176,7 +164,6 @@ Employee.init(
           } as any);
         }
 
-        // Sync phone/address to PatientProfile if applicable
         if (employee.changed("phone") || employee.changed("address")) {
           const patient = await sequelize.models.Patient.findOne({ where: { userId } });
           if (patient) {

@@ -1,45 +1,45 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
-    // Add importCode to medicine_imports
+    
     await queryInterface.addColumn('medicine_imports', 'importCode', {
       type: Sequelize.STRING(50),
-      allowNull: true, // Allow null initially for existing records
+      allowNull: true, 
       unique: true,
       after: 'id',
     });
 
-    // Add exportCode to medicine_exports
+    
     await queryInterface.addColumn('medicine_exports', 'exportCode', {
       type: Sequelize.STRING(50),
-      allowNull: true, // Allow null initially for existing records
+      allowNull: true, 
       unique: true,
       after: 'id',
     });
 
-    // Add visitCode to visits
+    
     await queryInterface.addColumn('visits', 'visitCode', {
       type: Sequelize.STRING(50),
-      allowNull: true, // Allow null initially for existing records
+      allowNull: true, 
       unique: true,
       after: 'id',
     });
 
-    // Add appointmentCode to appointments
+    
     await queryInterface.addColumn('appointments', 'appointmentCode', {
       type: Sequelize.STRING(50),
-      allowNull: true, // Allow null initially for existing records
+      allowNull: true, 
       unique: true,
       after: 'id',
     });
 
-    // Generate codes for existing records
-    // Note: This is a simplified approach. In production, you might want to
-    // generate codes based on creation date or use a more sophisticated approach
     
-    // For medicine_imports - generate codes based on creation date
+    
+    
+    
+    
     const [imports] = await queryInterface.sequelize.query(`
       SELECT id, createdAt FROM medicine_imports WHERE importCode IS NULL
     `);
@@ -51,7 +51,7 @@ module.exports = {
       `);
     }
 
-    // For medicine_exports
+    
     const [exports] = await queryInterface.sequelize.query(`
       SELECT id, createdAt FROM medicine_exports WHERE exportCode IS NULL
     `);
@@ -63,7 +63,7 @@ module.exports = {
       `);
     }
 
-    // For visits
+    
     const [visits] = await queryInterface.sequelize.query(`
       SELECT id, createdAt FROM visits WHERE visitCode IS NULL
     `);
@@ -75,7 +75,7 @@ module.exports = {
       `);
     }
 
-    // For appointments
+    
     const [appointments] = await queryInterface.sequelize.query(`
       SELECT id, createdAt FROM appointments WHERE appointmentCode IS NULL
     `);
@@ -87,7 +87,7 @@ module.exports = {
       `);
     }
 
-    // Now make columns NOT NULL
+    
     await queryInterface.changeColumn('medicine_imports', 'importCode', {
       type: Sequelize.STRING(50),
       allowNull: false,

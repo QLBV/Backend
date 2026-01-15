@@ -1,6 +1,6 @@
 'use strict';
 
-/** @type {import('sequelize-cli').Migration} */
+
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('shift_templates', {
@@ -56,13 +56,13 @@ module.exports = {
       }
     });
 
-    // Add unique constraint to prevent duplicate templates
+    
     await queryInterface.addIndex('shift_templates', ['doctor_id', 'shift_id', 'day_of_week'], {
       unique: true,
       name: 'unique_doctor_shift_day'
     });
 
-    // Add index for faster queries
+    
     await queryInterface.addIndex('shift_templates', ['is_active']);
     await queryInterface.addIndex('shift_templates', ['day_of_week']);
   },

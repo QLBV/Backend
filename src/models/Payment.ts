@@ -38,11 +38,8 @@ class Payment
   public reference?: string;
   public note?: string;
   public createdBy!: number;
-
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
-
-  // Associations
   public readonly invoice?: any;
   public readonly creator?: any;
 }

@@ -306,7 +306,7 @@
     }
     
     .notes-list li::before {
-      content: '✓';
+      content: '';
       position: absolute;
       left: 0;
       color: #10b981;
@@ -433,10 +433,10 @@
         <div style="margin: 20px 0; padding: 16px; background: #f1f5f9; border-radius: 12px;">
           <p style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px;">Liên hệ hỗ trợ</p>
           <p style="font-size: 13px; color: #6b7280; margin: 4px 0;">
-            📞 Hotline: <a href="tel:19001234" style="color: #0ea5e9; text-decoration: none; font-weight: 600;">1900 1234</a>
+             Hotline: <a href="tel:19001234" style="color: #0ea5e9; text-decoration: none; font-weight: 600;">1900 1234</a>
           </p>
           <p style="font-size: 13px; color: #6b7280; margin: 4px 0;">
-            ✉️ Email: <a href="mailto:support@healos.vn" style="color: #0ea5e9; text-decoration: none; font-weight: 600;">support@healos.vn</a>
+            ️ Email: <a href="mailto:support@healos.vn" style="color: #0ea5e9; text-decoration: none; font-weight: 600;">support@healos.vn</a>
           </p>
           <p style="font-size: 12px; color: #9ca3af; margin-top: 8px;">
             Thời gian hỗ trợ: 7:00 - 21:00 (Thứ 2 - 7)
@@ -455,9 +455,7 @@
   `;
 }
 
-/**
- * Format ngày giờ Việt Nam
- */
+
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleDateString("vi-VN", {
@@ -468,17 +466,15 @@ function formatDate(dateString: string): string {
   });
 }
 
-/**
- * Template: Xác nhận lịch khám mới
- */
+
 export function appointmentConfirmationTemplate(data: {
   patientName: string;
   doctorName: string;
   doctorSpecialty: string;
   appointmentDate: string;
   shiftName: string;
-  shiftTime?: string; // e.g. "08:00 - 12:00"
-  appointmentTime?: string; // e.g. "18:10"
+  shiftTime?: string; 
+  appointmentTime?: string; 
   slotNumber: number;
   appointmentId: number;
 }): string {
@@ -525,7 +521,7 @@ export function appointmentConfirmationTemplate(data: {
               ${
                 data.appointmentTime
                   ? `<div style="background: linear-gradient(135deg, #0ea5e9 0%, #0d9488 100%); color: white; padding: 10px 16px; border-radius: 12px; font-size: 16px; display: inline-block; font-weight: 700; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
-                🕐 ${data.appointmentTime}
+                 ${data.appointmentTime}
               </div>
               <div style="margin-top: 8px; color: #64748b; font-size: 12px; font-weight: 400;">
                 (${data.shiftName}${
@@ -550,7 +546,7 @@ export function appointmentConfirmationTemplate(data: {
       </div>
 
       <div class="notes-section">
-        <div class="notes-title">📋 Lưu ý quan trọng</div>
+        <div class="notes-title"> Lưu ý quan trọng</div>
         <ul class="notes-list">
           <li>- Vui lòng đến trước giờ khám <strong>15 phút</strong> để làm thủ tục</li>
           <li>- Mang theo CMND/CCCD và thẻ BHYT (nếu có)</li>
@@ -558,7 +554,7 @@ export function appointmentConfirmationTemplate(data: {
         </ul>
       </div>
       <div class="highlight-box">
-        <p><strong>💡</strong> Bạn có thể xem và quản lý lịch hẹn của mình trên hệ thống bất cứ lúc nào.</p>
+        <p><strong></strong> Bạn có thể xem và quản lý lịch hẹn của mình trên hệ thống bất cứ lúc nào.</p>
       </div>
     </div>
   `;
@@ -566,9 +562,7 @@ export function appointmentConfirmationTemplate(data: {
   return baseTemplate(content);
 }
 
-/**
- * Template: Thông báo hủy lịch khám
- */
+
 export function appointmentCancellationTemplate(data: {
   patientName: string;
   doctorName: string;
@@ -615,7 +609,7 @@ export function appointmentCancellationTemplate(data: {
               ${
                 data.appointmentTime
                   ? `<div style="background-color: #f1f5f9; color: #64748b; padding: 8px 14px; border-radius: 8px; font-size: 15px; display: inline-block; font-weight: 600; border: 1px solid #e2e8f0; text-decoration: line-through;">
-                🕐 ${data.appointmentTime}
+                 ${data.appointmentTime}
               </div>
               <div style="margin-top: 8px; color: #9ca3af; font-size: 12px; font-weight: 400; text-decoration: line-through;">
                 (${data.shiftName}${
@@ -642,7 +636,7 @@ export function appointmentCancellationTemplate(data: {
       </div>
 
       <div class="highlight-box warning">
-        <p><strong>💡 Nếu bạn vẫn cần khám, hãy đặt lịch hẹn mới trên hệ thống của chúng tôi.</p>
+        <p><strong> Nếu bạn vẫn cần khám, hãy đặt lịch hẹn mới trên hệ thống của chúng tôi.</p>
       </div>
 
       <div class="button-container">
@@ -658,9 +652,7 @@ export function appointmentCancellationTemplate(data: {
   return baseTemplate(content);
 }
 
-/**
- * Template: Thông báo thay đổi bác sĩ
- */
+
 export function doctorChangedTemplate(data: {
   patientName: string;
   oldDoctorName: string;
@@ -687,7 +679,7 @@ export function doctorChangedTemplate(data: {
       </p>
 
       <div class="highlight-box warning">
-        <p><strong>⚠️ Thay đổi:</strong> Bác sĩ khám của bạn đã được chuyển đổi</p>
+        <p><strong>️ Thay đổi:</strong> Bác sĩ khám của bạn đã được chuyển đổi</p>
       </div>
 
       <div class="info-card">
@@ -729,7 +721,7 @@ export function doctorChangedTemplate(data: {
               ${
                 data.appointmentTime
                   ? `<div style="background: linear-gradient(135deg, #0ea5e9 0%, #0d9488 100%); color: white; padding: 10px 16px; border-radius: 12px; font-size: 16px; display: inline-block; font-weight: 700; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
-                🕐 ${data.appointmentTime}
+                 ${data.appointmentTime}
               </div>
               <div style="margin-top: 8px; color: #64748b; font-size: 12px; font-weight: 400;">
                 (${data.shiftName}${
@@ -762,7 +754,7 @@ export function doctorChangedTemplate(data: {
       </div>
 
       <div class="highlight-box">
-        <p><strong>✅ Yên tâm:</strong> Bác sĩ mới cùng chuyên khoa và sẽ đảm bảo chất lượng khám chữa bệnh tốt nhất cho bạn.</p>
+        <p><strong> Yên tâm:</strong> Bác sĩ mới cùng chuyên khoa và sẽ đảm bảo chất lượng khám chữa bệnh tốt nhất cho bạn.</p>
       </div>
 
       <p style="text-align: center; font-size: 14px; color: #6b7280;">
@@ -775,9 +767,7 @@ export function doctorChangedTemplate(data: {
   return baseTemplate(content);
 }
 
-/**
- * Template: Thông báo đổi lịch khám
- */
+
 export function appointmentRescheduledTemplate(data: {
   patientName: string;
   oldDate: string;
@@ -806,7 +796,7 @@ export function appointmentRescheduledTemplate(data: {
       </p>
 
       <div class="info-card" style="background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%); border: 1px solid #fecaca;">
-        <div class="info-card-title" style="color: #dc2626;">❌ Thông tin cũ (đã hủy)</div>
+        <div class="info-card-title" style="color: #dc2626;"> Thông tin cũ (đã hủy)</div>
         <table class="info-table">
           <tr>
             <td class="info-label">Mã lịch hẹn</td>
@@ -826,7 +816,7 @@ export function appointmentRescheduledTemplate(data: {
               ${
                 data.oldAppointmentTime
                   ? `<div style="background-color: #f1f5f9; color: #9ca3af; padding: 8px 14px; border-radius: 8px; font-size: 15px; display: inline-block; font-weight: 600; border: 1px solid #e2e8f0; text-decoration: line-through;">
-                🕐 ${data.oldAppointmentTime}
+                 ${data.oldAppointmentTime}
               </div>
               <div style="margin-top: 8px; color: #9ca3af; font-size: 12px; font-weight: 400; text-decoration: line-through;">
                 (${data.oldShiftName}${
@@ -851,7 +841,7 @@ export function appointmentRescheduledTemplate(data: {
       </div>
 
       <div class="info-card" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #a7f3d0;">
-        <div class="info-card-title" style="color: #059669;">✅ Thông tin mới</div>
+        <div class="info-card-title" style="color: #059669;"> Thông tin mới</div>
         <table class="info-table">
           <tr>
             <td class="info-label">Mã lịch hẹn</td>
@@ -873,7 +863,7 @@ export function appointmentRescheduledTemplate(data: {
               ${
                 data.newAppointmentTime
                   ? `<div style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 10px 16px; border-radius: 12px; font-size: 16px; display: inline-block; font-weight: 700; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);">
-                🕐 ${data.newAppointmentTime}
+                 ${data.newAppointmentTime}
               </div>
               <div style="margin-top: 8px; color: #64748b; font-size: 12px; font-weight: 400;">
                 (${data.newShiftName}${
@@ -900,10 +890,10 @@ export function appointmentRescheduledTemplate(data: {
       ${
         sameDoctor
           ? `<div class="highlight-box">
-        <p><strong>✅ Lưu ý:</strong> Bác sĩ khám giữ nguyên, chỉ thay đổi thời gian/ca khám.</p>
+        <p><strong> Lưu ý:</strong> Bác sĩ khám giữ nguyên, chỉ thay đổi thời gian/ca khám.</p>
       </div>`
           : `<div class="highlight-box warning">
-        <p><strong>⚠️ Lưu ý:</strong> Bác sĩ khám đã được đổi để đảm bảo lịch trình phù hợp.</p>
+        <p><strong>️ Lưu ý:</strong> Bác sĩ khám đã được đổi để đảm bảo lịch trình phù hợp.</p>
       </div>`
       }
 
@@ -916,9 +906,7 @@ export function appointmentRescheduledTemplate(data: {
   return baseTemplate(content);
 }
 
-/**
- * Template: Nhắc nhở lịch khám (Reminder)
- */
+
 export function appointmentReminderTemplate(data: {
   patientName: string;
   doctorName: string;
@@ -973,7 +961,7 @@ export function appointmentReminderTemplate(data: {
               ${
                 data.appointmentTime
                   ? `<div style="background: linear-gradient(135deg, #0ea5e9 0%, #0d9488 100%); color: white; padding: 10px 16px; border-radius: 12px; font-size: 16px; display: inline-block; font-weight: 700; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);">
-                🕐 ${data.appointmentTime}
+                 ${data.appointmentTime}
               </div>
               <div style="margin-top: 8px; color: #64748b; font-size: 12px; font-weight: 400;">
                 (${data.shiftName}${
@@ -998,7 +986,7 @@ export function appointmentReminderTemplate(data: {
       </div>
 
       <div class="notes-section">
-        <div class="notes-title">📝 Checklist trước khi đến</div>
+        <div class="notes-title"> Checklist trước khi đến</div>
         <ul class="notes-list">
           <li>CMND/CCCD hoặc giấy tờ tùy thân</li>
           <li>Thẻ BHYT (nếu có)</li>

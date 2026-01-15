@@ -1,6 +1,6 @@
-// models/Visit.ts
+
 import { DataTypes, Model } from "sequelize";
-import { sequelize } from ".";
+import { sequelize } from "./index";
 import Appointment from "./Appointment";
 import Doctor from "./Doctor";
 import Patient from "./Patient";

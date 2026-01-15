@@ -1,27 +1,9 @@
-/**
- * State Machine Validation for Appointment and Visit
- * Enforces valid state transitions and prevents illegal operations
- */
+
 
 import { AppointmentStatus } from "../constant/appointment";
 import { VisitStatus } from "../models/Visit";
 
-/**
- * Appointment State Machine
- *
- * Valid transitions:
- * WAITING -> CHECKED_IN (check-in)
- * WAITING -> CANCELLED (cancel)
- * WAITING -> NO_SHOW (no-show)
- * CHECKED_IN -> IN_PROGRESS (start examination)
- * CHECKED_IN -> NO_SHOW (patient left before examination)
- * IN_PROGRESS -> COMPLETED (payment completed)
- *
- * Terminal states (no transitions allowed):
- * - COMPLETED
- * - CANCELLED
- * - NO_SHOW
- */
+
 export class AppointmentStateMachine {
   private static readonly validTransitions: Record<
     AppointmentStatus,
@@ -37,31 +19,27 @@ export class AppointmentStateMachine {
       AppointmentStatus.NO_SHOW,
     ],
     [AppointmentStatus.IN_PROGRESS]: [AppointmentStatus.COMPLETED],
-    [AppointmentStatus.COMPLETED]: [], // Terminal state
-    [AppointmentStatus.CANCELLED]: [], // Terminal state
-    [AppointmentStatus.NO_SHOW]: [], // Terminal state
+    [AppointmentStatus.COMPLETED]: [], 
+    [AppointmentStatus.CANCELLED]: [], 
+    [AppointmentStatus.NO_SHOW]: [], 
   };
 
-  /**
-   * Check if a state transition is valid
-   */
+  
   static canTransition(
     from: AppointmentStatus,
     to: AppointmentStatus
   ): boolean {
-    if (from === to) return true; // No change
+    if (from === to) return true; 
     const allowedTransitions = this.validTransitions[from] || [];
     return allowedTransitions.includes(to);
   }
 
-  /**
-   * Validate a state transition, throw error if invalid
-   */
+  
   static validateTransition(
     from: AppointmentStatus,
     to: AppointmentStatus
   ): void {
-    if (from === to) return; // No change is always valid
+    if (from === to) return; 
 
     if (!this.canTransition(from, to)) {
       throw new Error(
@@ -70,9 +48,7 @@ export class AppointmentStateMachine {
     }
   }
 
-  /**
-   * Check if a status is terminal (no further transitions allowed)
-   */
+  
   static isTerminal(status: AppointmentStatus): boolean {
     return (
       status === AppointmentStatus.COMPLETED ||
@@ -81,9 +57,7 @@ export class AppointmentStateMachine {
     );
   }
 
-  /**
-   * Get all valid next states from current state
-   */
+  
   static getValidNextStates(
     current: AppointmentStatus
   ): AppointmentStatus[] {
@@ -91,18 +65,7 @@ export class AppointmentStateMachine {
   }
 }
 
-/**
- * Visit State Machine
- *
- * Valid transitions:
- * EXAMINING -> EXAMINED (doctor saves diagnosis)
- * EXAMINED -> COMPLETED (payment completed)
- * EXAMINING -> CANCELLED (patient left, visit cancelled)
- *
- * Terminal states (no transitions allowed):
- * - COMPLETED
- * - CANCELLED
- */
+
 export class VisitStateMachine {
   private static readonly validTransitions: Record<
     VisitStatus,
@@ -111,24 +74,20 @@ export class VisitStateMachine {
     WAITING: ["EXAMINING", "EXAMINED", "CANCELLED"],
     EXAMINING: ["EXAMINED", "CANCELLED"],
     EXAMINED: ["COMPLETED"],
-    COMPLETED: [], // Terminal state - immutable
-    CANCELLED: [], // Terminal state
+    COMPLETED: [], 
+    CANCELLED: [], 
   };
 
-  /**
-   * Check if a state transition is valid
-   */
+  
   static canTransition(from: VisitStatus, to: VisitStatus): boolean {
-    if (from === to) return true; // No change
+    if (from === to) return true; 
     const allowedTransitions = this.validTransitions[from] || [];
     return allowedTransitions.includes(to);
   }
 
-  /**
-   * Validate a state transition, throw error if invalid
-   */
+  
   static validateTransition(from: VisitStatus, to: VisitStatus): void {
-    if (from === to) return; // No change is always valid
+    if (from === to) return; 
 
     if (!this.canTransition(from, to)) {
       throw new Error(
@@ -137,32 +96,24 @@ export class VisitStateMachine {
     }
   }
 
-  /**
-   * Check if a status is terminal (no further transitions allowed)
-   */
+  
   static isTerminal(status: VisitStatus): boolean {
     return status === "COMPLETED" || status === "CANCELLED";
   }
 
-  /**
-   * Get all valid next states from current state
-   */
+  
   static getValidNextStates(current: VisitStatus): VisitStatus[] {
     return this.validTransitions[current] || [];
   }
 
-  /**
-   * CRITICAL: Validate that a visit is not completed before allowing updates
-   */
+  
   static validateNotCompleted(status: VisitStatus): void {
     if (status === "COMPLETED") {
       throw new Error("CANNOT_MODIFY_COMPLETED_VISIT");
     }
   }
 
-  /**
-   * CRITICAL: Validate that a visit is not cancelled before allowing updates
-   */
+  
   static validateNotCancelled(status: VisitStatus): void {
     if (status === "CANCELLED") {
       throw new Error("CANNOT_MODIFY_CANCELLED_VISIT");
