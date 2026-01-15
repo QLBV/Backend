@@ -5,6 +5,7 @@ import { RoleCode } from "../constant/role";
 import { AppointmentStateMachine } from "../utils/stateMachine";
 import { AppointmentStatus } from "../constant/appointment";
 
+// tính giờ khám thực tế = date + shift.startTime + (slot-1)*slotMinutes
 function buildAppointmentTime(
   date: string,
   shiftStart: string,
@@ -24,10 +25,11 @@ export const cancelAppointmentService = async (input: {
   requesterRole: RoleCode;
   requesterPatientId: number | null;
 }) => {
+  //Tìm lịch hẹn theo ID
   const appt = await Appointment.findByPk(input.appointmentId);
   if (!appt) throw new Error("APPOINTMENT_NOT_FOUND");
 
-  // STATE MACHINE: Validate transition from current status to CANCELLED
+  // STATE MACHINE: trạng thái hiện tại có cho phép chuyển sang CANCELLED không?
   AppointmentStateMachine.validateTransition(
     appt.status as AppointmentStatus,
     AppointmentStatus.CANCELLED

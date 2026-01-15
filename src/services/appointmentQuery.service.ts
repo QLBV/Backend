@@ -72,33 +72,31 @@ export const getAppointmentsService = async (q: {
         attributes: ["id", "checkInTime", "diagnosis", "status"],
       },
     ],
-    order: [["date", "ASC"], ["shiftId", "ASC"], ["slotNumber", "ASC"]],
+    order: [
+      ["date", "ASC"],
+      ["shiftId", "ASC"],
+      ["slotNumber", "ASC"],
+    ],
   });
 
   // Debug: Log first appointment to check data structure
   if (appointments.length > 0) {
     const first = appointments[0];
-    console.log("🔍 First appointment data:", {
-      id: first.id,
-      doctorId: first.doctorId,
-      hasDoctor: !!first.doctor,
-      doctorUserId: first.doctor?.userId,
-      hasDoctorUser: !!first.doctor?.user,
-      doctorUserName: first.doctor?.user?.fullName,
-      patientId: first.patientId,
-      hasPatient: !!first.patient,
-      hasPatientUser: !!first.patient?.user,
-      patientUserName: first.patient?.user?.fullName,
-    });
+    console.log(
+      "First appointment data:",
+      first.toJSON ? first.toJSON() : first
+    );
   }
 
   // Serialize appointments to ensure nested associations are properly included
   // Use toJSON() to properly serialize Sequelize instances
   // Add displayStatus field using statusMapper
-  return appointments.map(apt => {
+  // Map symptomInitial to reason for frontend compatibility
+  return appointments.map((apt) => {
     const json = apt.toJSON ? apt.toJSON() : apt;
     return {
       ...json,
+      reason: json.symptomInitial, // Map symptomInitial to reason for frontend
       displayStatus: getDisplayStatus(
         { status: json.status },
         json.visit ? { status: json.visit.status } : null

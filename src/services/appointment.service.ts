@@ -30,10 +30,12 @@ export const createAppointmentService = async (
     symptomInitial,
   } = input;
 
+  // Dùng Transaction để đảm bảo tính nhất quán dữ liệu khi có nhiều người đặt cùng lúc
+  // Neu loi ở bất kỳ bước nào thì hủy toàn bộ, không lưu dữ liệu nửa chừng
   return await sequelize.transaction(
     { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
     async (t) => {
-      // 0) Basic Validations
+      //  Basic Validations
       const today = new Date().toLocaleDateString("en-CA");
       if (date < today) {
         throw new Error("CANNOT_BOOK_PAST_DATE");
@@ -48,12 +50,14 @@ export const createAppointmentService = async (
       // Check patient no-show policy
       const patient = await Patient.findByPk(patientId, { transaction: t });
       if (patient && (patient.noShowCount || 0) >= 3) {
-         // Optionally block if they have too many no-shows
-         // throw new Error("PATIENT_BLOCKED_DUE_TO_NO_SHOWS");
-         console.warn(`Patient ${patientId} has high no-show count: ${patient.noShowCount}`);
+        // Optionally block if they have too many no-shows
+        // throw new Error("PATIENT_BLOCKED_DUE_TO_NO_SHOWS");
+        console.warn(
+          `Patient ${patientId} has high no-show count: ${patient.noShowCount}`
+        );
       }
 
-      // 1) Lock DoctorShift row (xếp hàng đặt lịch theo ca)
+      // Lock DoctorShift row (xếp hàng đặt lịch theo ca)
       const ds = await DoctorShift.findOne({
         where: { doctorId, shiftId, workDate: date },
         transaction: t,
@@ -61,7 +65,29 @@ export const createAppointmentService = async (
       });
       if (!ds) throw new Error("DOCTOR_NOT_ON_DUTY");
 
-      // 2) CRITICAL: Validate patient không book nhiều slot overlap
+      //  Check real-time validation for today's appointments
+      if (date === today) {
+        // Get shift details to check end time
+        const Shift = (await import("../models/Shift")).default;
+        const shift = await Shift.findByPk(shiftId, { transaction: t });
+        
+        if (shift) {
+          const now = new Date();
+          const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:00`;
+          
+          // If shift has already ended, cannot book
+          if (currentTime >= shift.endTime) {
+            throw new Error("SHIFT_ALREADY_ENDED");
+          }
+          
+          console.log(`⏰ Real-time check: Current time ${currentTime}, Shift ends at ${shift.endTime}`);
+        }
+      }
+
+      const effectiveMaxSlots =
+        ds.maxSlots || BOOKING_CONFIG.MAX_SLOTS_PER_SHIFT;
+
+      // Validate patient không book nhiều slot overlap
       // Kiểm tra patient không có appointment khác cùng ngày với status WAITING/CHECKED_IN/IN_PROGRESS
       const patientAppointments = await Appointment.findAll({
         where: {
@@ -93,8 +119,6 @@ export const createAppointmentService = async (
           const existingShift = (existingAppt as any).shift;
           if (!existingShift) continue;
 
-          // Simple overlap check: if shifts overlap, appointments overlap
-          // Shift A: [startA, endA], Shift B: [startB, endB]
           // Overlap if: startA < endB AND startB < endA
           const currentStart = currentShift.startTime;
           const currentEnd = currentShift.endTime;
@@ -108,10 +132,6 @@ export const createAppointmentService = async (
       }
 
       // 3) Giới hạn 40 lịch / ngày (tất cả ca)
-      // Note: Appointment.count() doesn't support pessimistic lock in Sequelize.
-      // However, the DoctorShift lock on line 60 serializes all bookings for this shift,
-      // which prevents race conditions in practice. For additional safety, a database
-      // CHECK constraint should be added (see migration 20260113000001).
       const dayCount = await Appointment.count({
         where: {
           doctorId,
@@ -123,7 +143,7 @@ export const createAppointmentService = async (
       if (dayCount >= BOOKING_CONFIG.MAX_APPOINTMENTS_PER_DAY)
         throw new Error("DAY_FULL");
 
-      // 4) Lấy slot cuối của ca (lock row thật)
+      // Lấy slot cuối của ca (lock row thật)
       const last = await Appointment.findOne({
         where: {
           doctorId,
@@ -137,14 +157,47 @@ export const createAppointmentService = async (
       });
 
       let nextSlot = last ? Number(last.slotNumber) + 1 : 1;
-      if (nextSlot > BOOKING_CONFIG.MAX_SLOTS_PER_SHIFT)
-        throw new Error("SHIFT_FULL");
+      if (nextSlot > effectiveMaxSlots) throw new Error("SHIFT_FULL");
 
-      // 5) Generate appointment code
+      // Validate appointment time doesn't exceed shift end time
+      const Shift = (await import("../models/Shift")).default;
+      const shift = await Shift.findByPk(shiftId, { transaction: t });
+      
+      if (shift) {
+        // Calculate expected appointment time
+        // Each slot is 15 minutes apart, starting from shift start time
+        const SLOT_DURATION_MINUTES = 15;
+        const CONSULTATION_DURATION_MINUTES = 30; // Average consultation time
+        
+        // Parse shift start time (e.g., "14:00:00")
+        const [startHour, startMinute] = shift.startTime.split(":").map(Number);
+        const shiftStartMinutes = startHour * 60 + startMinute;
+        
+        // Calculate appointment start time
+        const appointmentStartMinutes = shiftStartMinutes + (nextSlot - 1) * SLOT_DURATION_MINUTES;
+        
+        // Calculate appointment end time (start + consultation duration)
+        const appointmentEndMinutes = appointmentStartMinutes + CONSULTATION_DURATION_MINUTES;
+        
+        // Parse shift end time
+        const [endHour, endMinute] = shift.endTime.split(":").map(Number);
+        const shiftEndMinutes = endHour * 60 + endMinute;
+        
+        // Check if appointment would exceed shift end time
+        if (appointmentEndMinutes > shiftEndMinutes) {
+          const appointmentEndTime = `${String(Math.floor(appointmentEndMinutes / 60)).padStart(2, "0")}:${String(appointmentEndMinutes % 60).padStart(2, "0")}`;
+          console.log(`⚠️  Slot ${nextSlot} would end at ${appointmentEndTime}, but shift ends at ${shift.endTime}`);
+          throw new Error("APPOINTMENT_EXCEEDS_SHIFT_TIME");
+        }
+        
+        console.log(`✅ Slot ${nextSlot} validation passed: Appointment will end before ${shift.endTime}`);
+      }
+
+      // Generate appointment code
       const appointmentCode = await generateAppointmentCode();
 
-      // 6) Create + retry nếu đụng unique slot
-      while (nextSlot <= BOOKING_CONFIG.MAX_SLOTS_PER_SHIFT) {
+      // Create + retry nếu đụng unique slot
+      while (nextSlot <= effectiveMaxSlots) {
         try {
           const appt = await Appointment.create(
             {
@@ -170,7 +223,6 @@ export const createAppointmentService = async (
           throw err;
         }
       }
-
       throw new Error("SHIFT_FULL");
     }
   );

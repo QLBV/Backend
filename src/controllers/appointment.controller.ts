@@ -6,6 +6,7 @@ import { getAppointmentsService } from "../services/appointmentQuery.service";
 import {
   notifyAppointmentCreated,
   notifyAppointmentCancelled,
+  notifyDoctorChanged,
 } from "../events/appointmentEvents";
 import { getDisplayStatus } from "../utils/statusMapper";
 import * as auditLogService from "../services/auditLog.service";
@@ -91,6 +92,9 @@ export const createAppointment = async (req: Request, res: Response) => {
       CANNOT_BOOK_PAST_DATE: "Không thể đặt lịch cho ngày trong quá khứ",
       DOCTOR_NOT_AVAILABLE: "Bác sĩ hiện không tiếp nhận bệnh nhân",
       PATIENT_BLOCKED_DUE_TO_NO_SHOWS: "Tài khoản bị tạm khóa do vi phạm nội quy (vắng mặt nhiều lần)",
+      SHIFT_ALREADY_ENDED: "Ca khám này đã kết thúc. Vui lòng chọn ca khác hoặc ngày khác",
+      PATIENT_ALREADY_HAS_OVERLAPPING_APPOINTMENT: "Bạn đã có lịch hẹn trùng giờ trong ngày này",
+      APPOINTMENT_EXCEEDS_SHIFT_TIME: "Slot này sẽ kết thúc sau giờ kết thúc ca. Vui lòng chọn slot sớm hơn hoặc ca khác",
     };
 
     return res.status(400).json({
@@ -117,8 +121,18 @@ export const cancelAppointment = async (req: Request, res: Response) => {
       { status: result.status, cancelledBy: req.user!.userId }
     ).catch(err => console.error("Failed to log appointment cancellation audit:", err));
 
+    // Determine cancellation reason based on role
+    let cancellationReason = "Lịch hẹn đã bị hủy";
+    if (role === RoleCode.PATIENT) {
+      cancellationReason = "Bệnh nhân hủy lịch hẹn";
+    } else if (role === RoleCode.RECEPTIONIST || role === RoleCode.ADMIN) {
+      cancellationReason = "Phòng khám hủy lịch hẹn";
+    }
+
+    console.log(`🔔 Triggering cancellation email for appointment ${id}. Reason: ${cancellationReason}`);
+
     //  Emit event để gửi notification hủy lịch
-    notifyAppointmentCancelled(id, "Bệnh nhân hủy lịch");
+    notifyAppointmentCancelled(id, cancellationReason);
 
     // Calculate displayStatus (cancelled appointments have no visit)
     const displayStatus = getDisplayStatus({ status: result.status }, null);
@@ -251,6 +265,7 @@ export const getAppointmentById = async (req: Request, res: Response) => {
     const appointmentData = appointment.toJSON ? appointment.toJSON() : appointment;
     const responseData = {
       ...appointmentData,
+      reason: appointmentData.symptomInitial, // Map symptomInitial to reason for frontend
       displayStatus: getDisplayStatus(
         { status: appointmentData.status },
         appointmentData.visit ? { status: appointmentData.visit.status } : null
@@ -471,16 +486,40 @@ export const updateAppointment = async (req: Request, res: Response) => {
       .logUpdate(req, "appointments", result.appointment.id, oldData, newData)
       .catch((err) => console.error("Failed to log appointment update audit:", err));
 
+    // Detect if doctor changed
+    const doctorChanged = oldData.doctorId !== newData.doctorId;
+
     // Send notification if rescheduled
     if (result.isRescheduled) {
+      console.log(`🔔 Triggering reschedule notification for appointment ${result.appointment.id}`);
+      console.log(`   Old: Doctor ${oldData.doctorId}, Shift ${oldData.shiftId}, Date ${oldData.date}`);
+      console.log(`   New: Doctor ${newData.doctorId}, Shift ${newData.shiftId}, Date ${newData.date}`);
+
       try {
         await sendAppointmentRescheduleNotification(result.appointment.id, {
           doctorId: oldData.doctorId,
           shiftId: oldData.shiftId,
           date: oldData.date,
         });
+        console.log(`✅ Reschedule notification sent successfully`);
       } catch (notifyErr) {
-        console.error("Failed to send reschedule notification:", notifyErr);
+        console.error("❌ Failed to send reschedule notification:", notifyErr);
+      }
+
+      // If doctor changed, notify both doctors
+      if (doctorChanged) {
+        console.log(`🔔 Doctor changed from ${oldData.doctorId} to ${newData.doctorId}. Sending notifications...`);
+        try {
+          await notifyDoctorChanged(
+            result.appointment.id,
+            oldData.doctorId,
+            newData.doctorId,
+            "Lịch hẹn đã được chuyển sang bác sĩ khác"
+          );
+          console.log(`✅ Doctor change notification sent successfully`);
+        } catch (err) {
+          console.error("❌ Failed to send doctor change notification:", err);
+        }
       }
     }
 

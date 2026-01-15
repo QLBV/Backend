@@ -112,7 +112,8 @@ export async function validateNoOverlappingShifts(
 export async function assignDoctorToShiftService(
   doctorId: number,
   shiftId: number,
-  workDate: string
+  workDate: string,
+  maxSlots?: number | null
 ): Promise<DoctorShift> {
   return await sequelize.transaction(
     { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
@@ -140,6 +141,7 @@ export async function assignDoctorToShiftService(
           shiftId,
           workDate,
           status: DoctorShiftStatus.ACTIVE,
+          maxSlots,
         },
         { transaction: t }
       );

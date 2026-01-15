@@ -86,6 +86,19 @@ export const login = async (req: Request, res: Response) => {
     });
   }
 
+  // Kiểm tra email đã được xác thực chưa
+  // Chỉ áp dụng cho Patient (roleId = 3), không bắt buộc cho Admin/Doctor/Staff
+  if (user.roleId === RoleCode.PATIENT && !user.isEmailVerified) {
+    return res.status(403).json({
+      success: false,
+      message: "EMAIL_NOT_VERIFIED",
+      data: {
+        email: user.email,
+        requireVerification: true,
+      },
+    });
+  }
+
   let patientId: number | null = null;
   let doctorId: number | null = null;
 
@@ -244,7 +257,7 @@ export const logout = async (req: Request, res: Response) => {
 };
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import { sendEmail } from "../utils/email"; // Hàm gửi email
+import { sendEmail } from "../services/email.service"; // Hàm gửi email
 
 export const forgotPassword = async (req: Request, res: Response) => {
   const { email } = req.body;
@@ -266,17 +279,44 @@ export const forgotPassword = async (req: Request, res: Response) => {
   user.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // Hết hạn sau 15 phút
   await user.save();
 
-  const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
+  const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-  await sendEmail({
-    to: user.email,
-    subject: "Reset mật khẩu",
-    html: `
-      <p>Bạn đã yêu cầu đặt lại mật khẩu.</p>
-      <p>Link chỉ có hiệu lực trong 15 phút:</p>
-      <a href="${resetLink}">${resetLink}</a>
-    `,
-  });
+  console.log(`🔐 Sending password reset email to: ${user.email}`);
+  console.log(`🔗 Reset link: ${resetLink}`);
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: "Reset mật khẩu - Hệ thống Phòng khám",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Đặt lại mật khẩu</h2>
+          <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản của mình.</p>
+          <p>Vui lòng nhấn vào nút bên dưới để đặt lại mật khẩu:</p>
+          <div style="margin: 30px 0;">
+            <a href="${resetLink}" 
+               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Đặt lại mật khẩu
+            </a>
+          </div>
+          <p style="color: #666; font-size: 14px;">
+            Hoặc copy link sau vào trình duyệt:<br>
+            <a href="${resetLink}" style="color: #2563eb; word-break: break-all;">${resetLink}</a>
+          </p>
+          <p style="color: #666; font-size: 14px;">
+            <strong>Lưu ý:</strong> Link này chỉ có hiệu lực trong <strong>15 phút</strong>.
+          </p>
+          <p style="color: #999; font-size: 12px; margin-top: 30px;">
+            Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.
+          </p>
+        </div>
+      `,
+    });
+    console.log(`✅ Password reset email sent successfully to: ${user.email}`);
+  } catch (error) {
+    console.error(`❌ Failed to send password reset email to ${user.email}:`, error);
+    // Không throw error để không lộ thông tin user tồn tại hay không
+  }
 
   return res.json({
     message: "Nếu email tồn tại, link reset đã được gửi",
@@ -284,30 +324,57 @@ export const forgotPassword = async (req: Request, res: Response) => {
 };
 
 export const resetPassword = async (req: Request, res: Response) => {
-  const { token, newPassword } = req.body;
+  try {
+    const { token, newPassword } = req.body;
 
-  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Token và mật khẩu mới là bắt buộc",
+      });
+    }
 
-  const user = await User.findOne({
-    where: {
-      passwordResetToken: hashedToken,
-      passwordResetExpires: { $gt: new Date() },
-    },
-  });
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-  if (!user) {
-    return res.status(400).json({
-      message: "Token không hợp lệ hoặc đã hết hạn",
+    console.log(`🔐 Attempting password reset with token: ${token.substring(0, 10)}...`);
+
+    // Import Op từ sequelize
+    const { Op } = require("sequelize");
+
+    const user = await User.findOne({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: { [Op.gt]: new Date() }, // ✅ Sử dụng Op.gt thay vì $gt
+      },
+    });
+
+    if (!user) {
+      console.log(`❌ No user found with valid reset token`);
+      return res.status(400).json({
+        success: false,
+        message: "Token không hợp lệ hoặc đã hết hạn",
+      });
+    }
+
+    console.log(`✅ Valid token found for user: ${user.email}`);
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.passwordResetToken = null;
+    user.passwordResetExpires = null;
+
+    await user.save();
+
+    console.log(`✅ Password reset successfully for user: ${user.email}`);
+
+    return res.json({
+      success: true,
+      message: "Đặt lại mật khẩu thành công",
+    });
+  } catch (error) {
+    console.error("❌ Reset password error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi đặt lại mật khẩu",
     });
   }
-
-  user.password = await bcrypt.hash(newPassword, 10);
-  user.passwordResetToken = null;
-  user.passwordResetExpires = null;
-
-  await user.save();
-
-  return res.json({
-    message: "Đặt lại mật khẩu thành công",
-  });
 };

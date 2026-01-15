@@ -202,91 +202,13 @@ export const createPrescriptionService = async (
         await visit.save({ transaction: t });
       }
 
-      // 7b. Update appointment status to COMPLETED (examination + prescription done)
-      appointment.status = "COMPLETED" as any;
-      await appointment.save({ transaction: t });
+      // 7b. Keep appointment IN_PROGRESS (not COMPLETED yet)
+      // Appointment should only complete after payment
 
-      // 8. Ensure invoice exists and sync medicine charges
-      let invoice = await Invoice.findOne({
-        where: { visitId: visit.id },
-        transaction: t,
-        lock: t.LOCK.UPDATE,
-      });
-
-      if (!invoice) {
-        // Create invoice directly to avoid complex dependencies
-        const invoiceCode = await generateInvoiceCode();
-        
-        invoice = await Invoice.create(
-          {
-            invoiceCode,
-            visitId: visit.id,
-            patientId: visit.patientId, // Ensure consistency with visit
-            doctorId: visit.doctorId,
-            examinationFee: 100000,
-            medicineTotalAmount: 0,
-            discount: 0,
-            totalAmount: 100000,
-            paymentStatus: PaymentStatus.UNPAID,
-            paidAmount: 0,
-            createdBy: doctorUserId,
-          },
-          { transaction: t }
-        );
-
-        // Create InvoiceItem for examination
-        await InvoiceItem.create(
-          {
-            invoiceId: invoice.id,
-            itemType: ItemType.EXAMINATION,
-            description: `Khám bệnh`,
-            quantity: 1,
-            unitPrice: 100000,
-            subtotal: 100000,
-          },
-          { transaction: t }
-        );
-      }
-
-      if (invoice) {
-        await InvoiceItem.destroy({
-          where: { invoiceId: invoice.id, itemType: ItemType.MEDICINE },
-          transaction: t,
-        });
-
-        const details = await PrescriptionDetail.findAll({
-          where: { prescriptionId: prescription.id },
-          transaction: t,
-        });
-
-        let medicineTotalAmount = 0;
-
-        for (const detail of details) {
-          const subtotal = Number(detail.quantity) * Number(detail.unitPrice);
-          medicineTotalAmount += subtotal;
-
-          await InvoiceItem.create(
-            {
-              invoiceId: invoice.id,
-              itemType: ItemType.MEDICINE,
-              prescriptionDetailId: detail.id,
-              medicineName: detail.medicineName,
-              quantity: detail.quantity,
-              unitPrice: detail.unitPrice,
-              subtotal,
-            },
-            { transaction: t }
-          );
-        }
-
-        invoice.medicineTotalAmount = medicineTotalAmount;
-        invoice.totalAmount =
-          Number(invoice.examinationFee) +
-          Number(invoice.medicineTotalAmount) -
-          Number(invoice.discount || 0);
-        await invoice.save({ transaction: t });
-      }
-
+      // 8. REMOVED: Invoice items will be created when prescription is LOCKED
+      // This allows patients to review/modify prescription before confirming
+      // See lockPrescriptionService for invoice creation logic
+      
       return prescription;
     }
   );
@@ -540,8 +462,9 @@ export const cancelPrescriptionService = async (
 };
 
 /**
- * Lock prescription (called by payment service)
+ * Lock prescription (called when patient confirms prescription)
  * Once locked, prescription cannot be edited or cancelled
+ * This also creates/updates the invoice with medicine charges
  */
 export const lockPrescriptionService = async (
   prescriptionId: number,
@@ -567,14 +490,107 @@ export const lockPrescriptionService = async (
       throw new Error("PRESCRIPTION_CANCELLED");
     }
 
+    // Lock the prescription
     prescription.status = PrescriptionStatus.LOCKED;
     await prescription.save({ transaction: t });
+
+    // 🆕 CREATE/UPDATE INVOICE when prescription is locked
+    // Get visit info for invoice
+    const visit = await Visit.findByPk(prescription.visitId, { transaction: t });
+    if (!visit) {
+      throw new Error("VISIT_NOT_FOUND");
+    }
+
+    const doctor = await Doctor.findByPk(prescription.doctorId, { transaction: t });
+    const doctorUserId = doctor?.userId || prescription.doctorId;
+
+    // Find or create invoice
+    let invoice = await Invoice.findOne({
+      where: { visitId: visit.id },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+
+    if (!invoice) {
+      // Create invoice if it doesn't exist
+      const invoiceCode = await generateInvoiceCode();
+      
+      invoice = await Invoice.create(
+        {
+          invoiceCode,
+          visitId: visit.id,
+          patientId: visit.patientId,
+          doctorId: visit.doctorId,
+          examinationFee: 100000,
+          medicineTotalAmount: 0,
+          discount: 0,
+          totalAmount: 100000,
+          paymentStatus: PaymentStatus.UNPAID,
+          paidAmount: 0,
+          createdBy: doctorUserId,
+        },
+        { transaction: t }
+      );
+
+      // Create InvoiceItem for examination
+      await InvoiceItem.create(
+        {
+          invoiceId: invoice.id,
+          itemType: ItemType.EXAMINATION,
+          description: `Kham benh`,
+          quantity: 1,
+          unitPrice: 100000,
+          subtotal: 100000,
+        },
+        { transaction: t }
+      );
+    }
+
+    // Clear old medicine items
+    await InvoiceItem.destroy({
+      where: { invoiceId: invoice.id, itemType: ItemType.MEDICINE },
+      transaction: t,
+    });
+
+    // Add medicine items from prescription details
+    const details = await PrescriptionDetail.findAll({
+      where: { prescriptionId: prescription.id },
+      transaction: t,
+    });
+
+    let medicineTotalAmount = 0;
+
+    for (const detail of details) {
+      const subtotal = Number(detail.quantity) * Number(detail.unitPrice);
+      medicineTotalAmount += subtotal;
+
+      await InvoiceItem.create(
+        {
+          invoiceId: invoice.id,
+          itemType: ItemType.MEDICINE,
+          prescriptionDetailId: detail.id,
+          medicineName: detail.medicineName,
+          quantity: detail.quantity,
+          unitPrice: detail.unitPrice,
+          subtotal,
+        },
+        { transaction: t }
+      );
+    }
+
+    // Update invoice totals
+    invoice.medicineTotalAmount = medicineTotalAmount;
+    invoice.totalAmount =
+      Number(invoice.examinationFee) +
+      Number(invoice.medicineTotalAmount) -
+      Number(invoice.discount || 0);
+    await invoice.save({ transaction: t });
 
     if (!transaction) {
       await t.commit();
     }
 
-    return prescription;
+    return { prescription, invoice };
   } catch (error) {
     if (!transaction) {
       await t.rollback();

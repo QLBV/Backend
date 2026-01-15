@@ -16,6 +16,9 @@ interface UserAttributes {
   updatedAt?: Date;
   passwordResetToken?: string | null;
   passwordResetExpires?: Date | null;
+  emailVerificationToken?: string | null;
+  emailVerificationExpires?: Date | null;
+  isEmailVerified?: boolean;
 }
 
 interface UserCreationAttributes
@@ -37,6 +40,9 @@ class User
 
   public passwordResetToken?: string | null;
   public passwordResetExpires?: Date | null;
+  public emailVerificationToken?: string | null;
+  public emailVerificationExpires?: Date | null;
+  public isEmailVerified?: boolean;
   
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -93,6 +99,18 @@ User.init(
     passwordResetExpires: {
       type: DataTypes.DATE,
       allowNull: true,
+    },
+    emailVerificationToken: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    emailVerificationExpires: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    isEmailVerified: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
     },
   },
   {

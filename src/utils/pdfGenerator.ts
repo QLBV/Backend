@@ -291,6 +291,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
 
       // Diagnosis Section
       if (pdfData.diagnosis || pdfData.symptoms) {
+        console.log("[PDF] Rendering diagnosis section with centered header");
         drawSectionHeader(doc, fonts, "CHẨN ĐOÁN VÀ TRIỆU CHỨNG", "📋");
 
         setFont(doc, fonts, false);

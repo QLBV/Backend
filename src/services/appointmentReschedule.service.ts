@@ -3,34 +3,34 @@ import sequelize from "../config/database";
 import Appointment from "../models/Appointment";
 import DoctorShift, { DoctorShiftStatus } from "../models/DoctorShift";
 import Doctor from "../models/Doctor";
-import Specialty from "../models/Specialty";
-import { notifyDoctorChanged } from "../events/appointmentEvents";
+import {
+  notifyAppointmentCancelled,
+  notifyDoctorChanged,
+} from "../events/appointmentEvents";
 
 /**
- * Kết quả của quá trình reschedule
+ * Interface cho ket qua reschedule
  */
 export interface RescheduleResult {
-  success: boolean;
   totalAppointments: number;
   rescheduledCount: number;
   failedCount: number;
-  details: {
+  cancelledCount: number;
+  details: Array<{
     appointmentId: number;
-    patientId: number;
-    oldDoctorId: number;
-    newDoctorId?: number;
     success: boolean;
-    reason?: string;
-  }[];
+    newDoctorId?: number;
+    error?: string;
+  }>;
 }
 
 /**
- * Tìm bác sĩ thay thế phù hợp
- * @param originalDoctorId - ID bác sĩ gốc
- * @param shiftId - ID ca làm việc
- * @param workDate - Ngày làm việc (YYYY-MM-DD)
- * @param transaction - Transaction Sequelize
- * @returns ID của bác sĩ thay thế hoặc null
+ * Tim bac si thay the cho mot ca lam viec
+ * @param originalDoctorId - ID cua bac si goc
+ * @param shiftId - ID ca lam viec
+ * @param workDate - Ngay lam viec (YYYY-MM-DD)
+ * @param transaction - Database transaction
+ * @returns ID cua bac si thay the, hoac null neu khong tim thay
  */
 export async function findReplacementDoctor(
   originalDoctorId: number,
@@ -38,9 +38,9 @@ export async function findReplacementDoctor(
   workDate: string,
   transaction?: Transaction
 ): Promise<number | null> {
-  // 1. Lấy thông tin bác sĩ gốc để biết chuyên khoa
+  // 1. Lay chuyen khoa cua bac si goc
   const originalDoctor = await Doctor.findByPk(originalDoctorId, {
-    include: [{ model: Specialty, as: "specialty" }],
+    attributes: ["specialtyId"],
     transaction,
   });
 
@@ -48,22 +48,23 @@ export async function findReplacementDoctor(
     return null;
   }
 
-  // 2. Tìm các bác sĩ cùng chuyên khoa, đang ACTIVE trong cùng ca và ngày
+  // 2. Tim cac bac si cung chuyen khoa, dang ACTIVE va co lich lam viec trong ca do
   const replacementCandidates = await DoctorShift.findAll({
     where: {
       shiftId,
       workDate,
       status: DoctorShiftStatus.ACTIVE,
-      doctorId: { [Op.ne]: originalDoctorId }, // Khác bác sĩ gốc
+      doctorId: { [Op.ne]: originalDoctorId }, // Khac bac si goc
     },
     include: [
       {
         model: Doctor,
         as: "doctor",
         where: {
-          specialtyId: originalDoctor.specialtyId, // Cùng chuyên khoa
+          specialtyId: originalDoctor.specialtyId, // Cung chuyen khoa
+          isActive: true,
         },
-        required: true,
+        attributes: ["id", "specialtyId"],
       },
     ],
     transaction,
@@ -73,7 +74,7 @@ export async function findReplacementDoctor(
     return null;
   }
 
-  // 3. Đếm số lịch hẹn hiện tại của mỗi bác sĩ trong ca đó
+  // 3. Dem so lich hen hien tai cua moi bac si trong ca do
   const doctorWorkload = await Promise.all(
     replacementCandidates.map(async (candidate) => {
       const appointmentCount = await Appointment.count({
@@ -95,17 +96,19 @@ export async function findReplacementDoctor(
     })
   );
 
-  // 4. Chọn bác sĩ có ít lịch hẹn nhất (load balancing)
-  doctorWorkload.sort((a, b) => a.appointmentCount - b.appointmentCount);
+  // 4. Chon bac si co it lich hen nhat (load balancing)
+  const selectedDoctor = doctorWorkload.reduce((min, current) =>
+    current.appointmentCount < min.appointmentCount ? current : min
+  );
 
-  return doctorWorkload[0].doctorId;
+  return selectedDoctor.doctorId;
 }
 
 /**
- * Hủy ca làm việc của bác sĩ và tự động chuyển lịch hẹn sang bác sĩ thay thế
- * @param doctorShiftId - ID của DoctorShift cần hủy
- * @param cancelReason - Lý do hủy ca
- * @returns Kết quả reschedule
+ * Huy ca lam viec cua bac si va tu dong chuyen lich hen
+ * @param doctorShiftId - ID cua doctor shift can huy
+ * @param cancelReason - Ly do huy ca
+ * @returns RescheduleResult voi thong tin chi tiet
  */
 export async function cancelDoctorShiftAndReschedule(
   doctorShiftId: number,
@@ -114,20 +117,21 @@ export async function cancelDoctorShiftAndReschedule(
   const transaction = await sequelize.transaction();
 
   try {
-    // 1. Lấy thông tin ca làm việc
+    // 1. Lay thong tin ca lam viec can huy
     const doctorShift = await DoctorShift.findByPk(doctorShiftId, {
       transaction,
+      lock: transaction.LOCK.UPDATE,
     });
 
     if (!doctorShift) {
-      throw new Error("Không tìm thấy ca làm việc");
+      throw new Error("Khong tim thay ca lam viec");
     }
 
     if (doctorShift.status !== DoctorShiftStatus.ACTIVE) {
-      throw new Error("Ca làm việc đã được hủy hoặc thay thế");
+      throw new Error("Ca lam viec khong o trang thai hoat dong");
     }
 
-    // 2. Tìm bác sĩ thay thế
+    // 2. Tim bac si thay the (cung chuyen khoa, cung ca)
     const replacementDoctorId = await findReplacementDoctor(
       doctorShift.doctorId,
       doctorShift.shiftId,
@@ -135,7 +139,7 @@ export async function cancelDoctorShiftAndReschedule(
       transaction
     );
 
-    // 3. Lấy tất cả lịch hẹn của bác sĩ trong ca này
+    // 3. Lay tat ca appointments bi anh huong
     const appointments = await Appointment.findAll({
       where: {
         doctorId: doctorShift.doctorId,
@@ -146,76 +150,94 @@ export async function cancelDoctorShiftAndReschedule(
         },
       },
       transaction,
+      lock: transaction.LOCK.UPDATE,
     });
 
     const result: RescheduleResult = {
-      success: false,
       totalAppointments: appointments.length,
       rescheduledCount: 0,
       failedCount: 0,
+      cancelledCount: 0,
       details: [],
     };
 
-    // 4. Xử lý từng lịch hẹn
+    // 4. Xu ly tung lich hen
     for (const appointment of appointments) {
-      if (replacementDoctorId) {
-        // Có bác sĩ thay thế -> chuyển lịch
-        await appointment.update(
-          { doctorId: replacementDoctorId },
-          { transaction }
-        );
+      try {
+        if (replacementDoctorId) {
+          // Co bac si thay the -> chuyen lich
+          const oldDoctorId = appointment.doctorId;
+          await appointment.update(
+            {
+              doctorId: replacementDoctorId,
+            },
+            { transaction }
+          );
 
-        result.rescheduledCount++;
-        result.details.push({
-          appointmentId: appointment.id,
-          patientId: appointment.patientId,
-          oldDoctorId: doctorShift.doctorId,
-          newDoctorId: replacementDoctorId,
-          success: true,
-        });
-      } else {
-        // Không có bác sĩ thay thế -> đánh dấu thất bại
+          result.rescheduledCount++;
+          result.details.push({
+            appointmentId: appointment.id,
+            success: true,
+            newDoctorId: replacementDoctorId,
+          });
+
+          // Emit event de gui notification ve viec doi bac si
+          // Su dung setImmediate de khong block transaction
+          setImmediate(() => {
+            notifyDoctorChanged(
+              appointment.id,
+              oldDoctorId,
+              replacementDoctorId,
+              `Ca lam viec bi huy: ${cancelReason}`
+            );
+          });
+        } else {
+          // Khong co bac si thay the -> huy lich hen
+          await appointment.update(
+            {
+              status: "CANCELLED",
+            },
+            { transaction }
+          );
+
+          result.cancelledCount++;
+          result.details.push({
+            appointmentId: appointment.id,
+            success: false,
+            error: "Khong tim thay bac si thay the",
+          });
+
+          // Emit event de gui notification ve viec huy lich
+          setImmediate(() => {
+            notifyAppointmentCancelled(
+              appointment.id,
+              `Ca lam viec cua bac si bi huy: ${cancelReason}. Khong co bac si thay the cung chuyen khoa.`
+            );
+          });
+        }
+      } catch (error: any) {
         result.failedCount++;
         result.details.push({
           appointmentId: appointment.id,
-          patientId: appointment.patientId,
-          oldDoctorId: doctorShift.doctorId,
           success: false,
-          reason: "Không tìm thấy bác sĩ thay thế cùng chuyên khoa",
+          error: error.message,
         });
       }
     }
 
-    // 5. Cập nhật trạng thái DoctorShift
+    // 5. Cap nhat trang thai ca lam viec
     await doctorShift.update(
       {
-        status: replacementDoctorId
-          ? DoctorShiftStatus.REPLACED
-          : DoctorShiftStatus.CANCELLED,
-        replacedBy: replacementDoctorId,
+        status: DoctorShiftStatus.CANCELLED,
         cancelReason,
+        replacedBy: replacementDoctorId,
       },
       { transaction }
     );
 
+    // 6. Commit transaction
     await transaction.commit();
 
-    // 6. 🆕 Emit events để gửi notifications (sau khi commit thành công)
-    if (replacementDoctorId) {
-      for (const detail of result.details) {
-        if (detail.success && detail.newDoctorId) {
-          // Gửi notification cho từng bệnh nhân về việc đổi bác sĩ
-          notifyDoctorChanged(
-            detail.appointmentId,
-            detail.oldDoctorId,
-            detail.newDoctorId,
-            cancelReason
-          );
-        }
-      }
-    }
-
-    result.success = true;
     return result;
   } catch (error) {
     await transaction.rollback();
@@ -224,9 +246,9 @@ export async function cancelDoctorShiftAndReschedule(
 }
 
 /**
- * Khôi phục ca làm việc đã hủy (nếu chưa có lịch hẹn mới)
- * @param doctorShiftId - ID của DoctorShift cần khôi phục
- * @returns boolean
+ * Khoi phuc ca lam viec da huy (neu chua co lich hen moi)
+ * @param doctorShiftId - ID cua doctor shift can khoi phuc
+ * @returns true neu thanh cong
  */
 export async function restoreCancelledShift(
   doctorShiftId: number
@@ -234,19 +256,20 @@ export async function restoreCancelledShift(
   const transaction = await sequelize.transaction();
 
   try {
+    // 1. Lay thong tin ca lam viec
     const doctorShift = await DoctorShift.findByPk(doctorShiftId, {
       transaction,
     });
 
     if (!doctorShift) {
-      throw new Error("Không tìm thấy ca làm việc");
+      throw new Error("Khong tim thay ca lam viec");
     }
 
     if (doctorShift.status === DoctorShiftStatus.ACTIVE) {
-      throw new Error("Ca làm việc đang hoạt động, không cần khôi phục");
+      throw new Error("Ca lam viec dang hoat dong, khong can khoi phuc");
     }
 
-    // Khôi phục trạng thái
+    // 2. Khoi phuc trang thai
     await doctorShift.update(
       {
         status: DoctorShiftStatus.ACTIVE,

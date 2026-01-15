@@ -246,6 +246,7 @@ export const cancelPrescription = async (req: Request, res: Response) => {
  * Lock prescription (make it non-editable)
  * POST /api/prescriptions/:id/lock
  * Role: DOCTOR (own only)
+ * Also creates invoice with medicine charges
  */
 export const lockPrescription = async (req: Request, res: Response) => {
   try {
@@ -268,18 +269,21 @@ export const lockPrescription = async (req: Request, res: Response) => {
       });
     }
 
-    const prescription = await lockPrescriptionService(Number(id));
+    const result = await lockPrescriptionService(Number(id));
 
     // AUDIT LOG: Log prescription lock
-    await auditLogService.logUpdate(req, "prescriptions", prescription.id,
+    await auditLogService.logUpdate(req, "prescriptions", result.prescription.id,
       { status: "DRAFT" },
-      { status: prescription.status, lockedBy: req.user!.userId }
+      { status: result.prescription.status, lockedBy: req.user!.userId }
     ).catch(err => console.error("Failed to log prescription lock audit:", err));
 
     return res.json({
       success: true,
-      message: "Prescription locked successfully. It can no longer be edited.",
-      data: prescription,
+      message: "Prescription locked successfully. Invoice has been created.",
+      data: {
+        prescription: result.prescription,
+        invoice: result.invoice,
+      },
     });
   } catch (error: any) {
     const errorMessage = error?.message || "Failed to lock prescription";

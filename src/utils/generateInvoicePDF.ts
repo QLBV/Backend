@@ -39,7 +39,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
       clinicName: "HỆ THỐNG QUẢN LÝ PHÒNG KHÁM",
       address: "Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM",
       phone: "(028) 1234 5678",
-      email: "info@clinic.com",
+      email: "support@healos.com",
     },
     "HÓA ĐƠN THANH TOÁN"
   );
@@ -90,7 +90,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
     },
   ];
 
-  drawInfoBox(doc, fonts, "THÔNG TIN BỆNH NHÂN", patientItems, COLORS.lightGray, 3);
+  drawInfoBox(doc, fonts, "THÔNG TIN BỆNH NHÂN", patientItems, COLORS.lightGray, 2);
 
   // Doctor Info
   const doctorItems = [

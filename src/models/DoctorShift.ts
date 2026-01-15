@@ -17,10 +17,11 @@ interface DoctorShiftAttributes {
   status: DoctorShiftStatus;
   replacedBy?: number | null;
   cancelReason?: string | null;
+  maxSlots?: number | null;
 }
 
 interface DoctorShiftCreationAttributes
-  extends Optional<DoctorShiftAttributes, "id" | "status" | "replacedBy" | "cancelReason"> {}
+  extends Optional<DoctorShiftAttributes, "id" | "status" | "replacedBy" | "cancelReason" | "maxSlots"> {}
 
 class DoctorShift
   extends Model<DoctorShiftAttributes, DoctorShiftCreationAttributes>
@@ -33,6 +34,7 @@ class DoctorShift
   public status!: DoctorShiftStatus;
   public replacedBy?: number | null;
   public cancelReason?: string | null;
+  public maxSlots?: number | null;
 
   // Associations
   public shift?: Shift;
@@ -72,6 +74,10 @@ DoctorShift.init(
     },
     cancelReason: {
       type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    maxSlots: {
+      type: DataTypes.INTEGER,
       allowNull: true,
     },
   },

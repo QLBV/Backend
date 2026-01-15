@@ -375,7 +375,10 @@ export const exportInvoicePDF = async (req: Request, res: Response) => {
     const { generateInvoicePDF } = await import("../utils/generateInvoicePDF");
     const doc = await generateInvoicePDF(invoice);
 
-    // Finalize PDF
+    // CRITICAL: Pipe the PDF document to the response
+    doc.pipe(res);
+
+    // Finalize PDF (will trigger stream end after piping completes)
     doc.end();
   } catch (error: any) {
     return res.status(500).json({

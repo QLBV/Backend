@@ -190,6 +190,80 @@ export const getAllSpecialties = async (req: Request, res: Response) => {
 };
 
 /**
+ * Get specialty by ID
+ * GET /api/specialties/:id
+ * Role: PUBLIC
+ */
+export const getSpecialtyById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const specialty = await Specialty.findByPk(id);
+
+    if (!specialty) {
+      return res.status(404).json({
+        success: false,
+        message: "Specialty not found",
+      });
+    }
+
+    return res.json({ success: true, data: specialty });
+  } catch (error) {
+    console.error("Get specialty by id error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Get specialty failed", error });
+  }
+};
+
+/**
+ * Update specialty by ID
+ * PUT /api/specialties/:id
+ * Role: ADMIN
+ */
+export const updateSpecialtyById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, description, isActive } = req.body;
+    const specialty = await Specialty.findByPk(id);
+
+    if (!specialty) {
+      return res.status(404).json({
+        success: false,
+        message: "Specialty not found",
+      });
+    }
+
+    const updateData: Partial<{
+      name: string;
+      description: string;
+      isActive: boolean;
+    }> = {};
+
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (isActive !== undefined) {
+      if (typeof isActive === "boolean") {
+        updateData.isActive = isActive;
+      } else if (typeof isActive === "string") {
+        updateData.isActive = isActive.toLowerCase() === "true";
+      } else {
+        updateData.isActive = Boolean(isActive);
+      }
+    }
+
+    await specialty.update(updateData);
+    await CacheService.invalidate(CacheKeys.SPECIALTIES);
+
+    return res.json({ success: true, data: specialty });
+  } catch (error) {
+    console.error("Update specialty error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Update specialty failed", error });
+  }
+};
+
+/**
  * Get doctors by specialty ID
  * GET /api/specialties/:id/doctors
  * Role: PUBLIC

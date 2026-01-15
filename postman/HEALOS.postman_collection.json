@@ -1,0 +1,422 @@
+{
+  "info": {
+    "name": "HEALOS API",
+    "description": "Healthcare Management System API Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "patient_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "doctor_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "appointment_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', response.data.accessToken);",
+                  "    pm.collectionVariables.set('patient_id', response.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient@test.com\",\n  \"password\": \"Password123!\",\n  \"fullName\": \"Nguyễn Văn A\",\n  \"phone\": \"0901234567\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"gender\": \"male\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('access_token', response.data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"patient@test.com\",\n  \"password\": \"Password123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Appointments",
+      "item": [
+        {
+          "name": "Get Availability",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/availability?doctorId={{doctor_id}}&date=2026-01-20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments", "availability"],
+              "query": [
+                {
+                  "key": "doctorId",
+                  "value": "{{doctor_id}}"
+                },
+                {
+                  "key": "date",
+                  "value": "2026-01-20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Appointment (Online)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('appointment_id', response.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctorId\": {{doctor_id}},\n  \"shiftId\": 1,\n  \"appointmentDate\": \"2026-01-20\",\n  \"reason\": \"Đau đầu kéo dài 3 ngày, chóng mặt\",\n  \"notes\": \"Tiền sử cao huyết áp\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments"]
+            }
+          }
+        },
+        {
+          "name": "Get My Appointments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/my-appointments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments", "my-appointments"]
+            }
+          }
+        },
+        {
+          "name": "Get Appointment Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments", "{{appointment_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Appointment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Có việc đột xuất phải hủy lịch\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments", "{{appointment_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Offline Appointment (Receptionist)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientPhone\": \"0987654321\",\n  \"patientFullName\": \"Trần Thị B\",\n  \"patientEmail\": \"patient2@test.com\",\n  \"doctorId\": {{doctor_id}},\n  \"shiftId\": 1,\n  \"appointmentDate\": \"2026-01-20\",\n  \"reason\": \"Khám sức khỏe định kỳ\",\n  \"status\": \"confirmed\",\n  \"depositAmount\": 200000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/appointments/offline",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments", "offline"]
+            }
+          }
+        },
+        {
+          "name": "Check-in Appointment (Receptionist)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}/check-in",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments", "{{appointment_id}}", "check-in"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Prescriptions",
+      "item": [
+        {
+          "name": "Create Prescription (Doctor)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"visitId\": 1,\n  \"diagnosis\": \"Viêm đường hô hấp trên cấp tính\",\n  \"notes\": \"Nghỉ ngơi, uống nhiều nước\",\n  \"items\": [\n    {\n      \"medicineId\": 1,\n      \"quantity\": 30,\n      \"dosage\": \"1 viên x 3 lần/ngày sau ăn\",\n      \"duration\": \"10 ngày\"\n    },\n    {\n      \"medicineId\": 2,\n      \"quantity\": 20,\n      \"dosage\": \"1 viên x 2 lần/ngày\",\n      \"duration\": \"10 ngày\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/prescriptions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "prescriptions"]
+            }
+          }
+        },
+        {
+          "name": "Lock Prescription (Doctor)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/prescriptions/1/lock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "prescriptions", "1", "lock"]
+            }
+          }
+        },
+        {
+          "name": "Dispense Prescription (Pharmacist)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/prescriptions/1/dispense",
+              "host": ["{{base_url}}"],
+              "path": ["api", "prescriptions", "1", "dispense"]
+            }
+          }
+        },
+        {
+          "name": "Export Prescription PDF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/prescriptions/1/pdf",
+              "host": ["{{base_url}}"],
+              "path": ["api", "prescriptions", "1", "pdf"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invoices & Payments",
+      "item": [
+        {
+          "name": "Create Invoice",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"visitId\": 1,\n  \"patientId\": {{patient_id}},\n  \"items\": [\n    {\n      \"description\": \"Phí khám bệnh\",\n      \"amount\": 200000\n    },\n    {\n      \"description\": \"Thuốc\",\n      \"amount\": 350000\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/invoices",
+              "host": ["{{base_url}}"],
+              "path": ["api", "invoices"]
+            }
+          }
+        },
+        {
+          "name": "Add Payment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 300000,\n  \"method\": \"cash\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/invoices/1/payments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "invoices", "1", "payments"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pharmacy",
+      "item": [
+        {
+          "name": "Get All Medicines",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/medicines",
+              "host": ["{{base_url}}"],
+              "path": ["api", "medicines"]
+            }
+          }
+        },
+        {
+          "name": "Import Stock",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"batchNumber\": \"BATCH-20260115-001\",\n  \"quantity\": 1000,\n  \"expiryDate\": \"2027-12-31\",\n  \"importPrice\": 5000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/medicines/1/import",
+              "host": ["{{base_url}}"],
+              "path": ["api", "medicines", "1", "import"]
+            }
+          }
+        },
+        {
+          "name": "Get Low Stock Medicines",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/medicines/low-stock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "medicines", "low-stock"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

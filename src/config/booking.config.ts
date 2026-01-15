@@ -1,5 +1,5 @@
 export const BOOKING_CONFIG = {
-  MAX_SLOTS_PER_SHIFT: 40,
+  MAX_SLOTS_PER_SHIFT: 10,
   MAX_APPOINTMENTS_PER_DAY: 40, //  giới hạn theo NGÀY cho 1 bác sĩ
   SLOT_MINUTES: 10,
   CANCEL_BEFORE_HOURS: 2,

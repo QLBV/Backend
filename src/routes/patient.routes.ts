@@ -53,7 +53,7 @@ router.get(
 router.get(
   "/:id/medical-history",
   validateNumericId("id"),
-  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.PATIENT),
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST, RoleCode.PATIENT),
   getPatientMedicalHistory
 );
 
@@ -61,7 +61,7 @@ router.get(
 router.get(
   "/:id/prescriptions",
   validateNumericId("id"),
-  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.PATIENT),
+  requireRole(RoleCode.ADMIN, RoleCode.DOCTOR, RoleCode.RECEPTIONIST, RoleCode.PATIENT),
   getPatientPrescriptions
 );
 

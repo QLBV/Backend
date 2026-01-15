@@ -161,7 +161,8 @@ export function drawMedicalHeader(
   doc
     .fontSize(FONTS.sizes.title)
     .fillColor(COLORS.primary)
-    .text(documentTitle.toUpperCase(), {
+    .text(documentTitle.toUpperCase(), SPACING.pageMargin, doc.y, {
+      width: LAYOUT.contentWidth,
       align: "center",
     });
 
@@ -229,9 +230,10 @@ export function drawInfoBox(
   const startY = doc.y;
   const boxWidth = LAYOUT.contentWidth;
 
-  // Calculate box height
+  // Calculate box height (allow for 2-line items)
   const itemsPerColumn = Math.ceil(items.length / columns);
-  const boxHeight = 40 + itemsPerColumn * 18;
+  const rowHeight = 25; // Increased from 18 to allow for wrapped text
+  const boxHeight = 40 + itemsPerColumn * rowHeight;
 
   // Draw box background
   doc
@@ -256,13 +258,13 @@ export function drawInfoBox(
     const row = index % itemsPerColumn;
 
     const x = SPACING.pageMargin + 10 + column * columnWidth;
-    const y = startY + 35 + row * 18;
+    const y = startY + 35 + row * rowHeight;
 
     setFont(doc, fonts, true);
-    doc.text(`${item.label}:`, x, y, { continued: true, width: 100 });
+    doc.text(`${item.label}:`, x, y, { continued: true, width: 70 });
 
     setFont(doc, fonts, false);
-    doc.text(` ${item.value}`, { width: columnWidth - 110 });
+    doc.text(` ${item.value}`, { width: columnWidth - 75, lineBreak: true });
   });
 
   doc.y = startY + boxHeight + SPACING.sectionGap;
@@ -284,7 +286,10 @@ export function drawSectionHeader(
   doc
     .fontSize(FONTS.sizes.heading2)
     .fillColor(COLORS.primary)
-    .text((icon ? `${icon} ` : "") + title.toUpperCase());
+    .text((icon ? `${icon} ` : "") + title.toUpperCase(), SPACING.pageMargin, doc.y, {
+      width: LAYOUT.contentWidth,
+      align: "center"
+    });
 
   doc.moveDown(0.3);
 
@@ -625,20 +630,23 @@ export function drawMetadataBox(
   setFont(doc, fonts, true);
   doc.text(`${leftLabel}:`, SPACING.pageMargin, currentY, { continued: true });
   setFont(doc, fonts, false);
-  doc.text(` ${leftValue}`);
+  doc.text(` ${leftValue}`, { continued: false });
 
-  // Right side
+  // Right side - ensure it uses the SAME Y to align horizontally
   setFont(doc, fonts, true);
+  const rightX = LAYOUT.pageWidth - SPACING.pageMargin - 200;
   doc.text(
     `${rightLabel}:`,
-    LAYOUT.pageWidth - SPACING.pageMargin - 200,
+    rightX,
     currentY,
-    { continued: true, align: "right", width: 200 }
+    { continued: true, width: 100 }
   );
   setFont(doc, fonts, false);
-  doc.text(` ${rightValue}`, { align: "right", width: 200 });
+  doc.text(` ${rightValue}`, { continued: false, width: 100 });
 
-  doc.moveDown(1.5);
+  // Manually set Y to move down properly
+  doc.y = currentY + 15;
+  doc.moveDown(1);
 }
 
 /**

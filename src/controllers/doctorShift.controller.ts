@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { Op } from "sequelize";
 import DoctorShift from "../models/DoctorShift";
 import Doctor from "../models/Doctor";
 import Shift from "../models/Shift";
@@ -8,12 +9,14 @@ import Employee from "../models/Employee";
 import { cancelDoctorShiftAndReschedule } from "../services/appointmentReschedule.service";
 import { assignDoctorToShiftService } from "../services/doctorShift.service";
 import * as auditLogService from "../services/auditLog.service";
+import Appointment from "../models/Appointment";
 
 export const assignDoctorToShift = async (req: Request, res: Response) => {
   try {
     const doctorId = Number(req.body.doctorId);
     const shiftId = Number(req.body.shiftId);
     const workDate = String(req.body.workDate || "").trim(); // YYYY-MM-DD
+    const maxSlots = req.body.maxSlots ? Number(req.body.maxSlots) : null;
 
     if (!doctorId || !shiftId || !workDate) {
       return res.status(400).json({
@@ -34,7 +37,8 @@ export const assignDoctorToShift = async (req: Request, res: Response) => {
     const doctorShift = await assignDoctorToShiftService(
       doctorId,
       shiftId,
-      workDate
+      workDate,
+      maxSlots
     );
 
     // Audit log
@@ -347,6 +351,17 @@ export const getAvailableShifts = async (req: Request, res: Response) => {
     // Get all shifts
     const allShifts = await Shift.findAll();
 
+    // ✅ Check if querying for today
+    const today = new Date().toLocaleDateString("en-CA");
+    const isToday = String(workDate) === today;
+    let currentTime = "";
+
+    if (isToday) {
+      const now = new Date();
+      currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:00`;
+      console.log(`⏰ Querying shifts for today. Current time: ${currentTime}`);
+    }
+
     // Get doctor shifts for the specified date
     const whereCondition: any = { workDate: String(workDate) };
 
@@ -366,6 +381,12 @@ export const getAvailableShifts = async (req: Request, res: Response) => {
     const shiftMap = new Map<number, any>();
 
     allShifts.forEach((shift: any) => {
+      // ✅ Filter out shifts that have already ended (if today)
+      if (isToday && currentTime >= shift.endTime) {
+        console.log(`⏰ Skipping shift "${shift.name}" (${shift.endTime}) - already ended`);
+        return; // Skip this shift
+      }
+
       shiftMap.set(shift.id, {
         shift: shift.toJSON(),
         doctorCount: 0,
@@ -469,11 +490,40 @@ export const getAvailableDoctorsByDate = async (req: Request, res: Response) => 
       ],
     });
 
+    // Fetch booking counts for this date
+    // We count non-cancelled appointments
+    const bookings = await Appointment.findAll({
+      where: {
+        date: String(workDate),
+        status: {
+            [Op.ne]: "CANCELLED"
+        }
+      },
+      attributes: ["doctorId", "shiftId", "status"]
+    });
+
+    // Create a map of booking counts: doctorId_shiftId -> count
+    const bookingMap = new Map<string, number>();
+    bookings.forEach((booking: any) => {
+        if (booking.status !== "CANCELLED" && booking.status !== "NO_SHOW") { // Check status string literals
+            const key = `${booking.doctorId}_${booking.shiftId}`;
+            bookingMap.set(key, (bookingMap.get(key) || 0) + 1);
+        }
+    });
+
     // Group by doctor to get all shifts for each doctor
     const doctorMap = new Map<number, any>();
 
     doctorShifts.forEach((ds: any) => {
       const doctorId = ds.doctor.id;
+      const shiftId = ds.shiftId;
+      
+      const currentBookings = bookingMap.get(`${doctorId}_${shiftId}`) || 0;
+      // Use doctor shift specific maxSlots if available, otherwise global default (e.g. 10 or from config)
+      // Since we don't import config here, let's just pass null if not set, frontend handles fallback? 
+      // Or safer: logic in backend. 
+      // Let's rely on what we have. ds.maxSlots is in model.
+      const maxSlots = ds.maxSlots || 10; // Default fallback if not set
 
       if (!doctorMap.has(doctorId)) {
         doctorMap.set(doctorId, {
@@ -498,6 +548,9 @@ export const getAvailableDoctorsByDate = async (req: Request, res: Response) => 
         shift: ds.shift,
         workDate: ds.workDate,
         status: ds.status,
+        maxSlots: maxSlots,
+        currentBookings: currentBookings,
+        isFull: currentBookings >= maxSlots
       });
       doctorData.shiftCount += 1;
     });

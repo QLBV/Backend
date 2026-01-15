@@ -81,7 +81,7 @@ export const checkInAppointmentService = async (appointmentId: number) => {
         AppointmentStatus.CHECKED_IN
       );
 
-      // CRITICAL: Validate appointment date - prevent check-in for old appointments
+      // Validate appointment date - prevent check-in for old appointments
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const yesterday = new Date(today);
@@ -144,10 +144,13 @@ export const completeVisitService = async (
 ) => {
   return sequelize.transaction(async (t) => {
     // 1. Lấy visit
-    const visit = await Visit.findByPk(visitId, { transaction: t, lock: t.LOCK.UPDATE });
+    const visit = await Visit.findByPk(visitId, {
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
     if (!visit) throw new Error("VISIT_NOT_FOUND");
 
-    // CRITICAL: STATE MACHINE - Enforce immutable rule
+    // STATE MACHINE - Enforce immutable rule
     VisitStateMachine.validateNotCompleted(visit.status);
 
     // STATE MACHINE: Validate visit transition to EXAMINED
@@ -182,7 +185,9 @@ export const completeVisitService = async (
     await visit.save({ transaction: t });
 
     // 3. Keep appointment in progress; completion happens after payment
-    const appointment = await Appointment.findByPk(visit.appointmentId, { transaction: t });
+    const appointment = await Appointment.findByPk(visit.appointmentId, {
+      transaction: t,
+    });
     if (appointment) {
       console.log("[completeVisit] Before update:", {
         appointmentId: appointment.id,

@@ -201,7 +201,7 @@ export async function sendAppointmentCancellation(
     // 4. Gửi email
     const emailSent = await sendEmail({
       to: patientUser.email,
-      subject: "❌ Thông báo hủy lịch khám - Hệ thống Phòng khám",
+      subject: "Thông báo hủy lịch khám - Hệ thống Phòng khám",
       html: emailHtml,
     });
 

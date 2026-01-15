@@ -7,6 +7,11 @@ import {
   forgotPassword,
   resetPassword,
 } from "../controllers/auth.controller";
+import {
+  sendOTP,
+  verifyOTP,
+  resendOTP,
+} from "../controllers/otp.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import {
   registerValidator,
@@ -32,5 +37,10 @@ router.post("/forgot-password", forgotPasswordValidator, forgotPassword);
 
 // Reset mật khẩu
 router.post("/reset-password", resetPasswordValidator, resetPassword);
+
+// Email verification với OTP
+router.post("/send-otp", sendOTP);
+router.post("/verify-otp", verifyOTP);
+router.post("/resend-otp", resendOTP);
 
 export default router;
