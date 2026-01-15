@@ -15,6 +15,12 @@ export default class Appointment extends Model {
   declare bookingType: "ONLINE" | "OFFLINE";
   declare bookedBy: "PATIENT" | "RECEPTIONIST";
   declare symptomInitial?: string;
+  declare patientName?: string;
+  declare patientPhone?: string;
+  declare patientDob?: string | Date;
+  declare patientGender?: "MALE" | "FEMALE" | "OTHER";
+  declare symptomImages?: string[]; // Array of image URLs
+  declare queueNumber?: number | null;
   declare status:
     | "WAITING"
     | "CHECKED_IN"
@@ -47,6 +53,12 @@ Appointment.init(
       allowNull: false,
     },
     symptomInitial: { type: DataTypes.TEXT },
+    patientName: { type: DataTypes.STRING(100), allowNull: true },
+    patientPhone: { type: DataTypes.STRING(20), allowNull: true },
+    patientDob: { type: DataTypes.DATEONLY, allowNull: true },
+    patientGender: { type: DataTypes.ENUM("MALE", "FEMALE", "OTHER"), allowNull: true },
+    symptomImages: { type: DataTypes.JSON }, // Store array of image URLs
+    queueNumber: { type: DataTypes.INTEGER, allowNull: true },
     status: {
       type: DataTypes.ENUM(
         "WAITING",

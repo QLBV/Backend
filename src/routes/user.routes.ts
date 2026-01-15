@@ -24,12 +24,8 @@ const router = Router();
 
 router.use(verifyToken);
 
-// ============ ME ============
-
 router.get("/me/notification-settings", getMyNotificationSettings);
 router.put("/me/notification-settings", updateMyNotificationSettings);
-
-// ============ ADMIN ONLY ============
 
 router.get("/", requireRole(RoleCode.ADMIN), validatePagination, getAllUsers);
 
@@ -49,7 +45,6 @@ router.put(
   updateUser
 );
 
-// Activate user
 router.put(
   "/:id/activate",
   validateNumericId("id"),
@@ -57,7 +52,6 @@ router.put(
   activateUser
 );
 
-// Deactivate user
 router.put(
   "/:id/deactivate",
   validateNumericId("id"),
@@ -65,7 +59,6 @@ router.put(
   deactivateUser
 );
 
-// Change user role
 router.put(
   "/:id/role",
   validateNumericId("id"),

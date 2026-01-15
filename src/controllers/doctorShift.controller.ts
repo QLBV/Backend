@@ -426,6 +426,8 @@ export const getAvailableShifts = async (req: Request, res: Response) => {
 export const getAvailableDoctorsByDate = async (req: Request, res: Response) => {
   try {
     const { workDate, specialtyId } = req.query;
+    
+    console.log("getAvailableDoctorsByDate called with:", { workDate, specialtyId });
 
     if (!workDate) {
       return res.status(400).json({
@@ -489,6 +491,8 @@ export const getAvailableDoctorsByDate = async (req: Request, res: Response) => 
         },
       ],
     });
+    
+    console.log(`Found ${doctorShifts.length} doctor shifts for date ${workDate}`);
 
     // Fetch booking counts for this date
     // We count non-cancelled appointments
@@ -565,7 +569,10 @@ export const getAvailableDoctorsByDate = async (req: Request, res: Response) => 
       date: workDate,
     });
   } catch (error: any) {
-    console.error("Get available doctors by date error:", error);
+    console.error("❌ Get available doctors by date error:");
+    console.error("Error message:", error?.message);
+    console.error("Error stack:", error?.stack);
+    console.error("Full error:", error);
     return res.status(500).json({
       success: false,
       message: error?.message || "Get available doctors by date failed",

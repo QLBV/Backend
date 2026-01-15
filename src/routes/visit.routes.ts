@@ -6,6 +6,9 @@ import {
   getVisits,
   getVisitById,
   getPatientVisits,
+  createReferral,
+  getPendingReferrals,
+  completeReferral,
 } from "../controllers/visit.controller";
 import { verifyToken } from "../middlewares/auth.middlewares";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
@@ -15,6 +18,25 @@ import { validateCompleteVisit } from "../middlewares/validators/visit.validator
 
 const router = Router();
 router.use(verifyToken);
+
+// Referral routes
+router.post(
+  "/referral",
+  requireRole(RoleCode.DOCTOR),
+  createReferral
+);
+
+router.get(
+  "/referrals/pending",
+  requireRole(RoleCode.DOCTOR),
+  getPendingReferrals
+);
+
+router.put(
+  "/referral/complete",
+  requireRole(RoleCode.DOCTOR),
+  completeReferral
+);
 
 router.post(
   "/checkin/:appointmentId",

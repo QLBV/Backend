@@ -7,6 +7,7 @@ import {
   deleteDoctor,
   getAllSpecialties,
   getPublicDoctorsList,
+  getDoctorsOnDuty,
 } from "../controllers/doctor.controller";
 import { requireRole } from "../middlewares/roleCheck.middlewares";
 import { RoleCode } from "../constant/role";
@@ -17,8 +18,17 @@ const router = Router();
 
 // Public routes
 router.get("/public-list", getPublicDoctorsList);
+router.get("/specialties", getAllSpecialties);
 
 router.use(verifyToken);
+
+// Get doctors on duty (for referral selection)
+router.get(
+  "/on-duty",
+  requireRole(RoleCode.DOCTOR, RoleCode.ADMIN, RoleCode.RECEPTIONIST),
+  getDoctorsOnDuty
+);
+
 // Get all doctors (Admin, Receptionist, Doctor)
 router.get("/", requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST, RoleCode.DOCTOR), getAllDoctors);
 

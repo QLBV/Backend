@@ -1,4 +1,4 @@
-﻿import { Request, Response } from "express";
+import { Request, Response } from "express";
 import {
   checkInAppointmentService,
   startExaminationService,
@@ -193,7 +193,7 @@ export const completeVisit = async (req: Request, res: Response) => {
       { status: result.visit.status }
     );
 
-    // Kiểm tra nếu có lỗi khi tạo invoice
+    // Ki?m tra n?u c� l?i khi t?o invoice
     if (result.invoiceError) {
       return res.json({
         success: true,
@@ -432,7 +432,19 @@ export const getVisitById = async (req: Request, res: Response) => {
         });
       }
     } else if (role === RoleCode.DOCTOR) {
-      if (visit.doctorId !== req.user!.doctorId) {
+      const currentDoctorId = req.user!.doctorId;
+      const isPrimaryDoctor = visit.doctorId === currentDoctorId;
+      
+      // Check if this doctor has a referral for this visit
+      let hasReferral = false;
+      if (visit.referralData && visit.referralData.referrals) {
+        hasReferral = visit.referralData.referrals.some(
+          (ref: any) => Number(ref.toDoctorId) === Number(currentDoctorId)
+        );
+      }
+      
+      // Allow access if doctor is either primary doctor or has a referral
+      if (!isPrimaryDoctor && !hasReferral) {
         return res.status(403).json({
           success: false,
           message: "FORBIDDEN",
@@ -525,3 +537,175 @@ export const getPatientVisits = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: e.message });
   }
 };
+
+export const createReferral = async (req: Request, res: Response) => {
+  try {
+    const { visitId, toDoctorId, toSpecialtyId, reason } = req.body;
+    const fromDoctorId = req.user!.doctorId;
+
+    if (!fromDoctorId) {
+      return res.status(400).json({ success: false, message: "DOCTOR_NOT_SETUP" });
+    }
+
+    const Visit = (await import("../models/Visit")).default;
+    const visit = await Visit.findByPk(visitId);
+
+    if (!visit) {
+      return res.status(404).json({ success: false, message: "VISIT_NOT_FOUND" });
+    }
+
+    // Initialize referralData if null
+    const currentReferralData = visit.referralData || { referrals: [] };
+    const referrals = currentReferralData.referrals || [];
+
+    const newReferral = {
+      id: Date.now(), // Simple ID generation
+      fromDoctorId,
+      toDoctorId,
+      toSpecialtyId,
+      reason,
+      isCompleted: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    referrals.push(newReferral);
+
+    await visit.update({
+      referralData: { referrals },
+      // Optional: Update status or other fields if needed
+    });
+
+    return res.json({ success: true, data: newReferral });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getPendingReferrals = async (req: Request, res: Response) => {
+  try {
+    const doctorId = req.user!.doctorId;
+
+    if (!doctorId) {
+      return res.status(400).json({ success: false, message: "DOCTOR_NOT_SETUP" });
+    }
+
+    const Visit = (await import("../models/Visit")).default;
+    const Patient = (await import("../models/Patient")).default;
+    const User = (await import("../models/User")).default;
+    const { Op } = await import("sequelize");
+
+    const visits = await Visit.findAll({
+      where: {
+        status: { [Op.in]: ["EXAMINING", "WAITING"] },
+        referralData: { [Op.ne]: null } as any
+      },
+      include: [
+        {
+          model: Patient,
+          as: "patient",
+          include: [{ model: User, as: "user", attributes: ["fullName", "email"] }]
+        },
+        {
+          model: (await import("../models/Appointment")).default,
+          as: "appointment",
+          required: false
+        }
+      ]
+    });
+
+    const pendingReferrals: any[] = [];
+
+    for (const visit of visits) {
+      if (visit.referralData && visit.referralData.referrals) {
+        const referrals = visit.referralData.referrals;
+        // Find referrals for this doctor that are NOT completed
+        const myPending = referrals.filter((ref: any) => 
+          Number(ref.toDoctorId) === Number(doctorId) && !ref.isCompleted
+        );
+
+        if (myPending.length > 0) {
+          // Add visit info to each referral
+          myPending.forEach((ref: any) => {
+             pendingReferrals.push({
+               ...ref,
+               visit: {
+                 id: visit.id,
+                 patientName: (visit as any).appointment?.patientName || (visit as any).patient?.user?.fullName || (visit as any).patient?.fullName,
+                 patientId: visit.patientId,
+                 visitCode: visit.visitCode,
+                 status: visit.status,
+                 checkInTime: visit.checkInTime
+               }
+             });
+          });
+        }
+      }
+    }
+
+    return res.json({ success: true, data: pendingReferrals });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const completeReferral = async (req: Request, res: Response) => {
+  try {
+    const { visitId, note, vitalSignsUpdate, diagnosis } = req.body;
+    const doctorId = req.user!.doctorId;
+
+    const Visit = (await import("../models/Visit")).default;
+    const visit = await Visit.findByPk(visitId);
+
+    if (!visit) {
+      return res.status(404).json({ success: false, message: "VISIT_NOT_FOUND" });
+    }
+
+    const currentReferralData = visit.referralData || { referrals: [] };
+    const referrals = currentReferralData.referrals || [];
+
+    // Find the pending referral for this doctor
+    let referralFound = false;
+    const updatedReferrals = referrals.map((ref: any) => {
+      if (Number(ref.toDoctorId) === Number(doctorId) && !ref.isCompleted) {
+        referralFound = true;
+        return {
+          ...ref,
+          isCompleted: true,
+          completedAt: new Date().toISOString(),
+          note,
+          vitalSignsUpdate,
+          diagnosis // Store diagnosis in referral record too
+        };
+      }
+      return ref;
+    });
+
+    if (!referralFound) {
+      return res.status(404).json({ success: false, message: "REFERRAL_NOT_FOUND_OR_COMPLETED" });
+    }
+
+    // Merge vital signs if provided
+    let newVitalSigns = visit.vitalSigns || {};
+    if (vitalSignsUpdate) {
+      newVitalSigns = { ...newVitalSigns, ...vitalSignsUpdate };
+    }
+
+    // Update data object
+    const updateData: any = {
+      referralData: { referrals: updatedReferrals },
+      vitalSigns: newVitalSigns
+    };
+
+    // Update diagnosis if provided (consulting doctor can add/update diagnosis)
+    if (diagnosis && diagnosis.trim()) {
+      updateData.diagnosis = diagnosis.trim();
+    }
+
+    await visit.update(updateData);
+
+    return res.json({ success: true, message: "Referral completed" });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+

@@ -82,11 +82,18 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
 
   // Patient Info
   const patientItems = [
-    { label: "Họ và tên", value: (invoice as any).patient?.fullName || "N/A" },
+    { 
+      label: "Họ và tên", 
+      value: (invoice as any).visit?.appointment?.patientName || (invoice as any).patient?.fullName || "N/A" 
+    },
     { label: "Mã BN", value: (invoice as any).patient?.patientCode || "N/A" },
     {
       label: "Điện thoại",
-      value: "N/A", // Phone number not available in Patient model
+      value: (invoice as any).visit?.appointment?.patientPhone || "N/A",
+    },
+    {
+       label: "Ngày sinh",
+       value: (invoice as any).visit?.appointment?.patientDob ? formatDate((invoice as any).visit.appointment.patientDob) : "N/A",
     },
   ];
 
@@ -101,7 +108,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
   drawInfoBox(doc, fonts, "THÔNG TIN BÁC SĨ", doctorItems);
 
   // Invoice Items Section
-  drawSectionHeader(doc, fonts, "CHI TIẾT HÓA ĐƠN", "📋");
+  drawSectionHeader(doc, fonts, "CHI TIẾT HÓA ĐƠN");
 
   // Prepare table data
   const tableData: any[] = [];
@@ -233,7 +240,7 @@ export async function generateInvoicePDF(invoice: any): Promise<PDFKit.PDFDocume
 
   // Payment History
   if ((invoice as any).payments && (invoice as any).payments.length > 0) {
-    drawSectionHeader(doc, fonts, "LỊCH SỬ THANH TOÁN", "💳");
+    drawSectionHeader(doc, fonts, "LỊCH SỬ THANH TOÁN");
 
     const paymentColumns: TableColumn[] = [
       { header: "Ngày thanh toán", width: 120, align: "left" },

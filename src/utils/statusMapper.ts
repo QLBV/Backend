@@ -35,7 +35,7 @@ export function getDisplayStatus(
   }
 
   // Fall back to appointment status
-  if (appointment.status === "WAITING") return "CHỜ XÁC NHẬN";
+  if (appointment.status === "WAITING") return "CHỜ CHECKIN";
   if (appointment.status === "CHECKED_IN") return "CHỜ KHÁM";
   if (appointment.status === "IN_PROGRESS") return "ĐANG KHÁM";
   if (appointment.status === "COMPLETED") return "HOÀN THÀNH";
@@ -53,7 +53,7 @@ export function getDisplayStatus(
  */
 export function getRawStatus(displayStatus: string): string | null {
   const mapping: Record<string, string> = {
-    "CHỜ XÁC NHẬN": "WAITING",
+    "CHỜ CHECKIN": "WAITING",
     "CHỜ KHÁM": "CHECKED_IN",
     "ĐANG KHÁM": "IN_PROGRESS",
     "ĐÃ KHÁM": "IN_PROGRESS", // examined but not paid
@@ -73,7 +73,7 @@ export function getRawStatus(displayStatus: string): string | null {
  */
 export function getStatusColor(displayStatus: string): string {
   const colorMap: Record<string, string> = {
-    "CHỜ XÁC NHẬN": "yellow",
+    "CHỜ CHECKIN": "yellow",
     "CHỜ KHÁM": "blue",
     "ĐANG KHÁM": "orange",
     "ĐÃ KHÁM": "green",

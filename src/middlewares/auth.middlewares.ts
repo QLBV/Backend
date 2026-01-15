@@ -34,12 +34,9 @@ export const verifyToken = async (
       process.env.JWT_SECRET as string
     ) as JwtUserPayload;
 
-    // Luôn gán payload trước
     req.user = decoded;
-    // Lưu token vào request để xử lý đăng xuất sau này
     (req as any).token = token;
 
-    // Bổ sung patientId/doctorId từ DB theo role
     if (decoded.roleId === RoleCode.PATIENT) {
       const patient = await Patient.findOne({
         where: { userId: decoded.userId },

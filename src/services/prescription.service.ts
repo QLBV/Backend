@@ -646,6 +646,13 @@ export const getPrescriptionByIdService = async (prescriptionId: number) => {
       {
         model: Visit,
         as: "visit",
+        include: [
+          {
+            model: Appointment,
+            as: "appointment",
+            required: false,
+          },
+        ],
       },
     ],
   });
@@ -802,6 +809,13 @@ export const getPrescriptionsService = async (params?: {
           model: Visit,
           as: "visit",
           attributes: ["id", "checkInTime", "diagnosis", "symptoms"],
+          include: [
+            {
+              model: Appointment,
+              as: "appointment",
+              required: false,
+            },
+          ],
         },
       ],
       order: [["createdAt", "DESC"]],

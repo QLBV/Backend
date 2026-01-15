@@ -31,6 +31,20 @@ export default class Visit extends Model {
     height?: number;
     spo2?: number;
   };
+  declare referralData?: {
+    referrals: Array<{
+      id: number;
+      fromDoctorId: number;
+      toDoctorId: number;
+      toSpecialtyId: number;
+      reason?: string;
+      isCompleted: boolean;
+      createdAt: string;
+      completedAt?: string;
+      note?: string;
+      vitalSignsUpdate?: any;
+    }>;
+  };
 }
 
 Visit.init(
@@ -56,6 +70,11 @@ Visit.init(
     status: {
       type: DataTypes.ENUM("WAITING", "EXAMINING", "EXAMINED", "COMPLETED"),
       defaultValue: "WAITING",
+    },
+    referralData: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: "Stores referral history: [{fromDoctorId, toDoctorId, reason, ...}]",
     },
     doctorSignature: {
       type: DataTypes.TEXT,

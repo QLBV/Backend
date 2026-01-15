@@ -73,7 +73,16 @@ export const invoiceAssociations = [
       {
         model: Appointment,
         as: "appointment",
-        attributes: ["id", "date", "slotNumber", "status"],
+        attributes: [
+          "id",
+          "date",
+          "slotNumber",
+          "status",
+          "patientName",
+          "patientPhone",
+          "patientDob",
+          "patientGender",
+        ],
         include: [
           {
             model: Shift,

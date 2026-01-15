@@ -21,6 +21,8 @@ import {
   validateCancelAppointment,
 } from "../middlewares/validators/appointment.validators";
 import { validateNumericId } from "../middlewares/validators/common.validators";
+import { uploadSymptomImages as uploadMiddleware } from "../middlewares/uploadSymptomImages.middlewares";
+import { uploadSymptomImages } from "../controllers/appointment.controller";
 
 const router = Router();
 router.use(verifyToken);
@@ -99,5 +101,16 @@ router.put(
   requireRole(RoleCode.ADMIN, RoleCode.RECEPTIONIST),
   markNoShow
 );
+
+// Upload symptom images
+router.post(
+  "/:id/symptoms/images",
+  validateNumericId("id"),
+  requireRole(RoleCode.PATIENT, RoleCode.RECEPTIONIST, RoleCode.ADMIN),
+  uploadMiddleware.array("images", 5),
+  uploadSymptomImages
+);
+
+
 
 export default router;

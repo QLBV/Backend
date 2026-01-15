@@ -15,6 +15,10 @@ interface CreateAppointmentInput {
   bookingType: "ONLINE" | "OFFLINE";
   bookedBy: "PATIENT" | "RECEPTIONIST";
   symptomInitial?: string;
+  patientName?: string;
+  patientPhone?: string;
+  patientDob?: string;
+  patientGender?: "MALE" | "FEMALE" | "OTHER";
 }
 
 export const createAppointmentService = async (
@@ -28,6 +32,10 @@ export const createAppointmentService = async (
     bookingType,
     bookedBy,
     symptomInitial,
+    patientName,
+    patientPhone,
+    patientDob,
+    patientGender,
   } = input;
 
   // Dùng Transaction để đảm bảo tính nhất quán dữ liệu khi có nhiều người đặt cùng lúc
@@ -119,6 +127,20 @@ export const createAppointmentService = async (
           const existingShift = (existingAppt as any).shift;
           if (!existingShift) continue;
 
+          // Get name to compare (account holder's name if null)
+          const existingName = existingAppt.patientName || patient?.fullName;
+          const currentName = patientName || patient?.fullName;
+
+          // Normalize names for comparison
+          const nExisting = existingName?.trim().toLowerCase();
+          const nCurrent = currentName?.trim().toLowerCase();
+
+          // If names are different, it means booking for a relative/different person
+          // So we ALLOW overlap (skip the check)
+          if (nExisting && nCurrent && nExisting !== nCurrent) {
+            continue;
+          }
+
           // Overlap if: startA < endB AND startB < endA
           const currentStart = currentShift.startTime;
           const currentEnd = currentShift.endTime;
@@ -199,6 +221,11 @@ export const createAppointmentService = async (
       // Create + retry nếu đụng unique slot
       while (nextSlot <= effectiveMaxSlots) {
         try {
+
+          // Calculate queue number based on last appointment
+          // Fallback to slotNumber for existing data migration
+          const lastQueueNumber = last?.queueNumber ?? last?.slotNumber ?? 0;
+          
           const appt = await Appointment.create(
             {
               appointmentCode,
@@ -207,9 +234,14 @@ export const createAppointmentService = async (
               shiftId,
               date,
               slotNumber: nextSlot,
+              queueNumber: lastQueueNumber + 1,
               bookingType,
               bookedBy,
               symptomInitial,
+              patientName,
+              patientPhone,
+              patientDob,
+              patientGender,
               status: "WAITING",
             },
             { transaction: t }

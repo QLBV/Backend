@@ -30,19 +30,13 @@ export const validateAssignDoctorShift = [
   validate,
 ];
 
-/**
- * Validator for rescheduling shift
- */
 export const validateRescheduleShift = [
   body("replacementDoctorId")
     .optional({ nullable: true })
     .isInt({ min: 1 })
     .withMessage("Replacement doctor ID must be a positive number"),
 
-  body("reason")
-    .optional()
-    .isString()
-    .withMessage("Reason must be a string"),
+  body("reason").optional().isString().withMessage("Reason must be a string"),
 
   validate,
 ];

@@ -260,11 +260,16 @@ export function drawInfoBox(
     const x = SPACING.pageMargin + 10 + column * columnWidth;
     const y = startY + 35 + row * rowHeight;
 
+    // Draw label
     setFont(doc, fonts, true);
-    doc.text(`${item.label}:`, x, y, { continued: true, width: 70 });
+    doc.text(`${item.label}:`, x, y, { width: 90 });
 
+    // Draw value aligned next to label
     setFont(doc, fonts, false);
-    doc.text(` ${item.value}`, { width: columnWidth - 75, lineBreak: true });
+    doc.text(`${item.value}`, x + 95, y, { 
+      width: columnWidth - 100, 
+      lineBreak: true 
+    });
   });
 
   doc.y = startY + boxHeight + SPACING.sectionGap;
@@ -431,7 +436,7 @@ export function drawMedicineCard(
 ): number {
   const startY = doc.y;
   const cardHeight = 85;
-  const bgColor = backgroundColor || (medicine.index % 2 === 0 ? "#FFFDE7" : "#E8F5E9");
+  const bgColor = backgroundColor || (medicine.index % 2 === 0 ? "#ffffff" : "#ffffff");
 
   // Card background
   doc

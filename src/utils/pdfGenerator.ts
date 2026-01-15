@@ -6,10 +6,7 @@ import { createVietnamesePDF } from "./pdfFontHelper";
  * Format số tiền VND
  */
 export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-  }).format(amount);
+  return new Intl.NumberFormat("vi-VN").format(amount) + " VND";
 };
 
 /**
@@ -46,8 +43,8 @@ export const addPDFHeader = (
   title: string,
   fonts?: { regular: string; bold: string } | null
 ): void => {
-  const regularFont = fonts?.regular ?? "Helvetica";
-  const boldFont = fonts?.bold ?? "Helvetica-Bold";
+  const regularFont = fonts?.regular ?? "Time New Roman";
+  const boldFont = fonts?.bold ?? "Time New Roman";
 
   const startY = 50;
   
@@ -60,7 +57,7 @@ export const addPDFHeader = (
   doc
     .fontSize(9)
     .font(regularFont)
-    .text("Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM", 50, startY + 15, { align: "left", width: 250 });
+    .text("Địa chỉ: Khu phố 34, Phường Linh Xuân, TP.HCM", 50, startY + 15, { align: "left", width: 250 });
   
   doc.text("SĐT: (028) 1234 5678", 50, startY + 30, { align: "left", width: 250 });
 
@@ -100,7 +97,7 @@ export const addPDFFooter = (
   pageNumber: number,
   fonts?: { regular: string; bold: string } | null
 ): void => {
-  const regularFont = fonts?.regular ?? "Helvetica";
+  const regularFont = fonts?.regular ?? "Time New Roman";
   const bottomY = doc.page.height - 50;
 
   doc
@@ -128,8 +125,8 @@ export const drawTable = (
   startY: number,
   fonts?: { regular: string; bold: string } | null
 ): number => {
-  const regularFont = fonts?.regular ?? "Helvetica";
-  const boldFont = fonts?.bold ?? "Helvetica-Bold";
+  const regularFont = fonts?.regular ?? "Time New Roman";
+  const boldFont = fonts?.bold ?? "Time New Roman";
   const startX = 50;
   const rowHeight = 25;
   let currentY = startY;
@@ -243,7 +240,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
         fonts,
         {
           clinicName: "HỆ THỐNG QUẢN LÝ PHÒNG KHÁM",
-          address: "Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM",
+          address: "Địa chỉ: Khu phố 34, Phường Linh Xuân, TP.HCM",
           phone: "(028) 1234 5678",
           email: "info@clinic.com",
         },
@@ -292,7 +289,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
       // Diagnosis Section
       if (pdfData.diagnosis || pdfData.symptoms) {
         console.log("[PDF] Rendering diagnosis section with centered header");
-        drawSectionHeader(doc, fonts, "CHẨN ĐOÁN VÀ TRIỆU CHỨNG", "📋");
+        drawSectionHeader(doc, fonts, "CHẨN ĐOÁN VÀ TRIỆU CHỨNG");
 
         setFont(doc, fonts, false);
         doc.fontSize(10);
@@ -329,7 +326,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
 
       // Medicine Prescription (WITHOUT PRICES)
       if (pdfData.medicines && pdfData.medicines.length > 0) {
-        drawSectionHeader(doc, fonts, "ĐƠN THUỐC", "💊");
+        drawSectionHeader(doc, fonts, "ĐƠN THUỐC");
 
         const { drawMedicineCard } = await import("./medicalPDFTemplate");
 
@@ -357,7 +354,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
       // Notes
       if (pdfData.note) {
         const notes = [pdfData.note];
-        drawNoteBox(doc, fonts, "LƯU Ý", notes, "⚠️");
+        drawNoteBox(doc, fonts, "LƯU Ý", notes);
       }
 
       // Standard medical notes
@@ -367,7 +364,7 @@ export const generatePrescriptionPDF = async (pdfData: any): Promise<Buffer> => 
         "Tái khám nếu có triệu chứng bất thường hoặc không đỡ sau 3-5 ngày",
         "Liên hệ phòng khám ngay nếu có phản ứng phụ với thuốc",
       ];
-      drawNoteBox(doc, fonts, "HƯỚNG DẪN SỬ DỤNG THUỐC", standardNotes, "ℹ️");
+      drawNoteBox(doc, fonts, "HƯỚNG DẪN SỬ DỤNG THUỐC", standardNotes);
 
       // Signature section
       drawSignatureSection(

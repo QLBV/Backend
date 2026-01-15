@@ -53,9 +53,6 @@ interface ExportMedicineInput {
   note?: string;
 }
 
-/**
- * Create a new medicine with auto-generated medicine code
- */
 export const createMedicineService = async (input: CreateMedicineInput) => {
   // Auto-generate medicine code
   const medicineCode = await generateMedicineCode();
@@ -69,9 +66,6 @@ export const createMedicineService = async (input: CreateMedicineInput) => {
   return medicine;
 };
 
-/**
- * Update medicine information (not quantity)
- */
 export const updateMedicineService = async (
   medicineId: number,
   input: UpdateMedicineInput
@@ -87,9 +81,6 @@ export const updateMedicineService = async (
   return medicine;
 };
 
-/**
- * Import medicine stock with transaction
- */
 export const importMedicineService = async (input: ImportMedicineInput) => {
   return await sequelize.transaction(
     {
@@ -131,7 +122,9 @@ export const importMedicineService = async (input: ImportMedicineInput) => {
         sequence = lastSequence + 1;
       }
 
-      const importCode = `IMP-${dateStr}-${sequence.toString().padStart(5, "0")}`;
+      const importCode = `IMP-${dateStr}-${sequence
+        .toString()
+        .padStart(5, "0")}`;
 
       // Create import record
       const importRecord = await MedicineImport.create(
@@ -155,9 +148,6 @@ export const importMedicineService = async (input: ImportMedicineInput) => {
   );
 };
 
-/**
- * Get all medicines with optional filters and pagination
- */
 export const getAllMedicinesService = async (filters?: {
   status?: MedicineStatus;
   group?: string;
@@ -209,9 +199,6 @@ export const getAllMedicinesService = async (filters?: {
   };
 };
 
-/**
- * Get medicine by ID
- */
 export const getMedicineByIdService = async (medicineId: number) => {
   const medicine = await Medicine.findByPk(medicineId);
 
@@ -222,9 +209,6 @@ export const getMedicineByIdService = async (medicineId: number) => {
   return medicine;
 };
 
-/**
- * Get low stock medicines with pagination
- */
 export const getLowStockMedicinesService = async (params?: {
   page?: number;
   limit?: number;
@@ -251,9 +235,6 @@ export const getLowStockMedicinesService = async (params?: {
   };
 };
 
-/**
- * Get medicine import history
- */
 export const getMedicineImportHistoryService = async (medicineId: number) => {
   const imports = await MedicineImport.findAll({
     where: { medicineId },
@@ -263,9 +244,6 @@ export const getMedicineImportHistoryService = async (medicineId: number) => {
   return imports;
 };
 
-/**
- * Get medicine export history
- */
 export const getMedicineExportHistoryService = async (medicineId: number) => {
   const exports = await MedicineExport.findAll({
     where: { medicineId },
@@ -275,9 +253,6 @@ export const getMedicineExportHistoryService = async (medicineId: number) => {
   return exports;
 };
 
-/**
- * Mark medicine as expired
- */
 export const markMedicineAsExpiredService = async (medicineId: number) => {
   const medicine = await Medicine.findByPk(medicineId);
 
@@ -291,9 +266,6 @@ export const markMedicineAsExpiredService = async (medicineId: number) => {
   return medicine;
 };
 
-/**
- * Remove medicine from system (soft delete via status)
- */
 export const removeMedicineService = async (medicineId: number) => {
   const medicine = await Medicine.findByPk(medicineId);
 
@@ -311,10 +283,6 @@ export const removeMedicineService = async (medicineId: number) => {
   return medicine;
 };
 
-/**
- * Get medicines expiring within specified days threshold with pagination
- * Default: 30 days
- */
 export const getExpiringMedicinesService = async (
   daysThreshold: number = 30,
   params?: {
@@ -397,10 +365,6 @@ export const autoMarkExpiredMedicinesService = async () => {
   };
 };
 
-/**
- * Manual export medicine stock with transaction
- * Used for manual exports (expired, damaged, transfer, etc.)
- */
 export const exportMedicineService = async (input: ExportMedicineInput) => {
   return await sequelize.transaction(
     {
@@ -448,7 +412,9 @@ export const exportMedicineService = async (input: ExportMedicineInput) => {
         sequence = lastSequence + 1;
       }
 
-      const exportCode = `EXP-${dateStr}-${sequence.toString().padStart(5, "0")}`;
+      const exportCode = `EXP-${dateStr}-${sequence
+        .toString()
+        .padStart(5, "0")}`;
 
       // Update quantity
       medicine.quantity -= input.quantity;
@@ -473,9 +439,6 @@ export const exportMedicineService = async (input: ExportMedicineInput) => {
   );
 };
 
-/**
- * Get all medicine imports with pagination and filters
- */
 export const getAllMedicineImportsService = async (params?: {
   page?: number;
   limit?: number;

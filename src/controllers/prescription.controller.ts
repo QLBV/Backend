@@ -20,6 +20,7 @@ import DiseaseCategory from "../models/DiseaseCategory";
 import User from "../models/User";
 import PatientProfile from "../models/PatientProfile";
 import Specialty from "../models/Specialty";
+import Appointment from "../models/Appointment";
 import { RoleCode } from "../constant/role";
 import * as auditLogService from "../services/auditLog.service";
 
@@ -568,6 +569,11 @@ export const exportPrescriptionPDF = async (req: Request, res: Response) => {
             {
               model: DiseaseCategory,
             },
+            {
+              model: Appointment,
+              as: "appointment",
+              required: false,
+            },
           ],
         },
       ],
@@ -592,12 +598,12 @@ export const exportPrescriptionPDF = async (req: Request, res: Response) => {
 
     const pdfData = {
       prescriptionCode: prescription.prescriptionCode,
-      patientName: patient?.fullName || patient?.user?.fullName || "N/A",
-      patientPhone: phoneProfile?.value || "N/A",
+      patientName: visit?.appointment?.patientName || patient?.fullName || patient?.user?.fullName || "N/A",
+      patientPhone: visit?.appointment?.patientPhone || phoneProfile?.value || "N/A",
       patientAddress: addressProfile?.value || "N/A",
-      patientGender: patient?.gender,
-      patientAge: patient?.dateOfBirth
-        ? new Date().getFullYear() - new Date(patient.dateOfBirth).getFullYear()
+      patientGender: visit?.appointment?.patientGender || patient?.gender,
+      patientAge: (visit?.appointment?.patientDob || patient?.dateOfBirth)
+        ? new Date().getFullYear() - new Date(visit?.appointment?.patientDob || patient.dateOfBirth).getFullYear()
         : undefined,
       doctorName: doctor?.user?.fullName || "N/A",
       doctorSpecialty: doctor?.specialty?.name || doctor?.specialty || "N/A",

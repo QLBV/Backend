@@ -16,7 +16,7 @@ import { sendAppointmentRescheduleNotification } from "../services/notification.
 
 export const createAppointment = async (req: Request, res: Response) => {
   try {
-    const { doctorId, shiftId, date, symptomInitial } = req.body;
+    const { doctorId, shiftId, date, symptomInitial, patientName, patientPhone, patientDob, patientGender } = req.body;
 
     if (!doctorId || !shiftId || !date) {
       return res.status(400).json({ success: false, message: "MISSING_INPUT" });
@@ -47,6 +47,8 @@ export const createAppointment = async (req: Request, res: Response) => {
       });
     }
 
+
+
     const appointment = await createAppointmentService({
       patientId: Number(patientId),
       doctorId: Number(doctorId),
@@ -55,6 +57,10 @@ export const createAppointment = async (req: Request, res: Response) => {
       bookingType,
       bookedBy,
       symptomInitial,
+      patientName,
+      patientPhone,
+      patientDob,
+      patientGender,
     });
 
     // AUDIT LOG: Log appointment creation
@@ -693,3 +699,68 @@ export const markNoShow = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, message: e.message });
   }
 };
+
+export const uploadSymptomImages = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const Appointment = (await import("../models/Appointment")).default;
+
+    // Find appointment
+    const appointment = await Appointment.findByPk(id);
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: "APPOINTMENT_NOT_FOUND",
+      });
+    }
+
+    // Permission check: only the patient who created the appointment can upload images
+    const role = req.user!.roleId;
+    if (role === RoleCode.PATIENT) {
+      if (appointment.patientId !== req.user!.patientId) {
+        return res.status(403).json({
+          success: false,
+          message: "FORBIDDEN",
+        });
+      }
+    } else if (role !== RoleCode.ADMIN && role !== RoleCode.RECEPTIONIST) {
+      return res.status(403).json({
+        success: false,
+        message: "FORBIDDEN",
+      });
+    }
+
+    // Get uploaded files
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "NO_FILES_UPLOADED",
+      });
+    }
+
+    // Create URLs for uploaded images
+    const imageUrls = files.map(file => `/uploads/symptoms/${file.filename}`);
+
+    // Save image URLs to appointment
+    appointment.symptomImages = imageUrls;
+    await appointment.save();
+
+    // Audit log
+    await auditLogService.logUpdate(req, "appointments", appointment.id,
+      { symptomImages: null },
+      { symptomImages: imageUrls }
+    ).catch(err => console.error("Failed to log symptom images upload audit:", err));
+
+    return res.json({
+      success: true,
+      message: "SYMPTOM_IMAGES_UPLOADED",
+      data: {
+        imageUrls,
+      },
+    });
+  } catch (e: any) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
+};
+
